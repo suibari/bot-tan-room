@@ -40,6 +40,7 @@ const createSpeakCharacter = () => {
       }
     );
     prevSpeakPromise.then(() => {
+      viewer.model?.emoteController?.playEmotion("neutral");
       onComplete?.();
     });
   };

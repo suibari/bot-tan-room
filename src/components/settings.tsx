@@ -65,30 +65,7 @@ export const Settings = ({
               .
             </div>
           </div>
-          <div className="my-40">
-            <div className="my-16 typography-20 font-bold">
-              Character Model
-            </div>
-            <div className="my-8">
-              <TextButton onClick={onClickOpenVrmFile}>Open VRM</TextButton>
-            </div>
-          </div>
-          <div className="my-40">
-            <div className="my-8">
-              <div className="my-16 typography-20 font-bold">
-                System Prompt
-              </div>
-              <TextButton onClick={onClickResetSystemPrompt}>
-                Reset System Prompt
-              </TextButton>
-            </div>
 
-            <textarea
-              value={systemPrompt}
-              onChange={onChangeSystemPrompt}
-              className="px-16 py-8  bg-surface1 hover:bg-surface1-hover h-168 rounded-8 w-full"
-            ></textarea>
-          </div>
           <div className="my-40">
             <div className="my-16 typography-20 font-bold">Voice Settings</div>
             <div>
