@@ -95,47 +95,22 @@ export const Introduction = ({
 
         <div className="my-24">
           <div className="my-8 font-bold typography-20 text-secondary">
-            Koeiromap APIキー
+            Gemini API Key
           </div>
           <input
             type="text"
-            placeholder="XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-            value={koeiroMapKey}
-            onChange={handleKoeiromapKeyChange}
-            className="my-4 px-16 py-8 w-full h-40 bg-surface3 hover:bg-surface3-hover rounded-4 text-ellipsis"
-          ></input>
-          <div>
-            APIキーはrinna Developersから発行してください。
-            <Link
-              url="https://developers.rinna.co.jp/product/#product=koeiromap-free"
-              label="詳細はこちら"
-            />
-          </div>
-        </div>
-        <div className="my-24">
-          <div className="my-8 font-bold typography-20 text-secondary">
-            OpenAI APIキー
-          </div>
-          <input
-            type="text"
-            placeholder="sk-..."
+            placeholder="AIxa..."
             value={openAiKey}
             onChange={handleAiKeyChange}
             className="my-4 px-16 py-8 w-full h-40 bg-surface3 hover:bg-surface3-hover rounded-4 text-ellipsis"
           ></input>
           <div>
-            APIキーは
+            API key is available at
             <Link
-              url="https://platform.openai.com/account/api-keys"
-              label="OpenAIのサイト"
+              url="https://aistudio.google.com/app/apikey"
+              label="Google AI Studio"
             />
-            で取得できます。取得したAPIキーをフォームに入力してください。
-          </div>
-          <div className="my-16">
-            ChatGPT
-            APIはブラウザから直接アクセスしています。また、APIキーや会話内容はピクシブのサーバには保存されません。
-            <br />
-            ※利用しているモデルはChatGPT API (GPT-3.5)です。
+            .
           </div>
         </div>
         <div className="my-24">

@@ -15,33 +15,25 @@ type Props = {
   openAiKey: string;
   systemPrompt: string;
   chatLog: Message[];
-  koeiroParam: KoeiroParam;
-  koeiromapKey: string;
   onClickClose: () => void;
   onChangeAiKey: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onChangeSystemPrompt: (event: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onChangeChatLog: (index: number, text: string) => void;
-  onChangeKoeiroParam: (x: number, y: number) => void;
   onClickOpenVrmFile: () => void;
   onClickResetChatLog: () => void;
   onClickResetSystemPrompt: () => void;
-  onChangeKoeiromapKey: (event: React.ChangeEvent<HTMLInputElement>) => void;
 };
 export const Settings = ({
   openAiKey,
   chatLog,
   systemPrompt,
-  koeiroParam,
-  koeiromapKey,
   onClickClose,
   onChangeSystemPrompt,
   onChangeAiKey,
   onChangeChatLog,
-  onChangeKoeiroParam,
   onClickOpenVrmFile,
   onClickResetChatLog,
   onClickResetSystemPrompt,
-  onChangeKoeiromapKey,
 }: Props) => {
   return (
     <div className="absolute z-40 w-full h-full bg-white/80 backdrop-blur ">
@@ -56,44 +48,38 @@ export const Settings = ({
         <div className="text-text1 max-w-3xl mx-auto px-24 py-64 ">
           <div className="my-24 typography-32 font-bold">設定</div>
           <div className="my-24">
-            <div className="my-16 typography-20 font-bold">OpenAI API キー</div>
+            <div className="my-16 typography-20 font-bold">Gemini API Key</div>
             <input
               className="text-ellipsis px-16 py-8 w-col-span-2 bg-surface1 hover:bg-surface1-hover rounded-8"
               type="text"
-              placeholder="sk-..."
+              placeholder="AIxa..."
               value={openAiKey}
               onChange={onChangeAiKey}
             />
             <div>
-              APIキーは
+              API key is available at
               <Link
-                url="https://platform.openai.com/account/api-keys"
-                label="OpenAIのサイト"
+                url="https://aistudio.google.com/app/apikey"
+                label="Google AI Studio"
               />
-              で取得できます。取得したAPIキーをフォームに入力してください。
-            </div>
-            <div className="my-16">
-              ChatGPT
-              APIはブラウザから直接アクセスしています。また、APIキーや会話内容はピクシブのサーバには保存されません。
-              <br />
-              ※利用しているモデルはChatGPT API (GPT-3.5)です。
+              .
             </div>
           </div>
           <div className="my-40">
             <div className="my-16 typography-20 font-bold">
-              キャラクターモデル
+              Character Model
             </div>
             <div className="my-8">
-              <TextButton onClick={onClickOpenVrmFile}>VRMを開く</TextButton>
+              <TextButton onClick={onClickOpenVrmFile}>Open VRM</TextButton>
             </div>
           </div>
           <div className="my-40">
             <div className="my-8">
               <div className="my-16 typography-20 font-bold">
-                キャラクター設定（システムプロンプト）
+                System Prompt
               </div>
               <TextButton onClick={onClickResetSystemPrompt}>
-                キャラクター設定リセット
+                Reset System Prompt
               </TextButton>
             </div>
 
@@ -104,88 +90,9 @@ export const Settings = ({
             ></textarea>
           </div>
           <div className="my-40">
-            <div className="my-16 typography-20 font-bold">声の調整</div>
+            <div className="my-16 typography-20 font-bold">Voice Settings</div>
             <div>
-              KoemotionのKoeiromap APIを使用しています。詳しくは
-              <Link
-                url="https://koemotion.rinna.co.jp"
-                label="https://koemotion.rinna.co.jp"
-              />
-              をご覧ください。
-            </div>
-            <div className="mt-16 font-bold">API キー</div>
-            <div className="mt-8">
-              <input
-                className="text-ellipsis px-16 py-8 w-col-span-2 bg-surface1 hover:bg-surface1-hover rounded-8"
-                type="text"
-                placeholder="..."
-                value={koeiromapKey}
-                onChange={onChangeKoeiromapKey}
-              />
-            </div>
-
-            <div className="mt-16 font-bold">プリセット</div>
-            <div className="my-8 grid grid-cols-2 gap-[8px]">
-              <TextButton
-                onClick={() =>
-                  onChangeKoeiroParam(PRESET_A.speakerX, PRESET_A.speakerY)
-                }
-              >
-                かわいい
-              </TextButton>
-              <TextButton
-                onClick={() =>
-                  onChangeKoeiroParam(PRESET_B.speakerX, PRESET_B.speakerY)
-                }
-              >
-                元気
-              </TextButton>
-              <TextButton
-                onClick={() =>
-                  onChangeKoeiroParam(PRESET_C.speakerX, PRESET_C.speakerY)
-                }
-              >
-                かっこいい
-              </TextButton>
-              <TextButton
-                onClick={() =>
-                  onChangeKoeiroParam(PRESET_D.speakerX, PRESET_D.speakerY)
-                }
-              >
-                渋い
-              </TextButton>
-            </div>
-            <div className="my-24">
-              <div className="select-none">x : {koeiroParam.speakerX}</div>
-              <input
-                type="range"
-                min={-10}
-                max={10}
-                step={0.001}
-                value={koeiroParam.speakerX}
-                className="mt-8 mb-16 input-range"
-                onChange={(e) => {
-                  onChangeKoeiroParam(
-                    Number(e.target.value),
-                    koeiroParam.speakerY
-                  );
-                }}
-              ></input>
-              <div className="select-none">y : {koeiroParam.speakerY}</div>
-              <input
-                type="range"
-                min={-10}
-                max={10}
-                step={0.001}
-                value={koeiroParam.speakerY}
-                className="mt-8 mb-16 input-range"
-                onChange={(e) => {
-                  onChangeKoeiroParam(
-                    koeiroParam.speakerX,
-                    Number(e.target.value)
-                  );
-                }}
-              ></input>
+              VoiceVox Speaker ID: 8 (Fixed)
             </div>
           </div>
           {chatLog.length > 0 && (

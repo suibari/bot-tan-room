@@ -1,5 +1,5 @@
 import { wait } from "@/utils/wait";
-import { synthesizeVoiceApi } from "./synthesizeVoice";
+import { voicevoxTts } from "../voicevox/voicevox";
 import { Viewer } from "../vrmViewer/viewer";
 import { Screenplay } from "./messages";
 import { Talk } from "./messages";
@@ -51,12 +51,11 @@ export const fetchAudio = async (
   talk: Talk,
   apiKey: string
 ): Promise<ArrayBuffer> => {
-  const ttsVoice = await synthesizeVoiceApi(
+  const ttsVoice = await voicevoxTts(
     talk.message,
     talk.speakerX,
     talk.speakerY,
-    talk.style,
-    apiKey
+    talk.style
   );
   const url = ttsVoice.audio;
 
