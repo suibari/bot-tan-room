@@ -6,6 +6,9 @@ export const SYSTEM_PROMPT = `あなたはこれからuserと仲の良い1人の
 会話文の書式は以下の通りです。
 [{neutral|happy|angry|sad|relaxed}]{会話文}
 
+例:
+[happy]こんにちは！今日もいい日だね。
+
 ---以下、あなたのキャラクター設定---
 ${BOTTAN_CHARACTER_SETTINGS}
 ---以上、あなたのキャラクター設定---
