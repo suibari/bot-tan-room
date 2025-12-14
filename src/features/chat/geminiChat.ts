@@ -4,7 +4,7 @@ export async function getGeminiResponseStream(messages: Message[], userName?: st
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  const res = await fetch("/api/chat", {
+  const res = await fetch(`${process.env.BASE_PATH}/api/chat`, {
     headers: headers,
     method: "POST",
     body: JSON.stringify({ messages, userName }),
