@@ -30,7 +30,7 @@ export async function synthesizeVoiceApi(
     apiKey: apiKey,
   };
 
-  const res = await fetch(`${process.env.BASE_PATH}/api/tts`, {
+  const res = await fetch(`${process.env.BASE_PATH ?? ""}/api/tts`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

@@ -45,7 +45,7 @@ export default function Home() {
     }
 
     // Fetch shared history
-    fetch(`${process.env.BASE_PATH}/api/history`)
+    fetch(`${process.env.BASE_PATH ?? ""}/api/history`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
