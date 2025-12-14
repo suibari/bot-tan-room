@@ -1,7 +1,7 @@
 import { buildUrl } from "@/utils/buildUrl";
 import Head from "next/head";
 export const Meta = () => {
-  const title = "suibari.com ゲストブック";
+  const title = "GuestBook";
   const description =
     "suibari.comのゲストブックです。botたんとおしゃべりできます。";
   const imageUrl = "https://suibari.com/guestbook/ogp.png";
