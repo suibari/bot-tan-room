@@ -1,0 +1,30 @@
+{
+  "meta": {
+    "title": "Bot-tan's GuestBook",
+    "description": "全肯定botたんとおしゃべりできるゲストブックです。あいさつを残していってもらえると嬉しいです。"
+  },
+  "introduction": {
+    "title": "全肯定botたんゲストブック",
+    "description": "全肯定botたんとおしゃべりできるゲストブックです。あいさつを残していってもらえると嬉しいです。",
+    "userNameLabel": "あなたのお名前",
+    "userNamePlaceholder": "お名前を入力してください",
+    "techIntroTitle": "技術紹介",
+    "techIntroText_1": "3Dモデルの表示や操作には",
+    "techIntroText_2": "、 会話文生成には",
+    "techIntroText_3": "、 音声合成には",
+    "techIntroText_4": "を使用しています。",
+    "notesTitle": "利用上の注意",
+    "notesText": "差別的または暴力的な発言、特定の人物を貶めるような発言を、意図的に誘導しないでください。会話履歴はサーバーに保存され、全ユーザーに共有されるので、パスワードなどの情報は入力しないでください。",
+    "startButton": "はじめる"
+  },
+  "menu": {
+    "settings": "設定",
+    "chatLog": "みんなの会話ログ"
+  },
+  "settings": {
+    "title": "設定",
+    "userName": "お名前",
+    "userNamePlaceholder": "お名前を入力してください",
+    "language": "言語設定"
+  }
+}

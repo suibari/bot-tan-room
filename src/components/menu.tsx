@@ -6,48 +6,38 @@ import React, { useCallback, useContext, useRef, useState } from "react";
 import { Settings } from "./settings";
 import { ViewerContext } from "@/features/vrmViewer/viewerContext";
 import { AssistantText } from "./assistantText";
+import { useTranslation } from "next-i18next";
 
 type Props = {
-  systemPrompt: string;
   chatLog: Message[];
   koeiroParam: KoeiroParam;
   assistantMessage: string;
   koeiromapKey: string;
   userName: string;
-  onChangeSystemPrompt: (systemPrompt: string) => void;
   onChangeChatLog: (index: number, text: string) => void;
   onChangeKoeiromapParam: (param: KoeiroParam) => void;
   onChangeUserName: (name: string) => void;
   handleClickResetChatLog: () => void;
-  handleClickResetSystemPrompt: () => void;
   onChangeKoeiromapKey: (key: string) => void;
 };
 export const Menu = ({
-  systemPrompt,
   chatLog,
   koeiroParam,
   assistantMessage,
   koeiromapKey,
   userName,
-  onChangeSystemPrompt,
   onChangeChatLog,
   onChangeKoeiromapParam,
   onChangeUserName,
   handleClickResetChatLog,
-  handleClickResetSystemPrompt,
   onChangeKoeiromapKey,
 }: Props) => {
   const [showSettings, setShowSettings] = useState(false);
   const [showChatLog, setShowChatLog] = useState(false);
   const { viewer } = useContext(ViewerContext);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { t } = useTranslation();
 
-  const handleChangeSystemPrompt = useCallback(
-    (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-      onChangeSystemPrompt(event.target.value);
-    },
-    [onChangeSystemPrompt]
-  );
 
 
 
@@ -99,21 +89,21 @@ export const Menu = ({
         <div className="grid grid-flow-col gap-[8px]">
           <IconButton
             iconName="24/Menu"
-            label="設定"
+            label={t("menu.settings")}
             isProcessing={false}
             onClick={() => setShowSettings(true)}
           ></IconButton>
           {showChatLog ? (
             <IconButton
               iconName="24/CommentOutline"
-              label="みんなの会話ログ"
+              label={t("menu.chatLog")}
               isProcessing={false}
               onClick={() => setShowChatLog(false)}
             />
           ) : (
             <IconButton
               iconName="24/CommentFill"
-              label="みんなの会話ログ"
+              label={t("menu.chatLog")}
               isProcessing={false}
               disabled={chatLog.length <= 0}
               onClick={() => setShowChatLog(true)}
@@ -125,15 +115,12 @@ export const Menu = ({
       {showSettings && (
         <Settings
           chatLog={chatLog}
-          systemPrompt={systemPrompt}
           userName={userName}
           onClickClose={() => setShowSettings(false)}
-          onChangeSystemPrompt={handleChangeSystemPrompt}
           onChangeChatLog={onChangeChatLog}
           onChangeUserName={onChangeUserName}
           onClickOpenVrmFile={handleClickOpenVrmFile}
           onClickResetChatLog={handleClickResetChatLog}
-          onClickResetSystemPrompt={handleClickResetSystemPrompt}
         />
       )}
       {!showChatLog && assistantMessage && (

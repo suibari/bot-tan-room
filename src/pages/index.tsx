@@ -15,6 +15,8 @@ import { Introduction } from "@/components/introduction";
 import { Menu } from "@/components/menu";
 import { GitHubLink } from "@/components/githubLink";
 import { Meta } from "@/components/meta";
+import { GetStaticProps } from "next";
+import { serverSideTranslations } from "next-i18next/serverSideTranslations";
 
 export default function Home() {
   const { viewer } = useContext(ViewerContext);
@@ -214,15 +216,13 @@ export default function Home() {
       await lastSpeakPromise;
       setChatProcessing(false);
     },
-    [systemPrompt, chatLog, handleSpeakAi, koeiroParam]
-
+    [systemPrompt, chatLog, handleSpeakAi, koeiroParam, assistantMessage, userName]
   );
 
   return (
     <div className={"font-M_PLUS_2"}>
       <Meta />
       <Introduction
-
         koeiroMapKey={koeiromapKey}
         onChangeKoeiromapKey={setKoeiromapKey}
         userName={userName}
@@ -234,21 +234,25 @@ export default function Home() {
         onChatProcessStart={handleSendChat}
       />
       <Menu
-
-        systemPrompt={systemPrompt}
         chatLog={chatLog}
         koeiroParam={koeiroParam}
         assistantMessage={assistantMessage}
         koeiromapKey={koeiromapKey}
         userName={userName}
-        onChangeSystemPrompt={setSystemPrompt}
         onChangeChatLog={handleChangeChatLog}
         onChangeKoeiromapParam={setKoeiroParam}
         onChangeUserName={handleChangeUserName}
         handleClickResetChatLog={() => setChatLog([])}
-        handleClickResetSystemPrompt={() => setSystemPrompt(SYSTEM_PROMPT)}
         onChangeKoeiromapKey={setKoeiromapKey}
       />
     </div>
   );
 }
+
+export const getStaticProps: GetStaticProps = async ({ locale }) => {
+  return {
+    props: {
+      ...(await serverSideTranslations(locale ?? 'ja', ['common'])),
+    },
+  };
+};

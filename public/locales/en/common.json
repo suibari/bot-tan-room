@@ -1,0 +1,30 @@
+{
+  "meta": {
+    "title": "Bot-tan's GuestBook",
+    "description": "Talk to a 3D character in your browser!"
+  },
+  "introduction": {
+    "title": "Bot-tan's Guestbook",
+    "description": "This is a guestbook where you can chat with Bot-tan. I'd be happy if you left a greeting.",
+    "userNameLabel": "Your Name",
+    "userNamePlaceholder": "Please enter your name",
+    "techIntroTitle": "Tech Stack",
+    "techIntroText_1": "This app uses ",
+    "techIntroText_2": " for 3D model rendering, ",
+    "techIntroText_3": " for conversation generation, and ",
+    "techIntroText_4": " for voice synthesis.",
+    "notesTitle": "Usage Notes",
+    "notesText": "Please do not intentionally induce discriminatory, violent, or defamatory remarks. Your conversation history will be saved on the server and shared with all users, so please do not enter passwords.",
+    "startButton": "Enter"
+  },
+  "menu": {
+    "settings": "Settings",
+    "chatLog": "Public Chat Log"
+  },
+  "settings": {
+    "title": "Settings",
+    "userName": "Name",
+    "userNamePlaceholder": "Please enter your name",
+    "language": "Language"
+  }
+}

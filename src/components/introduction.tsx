@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { Link } from "./link";
+import { useTranslation } from "next-i18next";
 
 type Props = {
   koeiroMapKey: string;
@@ -14,6 +15,7 @@ export const Introduction = ({
   userName,
   onChangeUserName,
 }: Props) => {
+  const { t } = useTranslation();
   const [opened, setOpened] = useState(true);
 
 
@@ -37,19 +39,19 @@ export const Introduction = ({
       <div className="mx-auto my-auto max-w-3xl max-h-full p-24 overflow-auto bg-white rounded-16">
         <div className="my-24">
           <div className="my-8 font-bold typography-20 text-secondary ">
-            全肯定botたんゲストブック
+            {t("introduction.title")}
           </div>
           <div>
-            全肯定botたんとおしゃべりできるゲストブックです。あいさつを残していってもらえると嬉しいです。
+            {t("introduction.description")}
           </div>
         </div>
         <div className="my-24">
           <div className="my-8 font-bold typography-20 text-secondary">
-            あなたのお名前
+            {t("introduction.userNameLabel")}
           </div>
           <input
             type="text"
-            placeholder="お名前を入力してください"
+            placeholder={t("introduction.userNamePlaceholder")}
             value={userName}
             onChange={handleUserNameChange}
             className="text-ellipsis px-16 py-8 w-col-span-2 bg-surface3 hover:bg-surface3-hover rounded-8"
@@ -57,39 +59,38 @@ export const Introduction = ({
         </div>
         <div className="my-24">
           <div className="my-8 font-bold typography-20 text-secondary">
-            技術紹介
+            {t("introduction.techIntroTitle")}
           </div>
           <div>
-            3Dモデルの表示や操作には
+            {t("introduction.techIntroText_1")}
             <Link
               url={"https://github.com/pixiv/three-vrm"}
               label={"@pixiv/three-vrm"}
             />
-            、 会話文生成には
+            {t("introduction.techIntroText_2")}
             <Link
               url={
                 "https://ai.google.dev/gemini-api/docs"
               }
               label={"Gemini API"}
             />
-            、 音声合成には
+            {t("introduction.techIntroText_3")}
             <Link
               url={
                 "https://voicevox.su-shiki.com/su-shikiapis/"
               }
               label={"VoiceVox API"}
             />
-            を使用しています。
+            {t("introduction.techIntroText_4")}
           </div>
         </div>
 
         <div className="my-24">
           <div className="my-8 font-bold typography-20 text-secondary">
-            利用上の注意
+            {t("introduction.notesTitle")}
           </div>
           <div>
-            差別的または暴力的な発言、特定の人物を貶めるような発言を、意図的に誘導しないでください。
-            会話履歴はサーバーに保存され、全ユーザーに共有されるので、パスワードなどの情報は入力しないでください。
+            {t("introduction.notesText")}
           </div>
         </div>
 
@@ -100,7 +101,7 @@ export const Introduction = ({
             }}
             className="font-bold bg-secondary hover:bg-secondary-hover active:bg-secondary-press disabled:bg-secondary-disabled text-white px-24 py-8 rounded-oval"
           >
-            はじめる
+            {t("introduction.startButton")}
           </button>
         </div>
       </div>
