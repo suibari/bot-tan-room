@@ -8,6 +8,8 @@ const nextConfig = {
     root: process.env.BASE_PATH || "",
   },
   optimizeFonts: false,
+  basePath: "/guestbook",
+  assetPrefix: "/guestbook",
 };
 
 module.exports = nextConfig;
