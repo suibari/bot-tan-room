@@ -67,7 +67,8 @@ export default function Home() {
       onStart?: () => void,
       onEnd?: () => void
     ) => {
-      speakCharacter(screenplay, viewer, koeiromapKey, onStart, onEnd);
+      // speakCharacter now returns a Promise
+      return speakCharacter(screenplay, viewer, koeiromapKey, onStart, onEnd);
     },
     [viewer, koeiromapKey]
   );
@@ -109,6 +110,7 @@ export default function Home() {
           return null;
         }
       );
+      let lastSpeakPromise = Promise.resolve();
       if (stream == null) {
         setChatProcessing(false);
         return;
@@ -160,9 +162,13 @@ export default function Home() {
 
             // 文ごとに音声を生成 & 再生、返答を表示
             const currentAssistantMessage = sentences.join(" ");
-            handleSpeakAi(aiTalks[0], () => {
+            // We store the returned promise to wait for it later
+            const promise = handleSpeakAi(aiTalks[0], () => {
               setAssistantMessage(currentAssistantMessage);
             });
+            if (promise) {
+              lastSpeakPromise = promise as unknown as Promise<void>;
+            }
           }
         }
       } catch (e) {
@@ -179,6 +185,9 @@ export default function Home() {
       ];
 
       setChatLog(messageLogAssistant);
+
+      // Wait for the last speech to finish before unlocking UI
+      await lastSpeakPromise;
       setChatProcessing(false);
     },
     [systemPrompt, chatLog, handleSpeakAi, openAiKey, koeiroParam]
