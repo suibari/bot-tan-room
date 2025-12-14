@@ -67,7 +67,7 @@ export const Settings = ({
                       className="my-8 grid grid-flow-col  grid-cols-[min-content_1fr] gap-x-fixed"
                     >
                       <div className="w-[64px] py-8">
-                        {value.role === "assistant" ? "Character" : "You"}
+                        {value.role === "assistant" ? "bot-tan" : "You"}
                       </div>
                       <input
                         key={index}

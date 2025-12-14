@@ -25,10 +25,10 @@ export const Introduction = ({
       <div className="mx-auto my-auto max-w-3xl max-h-full p-24 overflow-auto bg-white rounded-16">
         <div className="my-24">
           <div className="my-8 font-bold typography-20 text-secondary ">
-            このアプリケーションについて
+            全肯定botたんゲストブック
           </div>
           <div>
-            Webブラウザだけで3Dキャラクターとの会話を、マイクやテキスト入力、音声合成を用いて楽しめます。キャラクター（VRM）の変更や性格設定、音声調整もできます。
+            全肯定botたんとおしゃべりできるゲストブックです。あいさつを残していってもらえると嬉しいです。
           </div>
         </div>
         <div className="my-24">
@@ -44,34 +44,18 @@ export const Introduction = ({
             、 会話文生成には
             <Link
               url={
-                "https://openai.com/blog/introducing-chatgpt-and-whisper-apis"
+                "https://ai.google.dev/gemini-api/docs"
               }
-              label={"ChatGPT API"}
+              label={"Gemini API"}
             />
             、 音声合成には
-            <Link url={"https://koemotion.rinna.co.jp/"} label={"Koemotion"} />
-            の
             <Link
               url={
-                "https://developers.rinna.co.jp/product/#product=koeiromap-free"
+                "https://voicevox.su-shiki.com/su-shikiapis/"
               }
-              label={"Koeiromap API"}
+              label={"VoiceVox API"}
             />
-            を使用しています。 詳細はこちらの
-            <Link
-              url={"https://inside.pixiv.blog/2023/04/28/160000"}
-              label={"技術解説記事"}
-            />
-            をご覧ください。
-          </div>
-          <div className="my-16">
-            このデモはGitHubでソースコードを公開しています。自由に変更や改変をお試しください！
-            <br />
-            リポジトリ：
-            <Link
-              url={"https://github.com/pixiv/ChatVRM"}
-              label={"https://github.com/pixiv/ChatVRM"}
-            />
+            を使用しています。
           </div>
         </div>
 
@@ -80,7 +64,8 @@ export const Introduction = ({
             利用上の注意
           </div>
           <div>
-            差別的または暴力的な発言、特定の人物を貶めるような発言を、意図的に誘導しないでください。また、VRMモデルを使ってキャラクターを差し替える際はモデルの利用条件に従ってください。
+            差別的または暴力的な発言、特定の人物を貶めるような発言を、意図的に誘導しないでください。
+            会話履歴はサーバーに保存され、全ユーザーに共有されるので、パスワードなどの情報は入力しないでください。
           </div>
         </div>
 
