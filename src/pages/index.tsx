@@ -110,7 +110,7 @@ export default function Home() {
       // ユーザーの発言を追加して表示
       const messageLog: Message[] = [
         ...chatLog,
-        { role: "user", content: newMessage },
+        { role: "user", content: newMessage, userName: userName },
       ];
       setChatLog(messageLog);
 
@@ -240,10 +240,11 @@ export default function Home() {
         koeiroParam={koeiroParam}
         assistantMessage={assistantMessage}
         koeiromapKey={koeiromapKey}
-
+        userName={userName}
         onChangeSystemPrompt={setSystemPrompt}
         onChangeChatLog={handleChangeChatLog}
         onChangeKoeiromapParam={setKoeiroParam}
+        onChangeUserName={handleChangeUserName}
         handleClickResetChatLog={() => setChatLog([])}
         handleClickResetSystemPrompt={() => setSystemPrompt(SYSTEM_PROMPT)}
         onChangeKoeiromapKey={setKoeiromapKey}

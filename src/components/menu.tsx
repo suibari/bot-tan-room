@@ -13,9 +13,11 @@ type Props = {
   koeiroParam: KoeiroParam;
   assistantMessage: string;
   koeiromapKey: string;
+  userName: string;
   onChangeSystemPrompt: (systemPrompt: string) => void;
   onChangeChatLog: (index: number, text: string) => void;
   onChangeKoeiromapParam: (param: KoeiroParam) => void;
+  onChangeUserName: (name: string) => void;
   handleClickResetChatLog: () => void;
   handleClickResetSystemPrompt: () => void;
   onChangeKoeiromapKey: (key: string) => void;
@@ -26,9 +28,11 @@ export const Menu = ({
   koeiroParam,
   assistantMessage,
   koeiromapKey,
+  userName,
   onChangeSystemPrompt,
   onChangeChatLog,
   onChangeKoeiromapParam,
+  onChangeUserName,
   handleClickResetChatLog,
   handleClickResetSystemPrompt,
   onChangeKoeiromapKey,
@@ -102,14 +106,14 @@ export const Menu = ({
           {showChatLog ? (
             <IconButton
               iconName="24/CommentOutline"
-              label="会話ログ"
+              label="みんなの会話ログ"
               isProcessing={false}
               onClick={() => setShowChatLog(false)}
             />
           ) : (
             <IconButton
               iconName="24/CommentFill"
-              label="会話ログ"
+              label="みんなの会話ログ"
               isProcessing={false}
               disabled={chatLog.length <= 0}
               onClick={() => setShowChatLog(true)}
@@ -122,9 +126,11 @@ export const Menu = ({
         <Settings
           chatLog={chatLog}
           systemPrompt={systemPrompt}
+          userName={userName}
           onClickClose={() => setShowSettings(false)}
           onChangeSystemPrompt={handleChangeSystemPrompt}
           onChangeChatLog={onChangeChatLog}
+          onChangeUserName={onChangeUserName}
           onClickOpenVrmFile={handleClickOpenVrmFile}
           onClickResetChatLog={handleClickResetChatLog}
           onClickResetSystemPrompt={handleClickResetSystemPrompt}
