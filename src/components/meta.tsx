@@ -4,7 +4,7 @@ export const Meta = () => {
   const title = "GuestBook";
   const description =
     "suibari.comのゲストブックです。botたんとおしゃべりできます。";
-  const imageUrl = "https://suibari.com/guestbook/ogp.png";
+  const imageUrl = "https://guestbook.suibari.com/ogp.png";
   return (
     <Head>
       <title>{title}</title>
