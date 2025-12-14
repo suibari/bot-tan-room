@@ -12,7 +12,16 @@ export async function voicevoxTts(
   const speakerId = 8; // Hardcoded as per requirements
   const url = `https://api.tts.quest/v3/voicevox/synthesis?speaker=${speakerId}&text=${encodeURIComponent(message)}`;
 
-  const res = await fetch(url);
+  let res: Response;
+  while (true) {
+    res = await fetch(url);
+    if (res.status === 429) {
+      console.warn("VoiceVox 429 error, retrying...");
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      continue;
+    }
+    break;
+  }
   const data = await res.json();
 
   if (!data.mp3StreamingUrl) {
