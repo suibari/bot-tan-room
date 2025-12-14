@@ -14,12 +14,15 @@
     "techIntroText_3": " for conversation generation, and ",
     "techIntroText_4": " for voice synthesis.",
     "notesTitle": "Usage Notes",
-    "notesText": "Please do not intentionally induce discriminatory, violent, or defamatory remarks. Your conversation history will be saved on the server and shared with all users, so please do not enter passwords.",
+    "notesText": "Please do not intentionally induce discriminatory, violent, or defamatory remarks. Your conversation history will be saved on the server and shared with all users, so please do not enter sensitive information such as passwords.",
     "startButton": "Enter"
   },
   "menu": {
     "settings": "Settings",
     "chatLog": "Public Chat Log"
+  },
+  "messageInput": {
+    "placeholder": "Enter what you want to ask"
   },
   "settings": {
     "title": "Settings",

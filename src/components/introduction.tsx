@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { Link } from "./link";
 import { useTranslation } from "next-i18next";
+import { useRouter } from "next/router";
 
 type Props = {
   koeiroMapKey: string;
@@ -16,9 +17,8 @@ export const Introduction = ({
   onChangeUserName,
 }: Props) => {
   const { t } = useTranslation();
+  const router = useRouter();
   const [opened, setOpened] = useState(true);
-
-
 
   const handleKoeiromapKeyChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -38,8 +38,36 @@ export const Introduction = ({
     <div className="absolute z-40 w-full h-full px-24 py-40  bg-black/30 font-M_PLUS_2">
       <div className="mx-auto my-auto max-w-3xl max-h-full p-24 overflow-auto bg-white rounded-16">
         <div className="my-24">
-          <div className="my-8 font-bold typography-20 text-secondary ">
-            {t("introduction.title")}
+          <div className="flex justify-between items-center my-8">
+            <div className="font-bold typography-20 text-secondary ">
+              {t("introduction.title")}
+            </div>
+            <div className="flex gap-2">
+              <button
+                className={`${router.locale === "ja"
+                  ? "bg-secondary text-white"
+                  : "bg-surface3 text-text1 hover:bg-surface3-hover"
+                  } px-24 py-8 rounded-oval font-bold`}
+                onClick={() => {
+                  const { pathname, asPath, query } = router;
+                  router.push({ pathname, query }, asPath, { locale: 'ja' });
+                }}
+              >
+                日本語
+              </button>
+              <button
+                className={`${router.locale === "en"
+                  ? "bg-secondary text-white"
+                  : "bg-surface3 text-text1 hover:bg-surface3-hover"
+                  } px-24 py-8 rounded-oval font-bold`}
+                onClick={() => {
+                  const { pathname, asPath, query } = router;
+                  router.push({ pathname, query }, asPath, { locale: 'en' });
+                }}
+              >
+                English
+              </button>
+            </div>
           </div>
           <div>
             {t("introduction.description")}

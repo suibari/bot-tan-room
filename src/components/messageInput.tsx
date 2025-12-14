@@ -1,4 +1,5 @@
 import { IconButton } from "./iconButton";
+import { useTranslation } from "next-i18next";
 
 type Props = {
   userMessage: string;
@@ -18,6 +19,8 @@ export const MessageInput = ({
   onClickMicButton,
   onClickSendButton,
 }: Props) => {
+  const { t } = useTranslation();
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.nativeEvent.isComposing && !e.shiftKey) {
       if (!isChatProcessing && userMessage) {
@@ -40,7 +43,7 @@ export const MessageInput = ({
             />
             <input
               type="text"
-              placeholder={"聞きたいことをいれてね"}
+              placeholder={t("messageInput.placeholder")}
               onChange={onChangeUserMessage}
               onKeyDown={handleKeyDown}
               disabled={isChatProcessing}

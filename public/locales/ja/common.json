@@ -21,6 +21,9 @@
     "settings": "設定",
     "chatLog": "みんなの会話ログ"
   },
+  "messageInput": {
+    "placeholder": "聞きたいことをいれてね"
+  },
   "settings": {
     "title": "設定",
     "userName": "お名前",

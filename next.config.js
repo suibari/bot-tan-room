@@ -11,6 +11,7 @@ const nextConfig = {
     root: process.env.BASE_PATH || "",
   },
   optimizeFonts: false,
+  transpilePackages: ['@charcoal-ui/icons'],
 };
 
 module.exports = nextConfig;

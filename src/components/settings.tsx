@@ -49,24 +49,30 @@ export const Settings = ({
           <div className="my-24">
             <div className="my-8 font-bold typography-20">{t("settings.language")}</div>
             <div className="flex gap-2">
-              <TextButton
+              <button
+                className={`${router.locale === "ja"
+                    ? "bg-primary text-white"
+                    : "bg-surface3 text-text1 hover:bg-surface3-hover"
+                  } px-24 py-8 rounded-oval font-bold`}
                 onClick={() => {
                   const { pathname, asPath, query } = router;
                   router.push({ pathname, query }, asPath, { locale: 'ja' });
                 }}
-                disabled={router.locale === "ja"}
               >
                 日本語
-              </TextButton>
-              <TextButton
+              </button>
+              <button
+                className={`${router.locale === "en"
+                    ? "bg-primary text-white"
+                    : "bg-surface3 text-text1 hover:bg-surface3-hover"
+                  } px-24 py-8 rounded-oval font-bold`}
                 onClick={() => {
                   const { pathname, asPath, query } = router;
                   router.push({ pathname, query }, asPath, { locale: 'en' });
                 }}
-                disabled={router.locale === "en"}
               >
                 English
-              </TextButton>
+              </button>
             </div>
           </div>
           <div className="my-24">
