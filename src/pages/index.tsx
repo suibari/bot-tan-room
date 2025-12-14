@@ -20,7 +20,7 @@ export default function Home() {
   const { viewer } = useContext(ViewerContext);
 
   const [systemPrompt, setSystemPrompt] = useState(SYSTEM_PROMPT);
-  const [openAiKey, setOpenAiKey] = useState("");
+
   const [koeiromapKey, setKoeiromapKey] = useState("");
   const [koeiroParam, setKoeiroParam] = useState<KoeiroParam>(DEFAULT_PARAM);
   const [chatProcessing, setChatProcessing] = useState(false);
@@ -78,10 +78,7 @@ export default function Home() {
    */
   const handleSendChat = useCallback(
     async (text: string) => {
-      if (!openAiKey) {
-        setAssistantMessage("APIキーが入力されていません");
-        return;
-      }
+
 
       const newMessage = text;
 
@@ -104,7 +101,7 @@ export default function Home() {
         ...messageLog,
       ];
 
-      const stream = await getGeminiResponseStream(messages, openAiKey).catch(
+      const stream = await getGeminiResponseStream(messages).catch(
         (e) => {
           console.error(e);
           return null;
@@ -190,16 +187,17 @@ export default function Home() {
       await lastSpeakPromise;
       setChatProcessing(false);
     },
-    [systemPrompt, chatLog, handleSpeakAi, openAiKey, koeiroParam]
+    [systemPrompt, chatLog, handleSpeakAi, koeiroParam]
+
   );
 
   return (
     <div className={"font-M_PLUS_2"}>
       <Meta />
       <Introduction
-        openAiKey={openAiKey}
+
         koeiroMapKey={koeiromapKey}
-        onChangeAiKey={setOpenAiKey}
+
         onChangeKoeiromapKey={setKoeiromapKey}
       />
       <VrmViewer />
@@ -208,13 +206,13 @@ export default function Home() {
         onChatProcessStart={handleSendChat}
       />
       <Menu
-        openAiKey={openAiKey}
+
         systemPrompt={systemPrompt}
         chatLog={chatLog}
         koeiroParam={koeiroParam}
         assistantMessage={assistantMessage}
         koeiromapKey={koeiromapKey}
-        onChangeAiKey={setOpenAiKey}
+
         onChangeSystemPrompt={setSystemPrompt}
         onChangeChatLog={handleChangeChatLog}
         onChangeKoeiromapParam={setKoeiroParam}

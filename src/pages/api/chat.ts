@@ -1,38 +1,82 @@
-import { Configuration, OpenAIApi } from "openai";
-
+import { GoogleGenAI } from "@google/genai";
 import type { NextApiRequest, NextApiResponse } from "next";
-
-type Data = {
-  message: string;
-};
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<Data>
+  res: NextApiResponse
 ) {
-  const apiKey = req.body.apiKey || process.env.OPEN_AI_KEY;
-
-  if (!apiKey) {
-    res
-      .status(400)
-      .json({ message: "APIキーが間違っているか、設定されていません。" });
-
+  if (req.method !== 'POST') {
+    res.status(405).json({ message: 'Method Not Allowed' });
     return;
   }
 
-  const configuration = new Configuration({
-    apiKey: apiKey,
-  });
+  const apiKey = process.env.GEMINI_API_KEY;
 
-  const openai = new OpenAIApi(configuration);
+  if (!apiKey) {
+    console.error("GEMINI_API_KEY is not set");
+    res.status(500).json({ message: "API Key not set in environment" });
+    return;
+  }
 
-  const { data } = await openai.createChatCompletion({
-    model: "gpt-3.5-turbo",
-    messages: req.body.messages,
-  });
+  const { messages } = req.body;
 
-  const [aiRes] = data.choices;
-  const message = aiRes.message?.content || "エラーが発生しました";
+  if (!messages || !Array.isArray(messages)) {
+    res.status(400).json({ message: "Invalid messages format" });
+    return;
+  }
 
-  res.status(200).json({ message: message });
+  const client = new GoogleGenAI({ apiKey });
+
+  // System prompt logic
+  const systemInstruction = messages.find((m: any) => m.role === 'system')?.content;
+
+  const history = messages
+    .filter((m: any) => m.role !== 'system')
+    .map((m: any) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: m.content }],
+    }));
+
+  const lastMessage = history.pop();
+
+  if (!lastMessage) {
+    res.status(400).json({ message: "No user message found" });
+    return;
+  }
+
+  try {
+    const streamResult = await client.models.generateContentStream({
+      model: 'gemini-2.0-flash',
+      config: {
+        systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
+      },
+      contents: [
+        ...history,
+        lastMessage
+      ]
+    });
+
+    // Set headers for streaming
+    res.writeHead(200, {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Transfer-Encoding': 'chunked',
+    });
+
+    for await (const chunk of streamResult) {
+      const chunkText = chunk.text;
+      if (chunkText) {
+        res.write(chunkText);
+      }
+    }
+
+    res.end();
+
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    if (!res.headersSent) {
+      res.status(500).json({ message: "Internal Server Error" });
+    } else {
+      res.end();
+    }
+  }
 }

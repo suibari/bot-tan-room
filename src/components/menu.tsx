@@ -8,14 +8,12 @@ import { ViewerContext } from "@/features/vrmViewer/viewerContext";
 import { AssistantText } from "./assistantText";
 
 type Props = {
-  openAiKey: string;
   systemPrompt: string;
   chatLog: Message[];
   koeiroParam: KoeiroParam;
   assistantMessage: string;
   koeiromapKey: string;
   onChangeSystemPrompt: (systemPrompt: string) => void;
-  onChangeAiKey: (key: string) => void;
   onChangeChatLog: (index: number, text: string) => void;
   onChangeKoeiromapParam: (param: KoeiroParam) => void;
   handleClickResetChatLog: () => void;
@@ -23,14 +21,12 @@ type Props = {
   onChangeKoeiromapKey: (key: string) => void;
 };
 export const Menu = ({
-  openAiKey,
   systemPrompt,
   chatLog,
   koeiroParam,
   assistantMessage,
   koeiromapKey,
   onChangeSystemPrompt,
-  onChangeAiKey,
   onChangeChatLog,
   onChangeKoeiromapParam,
   handleClickResetChatLog,
@@ -49,12 +45,7 @@ export const Menu = ({
     [onChangeSystemPrompt]
   );
 
-  const handleAiKeyChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      onChangeAiKey(event.target.value);
-    },
-    [onChangeAiKey]
-  );
+
 
   const handleChangeKoeiromapKey = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -129,11 +120,9 @@ export const Menu = ({
       {showChatLog && <ChatLog messages={chatLog} />}
       {showSettings && (
         <Settings
-          openAiKey={openAiKey}
           chatLog={chatLog}
           systemPrompt={systemPrompt}
           onClickClose={() => setShowSettings(false)}
-          onChangeAiKey={handleAiKeyChange}
           onChangeSystemPrompt={handleChangeSystemPrompt}
           onChangeChatLog={onChangeChatLog}
           onClickOpenVrmFile={handleClickOpenVrmFile}
