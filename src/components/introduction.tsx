@@ -4,10 +4,15 @@ import { Link } from "./link";
 type Props = {
   koeiroMapKey: string;
   onChangeKoeiromapKey: (koeiromapKey: string) => void;
+  // User Name
+  userName: string;
+  onChangeUserName: (userName: string) => void;
 };
 export const Introduction = ({
   koeiroMapKey,
   onChangeKoeiromapKey,
+  userName,
+  onChangeUserName,
 }: Props) => {
   const [opened, setOpened] = useState(true);
 
@@ -20,6 +25,13 @@ export const Introduction = ({
     [onChangeKoeiromapKey]
   );
 
+  const handleUserNameChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      onChangeUserName(event.target.value);
+    },
+    [onChangeUserName]
+  );
+
   return opened ? (
     <div className="absolute z-40 w-full h-full px-24 py-40  bg-black/30 font-M_PLUS_2">
       <div className="mx-auto my-auto max-w-3xl max-h-full p-24 overflow-auto bg-white rounded-16">
@@ -30,6 +42,18 @@ export const Introduction = ({
           <div>
             全肯定botたんとおしゃべりできるゲストブックです。あいさつを残していってもらえると嬉しいです。
           </div>
+        </div>
+        <div className="my-24">
+          <div className="my-8 font-bold typography-20 text-secondary">
+            あなたのお名前
+          </div>
+          <input
+            type="text"
+            placeholder="お名前を入力してください"
+            value={userName}
+            onChange={handleUserNameChange}
+            className="text-ellipsis px-16 py-8 w-col-span-2 bg-surface3 hover:bg-surface3-hover rounded-8"
+          />
         </div>
         <div className="my-24">
           <div className="my-8 font-bold typography-20 text-secondary">

@@ -20,6 +20,7 @@ export default function Home() {
   const { viewer } = useContext(ViewerContext);
 
   const [systemPrompt, setSystemPrompt] = useState(SYSTEM_PROMPT);
+  const [userName, setUserName] = useState("Guest");
 
   const [koeiromapKey, setKoeiromapKey] = useState("");
   const [koeiroParam, setKoeiroParam] = useState<KoeiroParam>(DEFAULT_PARAM);
@@ -28,24 +29,45 @@ export default function Home() {
   const [assistantMessage, setAssistantMessage] = useState("");
 
   useEffect(() => {
+    // Load persisted settings
     if (window.localStorage.getItem("chatVRMParams")) {
       const params = JSON.parse(
         window.localStorage.getItem("chatVRMParams") as string
       );
       setSystemPrompt(SYSTEM_PROMPT);
       setKoeiroParam(params.koeiroParam ?? DEFAULT_PARAM);
-      setChatLog(params.chatLog ?? []);
+      // chatLog is now server-managed, do not load from local storage
     }
+    // Load userName
+    const storedName = window.localStorage.getItem("chatVRM_userName");
+    if (storedName) {
+      setUserName(storedName);
+    }
+
+    // Fetch shared history
+    fetch("/api/history")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setChatLog(data);
+        }
+      })
+      .catch((e) => console.error(e));
   }, []);
 
   useEffect(() => {
     process.nextTick(() =>
       window.localStorage.setItem(
         "chatVRMParams",
-        JSON.stringify({ systemPrompt, koeiroParam, chatLog })
+        JSON.stringify({ systemPrompt, koeiroParam }) // Removed chatLog
       )
     );
-  }, [systemPrompt, koeiroParam, chatLog]);
+  }, [systemPrompt, koeiroParam]);
+
+  const handleChangeUserName = useCallback((name: string) => {
+    setUserName(name);
+    window.localStorage.setItem("chatVRM_userName", name);
+  }, []);
 
   const handleChangeChatLog = useCallback(
     (targetIndex: number, text: string) => {
@@ -101,7 +123,12 @@ export default function Home() {
         ...messageLog,
       ];
 
-      const stream = await getGeminiResponseStream(messages).catch(
+      const body = {
+        messages,
+        userName,
+      };
+
+      const stream = await getGeminiResponseStream(messages, userName).catch(
         (e) => {
           console.error(e);
           return null;
@@ -197,8 +224,9 @@ export default function Home() {
       <Introduction
 
         koeiroMapKey={koeiromapKey}
-
         onChangeKoeiromapKey={setKoeiromapKey}
+        userName={userName}
+        onChangeUserName={handleChangeUserName}
       />
       <VrmViewer />
       <MessageInputContainer

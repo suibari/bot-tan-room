@@ -1,19 +1,20 @@
 import { Message } from "../messages/messages";
 
-export async function getGeminiResponseStream(messages: Message[]) {
-  const response = await fetch("/api/chat", {
+export async function getGeminiResponseStream(messages: Message[], userName?: string) {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const res = await fetch("/api/chat", {
+    headers: headers,
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ messages, userName }),
   });
 
-  if (!response.ok || !response.body) {
+  if (!res.ok || !res.body) {
     throw new Error("Failed to connect to Chat API");
   }
 
-  const reader = response.body.getReader();
+  const reader = res.body.getReader();
   const decoder = new TextDecoder();
 
   const stream = new ReadableStream({
