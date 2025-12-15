@@ -54,11 +54,22 @@ export default async function handler(
 
   let recentHistory: any[] = [];
   try {
-    const kvHistory = await kv.lrange("chat_history", -20, -1);
-    recentHistory = kvHistory.map((m: any) => ({
+    const kvHistory = await kv.lrange("chat_history", 0, -1);
+    const validKvHistory = Array.isArray(kvHistory) ? kvHistory : [];
+
+    // Filter history for the current user
+    // logic: if message has userName, match it. If not (legacy), maybe include or exclude? 
+    // Safest is to treat missing userName as "Guest" or check against currentUserName.
+    const currentUserName = userName || "Guest";
+    const filteredHistory = validKvHistory.filter((m: any) => {
+      const msgUser = m.userName || "Guest";
+      return msgUser === currentUserName;
+    });
+
+    // Take last 20 of filtered history
+    recentHistory = filteredHistory.slice(-20).map((m: any) => ({
       role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: `[${m.userName || (m.role === 'assistant' ? 'Bot' : 'User')}] ${m.content}` }],
-      // Annotated with name so bot knows who said what
+      parts: [{ text: `[${m.role === 'assistant' ? 'Bot' : 'User'}] ${m.content}` }],
     }));
   } catch (e) {
     console.warn("Failed to fetch KV history for context", e);
@@ -103,7 +114,7 @@ export default async function handler(
         systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
       },
       contents: [
-        ...history,
+        ...recentHistory,
         lastMessage
       ]
     });
@@ -127,6 +138,7 @@ export default async function handler(
       const assistantMsg = {
         role: "assistant",
         content: fullResponse,
+        userName: userName || "Guest",
         timestamp: Date.now()
       };
       try {
