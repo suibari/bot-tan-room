@@ -1,4 +1,5 @@
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import Head from "next/head";
 import VrmViewer from "@/components/vrmViewer";
 import { ViewerContext } from "@/features/vrmViewer/viewerContext";
 import {
@@ -11,248 +12,381 @@ import { MessageInputContainer } from "@/components/messageInputContainer";
 import { SYSTEM_PROMPT } from "@/features/constants/systemPromptConstants";
 import { KoeiroParam, DEFAULT_PARAM } from "@/features/constants/koeiroParam";
 import { getGeminiResponseStream } from "@/features/chat/geminiChat";
-import { Introduction } from "@/components/introduction";
 import { Menu } from "@/components/menu";
-import { GitHubLink } from "@/components/githubLink";
-import { Meta } from "@/components/meta";
 import { GetStaticProps } from "next";
+import { useRouter } from "next/router";
 import { serverSideTranslations } from "next-i18next/serverSideTranslations";
+import { useTranslation } from "next-i18next";
+import { BackgroundPosts } from "@/components/backgroundPosts";
+import { FortuneCard } from "@/components/fortuneCard";
+import { BlueskyPrompt } from "@/components/blueskyPrompt";
+import type { FortuneResult } from "@/pages/api/fortune";
+
+type Phase = "landing" | "loading" | "fortune" | "chat";
 
 export default function Home() {
   const { viewer } = useContext(ViewerContext);
+  const { t } = useTranslation();
+  const router = useRouter();
+  const lang = (router.locale === "ja" ? "ja" : "en") as "ja" | "en";
 
-  const [systemPrompt, setSystemPrompt] = useState(SYSTEM_PROMPT);
-  const [userName, setUserName] = useState("Guest");
+  const switchLocale = useCallback((l: "ja" | "en") => {
+    router.push(router.pathname, router.asPath, { locale: l });
+  }, [router]);
 
-  const [koeiromapKey, setKoeiromapKey] = useState("");
+  // --- chat state (preserved from original) ---
+  const [systemPrompt] = useState(SYSTEM_PROMPT);
+  const [userName, setUserName] = useState("");
+  const [koeiromapKey] = useState("");
   const [koeiroParam, setKoeiroParam] = useState<KoeiroParam>(DEFAULT_PARAM);
   const [chatProcessing, setChatProcessing] = useState(false);
   const [chatLog, setChatLog] = useState<Message[]>([]);
   const [assistantMessage, setAssistantMessage] = useState("");
 
+  // --- new state ---
+  const [phase, setPhase] = useState<Phase>("landing");
+  const [nameInput, setNameInput] = useState("");
+  const [fortune, setFortune] = useState<FortuneResult | null>(null);
+  const [isSignedIn, setIsSignedIn] = useState(false);
+  const [isWaitingForVoice, setIsWaitingForVoice] = useState(false); // ボタン押下〜VoiceVox再生開始まで
+  const [isSpeaking, setIsSpeaking] = useState(false);               // VoiceVox 再生中（バーアニメ）
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  // OGP base URL
+  const BASE_URL =
+    process.env.NEXT_PUBLIC_BASE_URL ?? "https://guestbook.suibari.com";
+
+  // Restore persisted settings
   useEffect(() => {
-    // Load persisted settings
-    if (window.localStorage.getItem("chatVRMParams")) {
-      const params = JSON.parse(
-        window.localStorage.getItem("chatVRMParams") as string
-      );
-      setSystemPrompt(SYSTEM_PROMPT);
-      setKoeiroParam(params.koeiroParam ?? DEFAULT_PARAM);
-      // chatLog is now server-managed, do not load from local storage
-    }
-    // Load userName
     const storedName = window.localStorage.getItem("chatVRM_userName");
-    if (storedName) {
-      setUserName(storedName);
+    if (storedName) setUserName(storedName);
+
+    const storedKoeiro = window.localStorage.getItem("chatVRMParams");
+    if (storedKoeiro) {
+      const p = JSON.parse(storedKoeiro);
+      if (p.koeiroParam) setKoeiroParam(p.koeiroParam);
     }
 
-    // Fetch shared history
-    fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/history`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setChatLog(data);
-        }
-      })
-      .catch((e) => console.error(e));
+    // Check Bluesky sign-in state
+    const bskyHandle = window.localStorage.getItem("bsky_handle");
+    if (bskyHandle) setIsSignedIn(true);
   }, []);
 
+  // Load chat history when entering chat phase
   useEffect(() => {
-    process.nextTick(() =>
-      window.localStorage.setItem(
-        "chatVRMParams",
-        JSON.stringify({ systemPrompt, koeiroParam }) // Removed chatLog
-      )
-    );
-  }, [systemPrompt, koeiroParam]);
+    if (phase !== "chat") return;
+    fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/history`)
+      .then((r) => r.json())
+      .then((data) => Array.isArray(data) && setChatLog(data))
+      .catch((e) => console.error(e));
+  }, [phase]);
 
-  const handleChangeUserName = useCallback((name: string) => {
+  const handleFortune = useCallback(async () => {
+    const name = nameInput.trim();
+    if (!name) {
+      nameInputRef.current?.focus();
+      return;
+    }
     setUserName(name);
     window.localStorage.setItem("chatVRM_userName", name);
+    setIsWaitingForVoice(true); // ボタン押下直後からスピナー開始
+    setPhase("loading");
+
+    try {
+      const res = await fetch("/api/fortune", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, lang }),
+      });
+      if (!res.ok) throw new Error("fortune failed");
+      const data: FortuneResult = await res.json();
+      setFortune(data);
+      setPhase("fortune");
+      // 占い結果表示後もスピナー継続、VoiceVox が再生を開始したら消す
+
+      const voiceText = data.message_ja ?? data.message; // 常に日本語テキストを音声に
+      const script = `[neutral]${voiceText}`;
+      const talks = textsToScreenplay([script], koeiroParam);
+      speakCharacter(
+        talks[0], viewer, koeiromapKey,
+        () => { setIsWaitingForVoice(false); setIsSpeaking(true); },  // onStart
+        () => { setIsSpeaking(false); }                                // onComplete
+      );
+    } catch (e) {
+      console.error(e);
+      setIsWaitingForVoice(false);
+      setPhase("landing");
+    }
+  }, [nameInput, lang, koeiroParam, viewer, koeiromapKey]);
+
+  const handleSignIn = useCallback(() => {
+    // Bluesky OAuth は次フェーズで実装。今は仮のプレースホルダー。
+    alert("Bluesky OAuth - coming soon");
   }, []);
 
-  const handleChangeChatLog = useCallback(
-    (targetIndex: number, text: string) => {
-      const newChatLog = chatLog.map((v: Message, i) => {
-        return i === targetIndex ? { role: v.role, content: text } : v;
-      });
+  const handleStartChat = useCallback(() => {
+    setPhase("chat");
+  }, []);
 
-      setChatLog(newChatLog);
-    },
-    [chatLog]
-  );
-
-  /**
-   * 文ごとに音声を直列でリクエストしながら再生する
-   */
+  // --- chat logic (from original) ---
   const handleSpeakAi = useCallback(
-    async (
-      screenplay: Screenplay,
-      onStart?: () => void,
-      onEnd?: () => void
-    ) => {
-      // speakCharacter now returns a Promise
-      return speakCharacter(screenplay, viewer, koeiromapKey, onStart, onEnd);
-    },
+    async (screenplay: Screenplay, onStart?: () => void, onEnd?: () => void) =>
+      speakCharacter(screenplay, viewer, koeiromapKey, onStart, onEnd),
     [viewer, koeiromapKey]
   );
 
-  /**
-   * アシスタントとの会話を行う
-   */
   const handleSendChat = useCallback(
     async (text: string) => {
-
-
-      const newMessage = text;
-
-      if (newMessage == null) return;
-
+      if (!text) return;
       setChatProcessing(true);
-      // ユーザーの発言を追加して表示
       const messageLog: Message[] = [
         ...chatLog,
-        { role: "user", content: newMessage, userName: userName },
+        { role: "user", content: text, userName },
       ];
       setChatLog(messageLog);
 
-      // Chat GPTへ
       const messages: Message[] = [
-        {
-          role: "system",
-          content: systemPrompt,
-        },
+        { role: "system", content: systemPrompt },
         ...messageLog,
       ];
 
-      const body = {
-        messages,
-        userName,
-      };
-
       const stream = await getGeminiResponseStream(messages, userName).catch(
-        (e) => {
-          console.error(e);
-          return null;
-        }
+        (e) => { console.error(e); return null; }
       );
-      let lastSpeakPromise = Promise.resolve();
-      if (stream == null) {
-        setChatProcessing(false);
-        return;
-      }
+      if (!stream) { setChatProcessing(false); return; }
 
       const reader = stream.getReader();
       let receivedMessage = "";
       let aiTextLog = "";
       let tag = "";
-      const sentences = new Array<string>();
+      const sentences: string[] = [];
+      let lastSpeakPromise = Promise.resolve();
+
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-
           receivedMessage += value;
 
-          // 返答内容のタグ部分の検出
           const tagMatch = receivedMessage.match(/^\[(.*?)\]/);
-          if (tagMatch && tagMatch[0]) {
+          if (tagMatch?.[0]) {
             tag = tagMatch[0];
             receivedMessage = receivedMessage.slice(tag.length);
           }
 
-          // 返答を一文単位で切り出して処理する
           const sentenceMatch = receivedMessage.match(
             /^(.+[。．！？\n]|.{10,}[、,])/
           );
-          if (sentenceMatch && sentenceMatch[0]) {
+          if (sentenceMatch?.[0]) {
             const sentence = sentenceMatch[0];
             sentences.push(sentence);
-            receivedMessage = receivedMessage
-              .slice(sentence.length)
-              .trimStart();
+            receivedMessage = receivedMessage.slice(sentence.length).trimStart();
 
-            // 発話不要/不可能な文字列だった場合はスキップ
-            if (
-              !sentence.replace(
-                /^[\s\[\(\{「［（【『〈《〔｛«‹〘〚〛〙›»〕》〉』】）］」\}\)\]]+$/g,
-                ""
-              )
-            ) {
-              continue;
-            }
+            if (!sentence.replace(/^[\s\[\(\{「［（【『〈《〔｛«‹〘〚〛〙›»〕》〉』】）］」\}\)\]]+$/g, "")) continue;
 
-            const aiText = `${tag} ${sentence}`;
-            const aiTalks = textsToScreenplay([aiText], koeiroParam);
-            aiTextLog += aiText;
+            const aiTalks = textsToScreenplay([`${tag} ${sentence}`], koeiroParam);
+            aiTextLog += `${tag} ${sentence}`;
 
-            // 文ごとに音声を生成 & 再生、返答を表示
-            const currentAssistantMessage = sentences.join(" ");
-            // We store the returned promise to wait for it later
-            const promise = handleSpeakAi(aiTalks[0], () => {
-              setAssistantMessage(currentAssistantMessage);
-            });
-            if (promise) {
-              lastSpeakPromise = promise as unknown as Promise<void>;
-            }
+            const currentMsg = sentences.join(" ");
+            const p = handleSpeakAi(aiTalks[0], () => setAssistantMessage(currentMsg));
+            if (p) lastSpeakPromise = p as unknown as Promise<void>;
           }
         }
       } catch (e) {
-        setChatProcessing(false);
         console.error(e);
       } finally {
         reader.releaseLock();
       }
 
-      // アシスタントの返答をログに追加
-      const messageLogAssistant: Message[] = [
-        ...messageLog,
-        { role: "assistant", content: aiTextLog },
-      ];
-
-      setChatLog(messageLogAssistant);
-
-      // Wait for the last speech to finish before unlocking UI
+      setChatLog([...messageLog, { role: "assistant", content: aiTextLog }]);
       await lastSpeakPromise;
       setChatProcessing(false);
     },
-    [systemPrompt, chatLog, handleSpeakAi, koeiroParam, assistantMessage, userName]
+    [systemPrompt, chatLog, handleSpeakAi, koeiroParam, userName]
   );
 
+  const handleChangeChatLog = useCallback(
+    (idx: number, text: string) =>
+      setChatLog((prev) => prev.map((v, i) => (i === idx ? { ...v, content: text } : v))),
+    []
+  );
+
+  // --- labels ---
+  const LABEL = {
+    ja: {
+      placeholder: "あなたの名前を入力",
+      button: "占う ✨",
+      loading: "占い中...",
+      voiceLoading: "音声を準備中...",
+      chat: "botたんと話す",
+    },
+    en: {
+      placeholder: "Enter your name",
+      button: "Get Fortune ✨",
+      loading: "Divining...",
+      voiceLoading: "Preparing voice...",
+      chat: "Chat with bot-tan",
+    },
+  }[lang];
+
   return (
-    <div className={"font-M_PLUS_2"}>
-      <Meta />
-      <Introduction
-        koeiroMapKey={koeiromapKey}
-        onChangeKoeiromapKey={setKoeiromapKey}
-        userName={userName}
-        onChangeUserName={handleChangeUserName}
-      />
+    <div className="relative w-full h-screen overflow-hidden font-M_PLUS_2">
+      <Head>
+        <title>{t("meta.title")}</title>
+        <meta name="description" content={t("meta.description")} />
+        <meta property="og:title" content={t("meta.title")} />
+        <meta property="og:description" content={t("meta.description")} />
+        <meta property="og:image" content={`${BASE_URL}/ogp.png`} />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content={`${BASE_URL}/ogp.png`} />
+      </Head>
+
+      {/* background scrolling posts */}
+      <BackgroundPosts />
+
+      {/* VRM viewer — always rendered */}
       <VrmViewer />
-      <MessageInputContainer
-        isChatProcessing={chatProcessing}
-        onChatProcessStart={handleSendChat}
-      />
-      <Menu
-        chatLog={chatLog}
-        koeiroParam={koeiroParam}
-        assistantMessage={assistantMessage}
-        koeiromapKey={koeiromapKey}
-        userName={userName}
-        onChangeChatLog={handleChangeChatLog}
-        onChangeKoeiromapParam={setKoeiroParam}
-        onChangeUserName={handleChangeUserName}
-        handleClickResetChatLog={() => setChatLog([])}
-        onChangeKoeiromapKey={setKoeiromapKey}
-      />
+
+      {/* 言語スイッチャー — 常時表示 */}
+      <div className="absolute top-4 right-4 z-30 flex gap-1">
+        {(["en", "ja"] as const).map((l) => (
+          <button
+            key={l}
+            onClick={() => switchLocale(l)}
+            className="text-xs font-bold px-3 py-1.5 rounded-full transition-all"
+            style={
+              lang === l
+                ? { background: "rgba(255,255,255,0.9)", color: "#1a1a2e" }
+                : { background: "rgba(255,255,255,0.18)", color: "rgba(255,255,255,0.8)" }
+            }
+          >
+            {l === "en" ? "EN" : "JP"}
+          </button>
+        ))}
+      </div>
+
+      {/* ===== LANDING ===== */}
+      {phase === "landing" && (
+        <div className="absolute bottom-0 left-0 right-0 z-20">
+          <div
+            className="mx-auto w-full max-w-lg px-4 pb-8 pt-5 space-y-3 rounded-t-3xl shadow-2xl"
+            style={{
+              background: "rgba(8,16,40,0.70)",
+              backdropFilter: "blur(18px)",
+              border: "1px solid rgba(120,160,255,0.18)",
+              borderBottom: "none",
+            }}
+          >
+            <h1 className="text-white text-lg font-bold text-center tracking-wide">
+              bot-tan fortune ✨
+            </h1>
+            <input
+              ref={nameInputRef}
+              type="text"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleFortune()}
+              placeholder={LABEL.placeholder}
+              maxLength={30}
+              className="w-full px-4 py-3 rounded-xl text-white placeholder-white/40 outline-none focus:ring-2 focus:ring-purple-400 text-sm"
+              style={{ background: "rgba(255,255,255,0.10)" }}
+            />
+            <button
+              onClick={handleFortune}
+              className="w-full py-3 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-80 active:opacity-60"
+              style={{ background: "linear-gradient(90deg, #667eea, #764ba2)" }}
+            >
+              {LABEL.button}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== スピナー（ボタン押下〜VoiceVox再生開始まで常に表示） ===== */}
+      {isWaitingForVoice && (
+        <div className="absolute inset-x-0 top-1/3 z-30 flex justify-center pointer-events-none">
+          <div
+            className="flex flex-col items-center gap-3 px-8 py-5 rounded-2xl"
+            style={{ background: "rgba(8,16,40,0.80)", backdropFilter: "blur(14px)" }}
+          >
+            <div className="spinner-ring" />
+            <span className="text-white text-sm font-semibold">
+              {phase === "loading" ? LABEL.loading : LABEL.voiceLoading}
+            </span>
+            <style jsx global>{`
+              .spinner-ring {
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                border: 4px solid rgba(255, 255, 255, 0.2);
+                border-top-color: #ffffff;
+                animation: spinner-turn 0.75s linear infinite;
+                flex-shrink: 0;
+              }
+              @keyframes spinner-turn {
+                to { transform: rotate(360deg); }
+              }
+            `}</style>
+          </div>
+        </div>
+      )}
+
+      {/* ===== FORTUNE ===== */}
+      {phase === "fortune" && fortune && (
+        <div className="absolute bottom-0 left-0 right-0 z-20 max-h-[58vh] overflow-y-auto">
+          <div
+            className="mx-auto w-full max-w-lg px-4 pb-8 pt-4 space-y-3 rounded-t-3xl"
+            style={{
+              background: "rgba(8,16,40,0.70)",
+              backdropFilter: "blur(18px)",
+              border: "1px solid rgba(120,160,255,0.18)",
+              borderBottom: "none",
+            }}
+          >
+            {/* ドラッグハンドル */}
+            <div className="w-10 h-1 bg-white/30 rounded-full mx-auto mb-1" />
+            <FortuneCard name={userName} fortune={fortune} lang={lang} isSpeaking={isSpeaking} />
+            <BlueskyPrompt lang={lang} isSignedIn={isSignedIn} onSignIn={handleSignIn} />
+            {isSignedIn && (
+              <button
+                onClick={handleStartChat}
+                className="w-full py-3 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-80 active:opacity-60"
+                style={{ background: "linear-gradient(90deg, #667eea, #764ba2)" }}
+              >
+                {LABEL.chat}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ===== CHAT ===== */}
+      {phase === "chat" && (
+        <>
+          <MessageInputContainer
+            isChatProcessing={chatProcessing}
+            onChatProcessStart={handleSendChat}
+          />
+          <Menu
+            chatLog={chatLog}
+            koeiroParam={koeiroParam}
+            assistantMessage={assistantMessage}
+            koeiromapKey={koeiromapKey}
+            userName={userName}
+            onChangeChatLog={handleChangeChatLog}
+            onChangeKoeiromapParam={setKoeiroParam}
+            onChangeUserName={setUserName}
+            handleClickResetChatLog={() => setChatLog([])}
+            onChangeKoeiromapKey={() => {}}
+          />
+        </>
+      )}
     </div>
   );
 }
 
-export const getStaticProps: GetStaticProps = async ({ locale }) => {
-  return {
-    props: {
-      ...(await serverSideTranslations(locale ?? 'ja', ['common'])),
-    },
-  };
-};
+export const getStaticProps: GetStaticProps = async ({ locale }) => ({
+  props: {
+    ...(await serverSideTranslations(locale ?? "en", ["common"])),
+  },
+});

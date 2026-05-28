@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { kv } from "@vercel/kv";
+import { GEMINI_MODEL } from "@/features/constants/aiModels";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(
@@ -109,7 +110,7 @@ export default async function handler(
   try {
     let fullResponse = "";
     const streamResult = await client.models.generateContentStream({
-      model: 'gemini-2.0-flash',
+      model: GEMINI_MODEL,
       config: {
         systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
       },

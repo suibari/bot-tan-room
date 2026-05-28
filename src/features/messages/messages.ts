@@ -59,8 +59,8 @@ export const textsToScreenplay = (
 
     let expression = prevExpression;
     if (emotions.includes(tag as any)) {
-      expression = tag;
-      prevExpression = tag;
+      expression = tag === "happy" ? "neutral" : tag; // happy 封印
+      prevExpression = expression;
     }
 
     screenplays.push({
