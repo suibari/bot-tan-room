@@ -1,24 +1,20 @@
-import type { FortuneResult } from '@/pages/api/fortune';
+import type { DiagnosisResult } from '@/pages/api/fortune';
 
 type Props = {
   name: string;
-  fortune: FortuneResult;
+  fortune: DiagnosisResult;
   lang: 'ja' | 'en';
   isSpeaking?: boolean;
 };
 
 const LABELS = {
   ja: {
-    animal: '🐾 ラッキーアニマル',
-    music: '🎵 ラッキーミュージック',
-    zodiac: '⭐ ラッキー星座',
+    heading: '全肯定診断結果',
     shareX: 'X でシェア',
     shareBsky: 'Bluesky でシェア',
   },
   en: {
-    animal: '🐾 Lucky Animal',
-    music: '🎵 Lucky Music',
-    zodiac: '⭐ Lucky Zodiac',
+    heading: 'Personality Diagnosis',
     shareX: 'Share on X',
     shareBsky: 'Share on Bluesky',
   },
@@ -30,16 +26,20 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) 
 
   const ogParams = new URLSearchParams({
     name,
-    message: fortune.message,
-    lucky: [fortune.lucky_animal, fortune.lucky_music, fortune.lucky_zodiac].join(','),
+    analysis: fortune.analysis,
+    c1: `${fortune.comparisons[0].category}／${fortune.comparisons[0].value}`,
+    c2: `${fortune.comparisons[1].category}／${fortune.comparisons[1].value}`,
+    c3: `${fortune.comparisons[2].category}／${fortune.comparisons[2].value}`,
     lang,
   });
+  void ogParams; // OGP は index.tsx の <Head> で使用
 
   const shareUrl = BASE;
+  const compSummary = fortune.comparisons.map((c) => `${c.category}: ${c.value}`).join(' / ');
   const shareText =
     lang === 'ja'
-      ? `${name}の今日の運勢 🌟\n${fortune.message}\n\n全肯定botたんに占ってもらおう👉 ${shareUrl}`
-      : `${name}'s fortune today 🌟\n${fortune.message}\n\nGet your fortune from bot-tan 👉 ${shareUrl}`;
+      ? `${name}の全肯定診断 🔮\n${fortune.analysis}\n\n${compSummary}\n\nbotたんに診断してもらおう👉 ${shareUrl}`
+      : `${name}'s personality diagnosis 🔮\n${fortune.analysis}\n\n${compSummary}\n\nGet diagnosed by bot-tan 👉 ${shareUrl}`;
 
   const xShareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
   const bskyShareUrl = `https://bsky.app/intent/compose?text=${encodeURIComponent(shareText)}`;
@@ -54,17 +54,17 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) 
       }}
     >
       <div className="p-4 sm:p-5 space-y-3">
-        {/* name */}
+        {/* heading */}
         <p className="text-white/60 text-xs tracking-widest uppercase">
-          {lang === 'ja' ? '今日の運勢' : "Today's Fortune"} — {name}
+          {l.heading} — {name}
         </p>
 
-        {/* message */}
+        {/* analysis text */}
         <p
           className="text-white text-sm sm:text-base leading-relaxed"
           style={{ borderLeft: '3px solid rgba(150,180,255,0.6)', paddingLeft: '12px' }}
         >
-          {fortune.message}
+          {fortune.analysis}
         </p>
 
         {/* speaking indicator */}
@@ -91,15 +91,11 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) 
           </div>
         )}
 
-        {/* lucky pills */}
+        {/* comparisons pills */}
         <div className="flex flex-wrap gap-2 pt-1">
-          {[
-            { label: l.animal, value: fortune.lucky_animal },
-            { label: l.music, value: fortune.lucky_music },
-            { label: l.zodiac, value: fortune.lucky_zodiac },
-          ].map(({ label, value }) => (
+          {fortune.comparisons.map(({ category, value }) => (
             <span
-              key={label}
+              key={category}
               className="text-xs px-3 py-1 rounded-full"
               style={{
                 background: 'rgba(130,100,255,0.22)',
@@ -107,7 +103,7 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) 
                 color: 'rgba(210,200,255,0.95)',
               }}
             >
-              {label}: {value}
+              {category}：{value}
             </span>
           ))}
         </div>

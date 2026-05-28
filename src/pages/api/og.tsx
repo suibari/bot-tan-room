@@ -6,20 +6,16 @@ export const config = { runtime: 'edge' };
 export default async function handler(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const name = (searchParams.get('name') ?? 'you').slice(0, 30);
-  const message = (searchParams.get('message') ?? '').slice(0, 120);
-  const lucky = searchParams.get('lucky') ?? '';
+  const analysis = (searchParams.get('analysis') ?? '').slice(0, 100);
+  const c1 = searchParams.get('c1') ?? '';
+  const c2 = searchParams.get('c2') ?? '';
+  const c3 = searchParams.get('c3') ?? '';
   const lang = searchParams.get('lang') === 'ja' ? 'ja' : 'en';
 
-  const title = lang === 'ja' ? '今日の運勢' : "Today's Fortune";
-  const footer = lang === 'ja'
-    ? 'bot-tan on Bluesky @bot-tan.bsky.social'
-    : 'bot-tan on Bluesky @bot-tan.bsky.social';
+  const title = lang === 'ja' ? '全肯定診断' : 'Personality Diagnosis';
+  const footer = 'bot-tan on Bluesky @bot-tan.bsky.social';
 
-  const luckyItems = lucky
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(0, 4);
+  const comparisons = [c1, c2, c3].filter(Boolean);
 
   return new ImageResponse(
     (
@@ -60,11 +56,11 @@ export default async function handler(req: NextRequest) {
           {name}
         </div>
 
-        {/* message */}
+        {/* analysis text */}
         <div
           style={{
             color: 'rgba(255,255,255,0.88)',
-            fontSize: 28,
+            fontSize: 26,
             lineHeight: 1.7,
             marginTop: 24,
             borderLeft: '4px solid rgba(160,180,255,0.7)',
@@ -73,13 +69,13 @@ export default async function handler(req: NextRequest) {
             display: 'flex',
           }}
         >
-          {message}
+          {analysis}
         </div>
 
-        {/* lucky pills */}
-        {luckyItems.length > 0 && (
+        {/* comparison pills */}
+        {comparisons.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 28 }}>
-            {luckyItems.map((item, i) => (
+            {comparisons.map((item, i) => (
               <div
                 key={i}
                 style={{
@@ -87,7 +83,7 @@ export default async function handler(req: NextRequest) {
                   border: '1px solid rgba(160,130,255,0.5)',
                   borderRadius: 999,
                   color: 'rgba(210,200,255,0.95)',
-                  fontSize: 20,
+                  fontSize: 22,
                   padding: '6px 20px',
                   display: 'flex',
                 }}

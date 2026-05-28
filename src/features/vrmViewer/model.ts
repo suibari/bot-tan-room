@@ -69,6 +69,10 @@ export class Model {
   /**
    * 音声を再生し、リップシンクを行う
    */
+  public stopSpeak() {
+    this._lipSync?.stop();
+  }
+
   public async speak(buffer: ArrayBuffer, screenplay: Screenplay) {
     this.emoteController?.playEmotion(screenplay.expression);
     await new Promise((resolve) => {

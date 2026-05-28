@@ -19,10 +19,13 @@ import { serverSideTranslations } from "next-i18next/serverSideTranslations";
 import { useTranslation } from "next-i18next";
 import { BackgroundPosts } from "@/components/backgroundPosts";
 import { FortuneCard } from "@/components/fortuneCard";
+import { DiagnosisForm } from "@/components/DiagnosisForm";
 import { BlueskyPrompt } from "@/components/blueskyPrompt";
-import type { FortuneResult } from "@/pages/api/fortune";
+import type { DiagnosisResult } from "@/pages/api/fortune";
+import { fetchAudio } from "@/features/messages/speakCharacter";
 
-type Phase = "landing" | "loading" | "fortune" | "chat";
+type AnswerItem = { question: string; answer: string };
+type Phase = "landing" | "questions" | "loading" | "fortune" | "chat";
 
 export default function Home() {
   const { viewer } = useContext(ViewerContext);
@@ -46,11 +49,12 @@ export default function Home() {
   // --- new state ---
   const [phase, setPhase] = useState<Phase>("landing");
   const [nameInput, setNameInput] = useState("");
-  const [fortune, setFortune] = useState<FortuneResult | null>(null);
+  const [fortune, setFortune] = useState<DiagnosisResult | null>(null);
   const [isSignedIn, setIsSignedIn] = useState(false);
-  const [isWaitingForVoice, setIsWaitingForVoice] = useState(false); // ボタン押下〜VoiceVox再生開始まで
-  const [isSpeaking, setIsSpeaking] = useState(false);               // VoiceVox 再生中（バーアニメ）
+  const [isWaitingForVoice, setIsWaitingForVoice] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const questionAbortRef = useRef<AbortController | null>(null);
 
   // OGP base URL
   const BASE_URL =
@@ -67,7 +71,6 @@ export default function Home() {
       if (p.koeiroParam) setKoeiroParam(p.koeiroParam);
     }
 
-    // Check Bluesky sign-in state
     const bskyHandle = window.localStorage.getItem("bsky_handle");
     if (bskyHandle) setIsSignedIn(true);
   }, []);
@@ -81,7 +84,40 @@ export default function Home() {
       .catch((e) => console.error(e));
   }, [phase]);
 
-  const handleFortune = useCallback(async () => {
+  // 質問専用スピーカー: キューを使わず直接再生。新しい呼び出しで前の音声を中断する
+  const speakQuestion = useCallback(async (text: string) => {
+    questionAbortRef.current?.abort();
+    const controller = new AbortController();
+    questionAbortRef.current = controller;
+
+    try {
+      const talks = textsToScreenplay([`[neutral]${text}`], koeiroParam);
+      const buffer = await fetchAudio(talks[0].talk, koeiromapKey).catch(() => null);
+      if (controller.signal.aborted || !buffer) return;
+      viewer.model?.stopSpeak();
+      await viewer.model?.speak(buffer, talks[0]);
+    } catch (e) {
+      if (!controller.signal.aborted) console.error('Question VoiceVox error:', e);
+    }
+  }, [koeiroParam, koeiromapKey, viewer]);
+
+  const safeSpeak = useCallback((text: string, onStart?: () => void, onComplete?: () => void) => {
+    try {
+      const talks = textsToScreenplay([`[neutral]${text}`], koeiroParam);
+      const p = speakCharacter(talks[0], viewer, koeiromapKey, onStart, onComplete);
+      Promise.resolve(p).catch((e) => {
+        console.error('VoiceVox error:', e);
+        // onStart はエラー前に呼ばれているが onComplete は呼ばれていないので補完
+        onComplete?.();
+      });
+    } catch (e) {
+      console.error('VoiceVox error:', e);
+      onStart?.();
+      onComplete?.();
+    }
+  }, [koeiroParam, viewer, koeiromapKey]);
+
+  const handleNameSubmit = useCallback(() => {
     const name = nameInput.trim();
     if (!name) {
       nameInputRef.current?.focus();
@@ -89,38 +125,38 @@ export default function Home() {
     }
     setUserName(name);
     window.localStorage.setItem("chatVRM_userName", name);
-    setIsWaitingForVoice(true); // ボタン押下直後からスピナー開始
+    setPhase("questions");
+  }, [nameInput]);
+
+  const handleDiagnose = useCallback(async (answers: AnswerItem[]) => {
+    setIsWaitingForVoice(true);
     setPhase("loading");
 
     try {
       const res = await fetch("/api/fortune", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, lang }),
+        body: JSON.stringify({ name: userName, lang, answers }),
       });
-      if (!res.ok) throw new Error("fortune failed");
-      const data: FortuneResult = await res.json();
+      if (!res.ok) throw new Error("diagnosis failed");
+      const data: DiagnosisResult = await res.json();
       setFortune(data);
       setPhase("fortune");
-      // 占い結果表示後もスピナー継続、VoiceVox が再生を開始したら消す
 
-      const voiceText = data.message_ja ?? data.message; // 常に日本語テキストを音声に
-      const script = `[neutral]${voiceText}`;
-      const talks = textsToScreenplay([script], koeiroParam);
-      speakCharacter(
-        talks[0], viewer, koeiromapKey,
-        () => { setIsWaitingForVoice(false); setIsSpeaking(true); },  // onStart
-        () => { setIsSpeaking(false); }                                // onComplete
+      const voiceText = data.analysis_ja ?? data.analysis;
+      safeSpeak(
+        voiceText,
+        () => { setIsWaitingForVoice(false); setIsSpeaking(true); },
+        () => setIsSpeaking(false),
       );
     } catch (e) {
       console.error(e);
       setIsWaitingForVoice(false);
-      setPhase("landing");
+      setPhase("questions");
     }
-  }, [nameInput, lang, koeiroParam, viewer, koeiromapKey]);
+  }, [userName, lang, safeSpeak]);
 
   const handleSignIn = useCallback(() => {
-    // Bluesky OAuth は次フェーズで実装。今は仮のプレースホルダー。
     alert("Bluesky OAuth - coming soon");
   }, []);
 
@@ -215,19 +251,32 @@ export default function Home() {
   const LABEL = {
     ja: {
       placeholder: "あなたの名前を入力",
-      button: "占う ✨",
-      loading: "占い中...",
+      button: "次へ →",
+      loading: "診断中...",
       voiceLoading: "音声を準備中...",
       chat: "botたんと話す",
     },
     en: {
       placeholder: "Enter your name",
-      button: "Get Fortune ✨",
-      loading: "Divining...",
+      button: "Next →",
+      loading: "Diagnosing...",
       voiceLoading: "Preparing voice...",
       chat: "Chat with bot-tan",
     },
   }[lang];
+
+  // Dynamic OGP image URL
+  const ogImageUrl =
+    phase === "fortune" && fortune
+      ? `${BASE_URL}/api/og?${new URLSearchParams({
+          name: userName,
+          analysis: fortune.analysis,
+          c1: `${fortune.comparisons[0].category}／${fortune.comparisons[0].value}`,
+          c2: `${fortune.comparisons[1].category}／${fortune.comparisons[1].value}`,
+          c3: `${fortune.comparisons[2].category}／${fortune.comparisons[2].value}`,
+          lang,
+        }).toString()}`
+      : `${BASE_URL}/ogp.png`;
 
   return (
     <div className="relative w-full h-screen overflow-hidden font-M_PLUS_2">
@@ -236,9 +285,9 @@ export default function Home() {
         <meta name="description" content={t("meta.description")} />
         <meta property="og:title" content={t("meta.title")} />
         <meta property="og:description" content={t("meta.description")} />
-        <meta property="og:image" content={`${BASE_URL}/ogp.png`} />
+        <meta property="og:image" content={ogImageUrl} />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:image" content={`${BASE_URL}/ogp.png`} />
+        <meta name="twitter:image" content={ogImageUrl} />
       </Head>
 
       {/* background scrolling posts */}
@@ -278,26 +327,55 @@ export default function Home() {
             }}
           >
             <h1 className="text-white text-lg font-bold text-center tracking-wide">
-              bot-tan fortune ✨
+              {lang === "ja" ? "bot-tan 全肯定診断 ✨" : "bot-tan Personality ✨"}
             </h1>
+            <p className="text-white/60 text-xs text-center leading-relaxed">
+              {lang === "ja"
+                ? "3つの質問に答えてbotたんの性格分析を受けよう"
+                : "Answer 3 questions and get your personality analysis from bot-tan"}
+            </p>
             <input
               ref={nameInputRef}
               type="text"
               value={nameInput}
               onChange={(e) => setNameInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleFortune()}
+              onKeyDown={(e) => e.key === "Enter" && handleNameSubmit()}
               placeholder={LABEL.placeholder}
               maxLength={30}
               className="w-full px-4 py-3 rounded-xl text-white placeholder-white/40 outline-none focus:ring-2 focus:ring-purple-400 text-sm"
               style={{ background: "rgba(255,255,255,0.10)" }}
             />
             <button
-              onClick={handleFortune}
+              onClick={handleNameSubmit}
               className="w-full py-3 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-80 active:opacity-60"
               style={{ background: "linear-gradient(90deg, #667eea, #764ba2)" }}
             >
               {LABEL.button}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== QUESTIONS ===== */}
+      {phase === "questions" && (
+        <div className="absolute bottom-0 left-0 right-0 z-20">
+          <div
+            className="mx-auto w-full max-w-lg px-4 pb-8 pt-5 space-y-3 rounded-t-3xl shadow-2xl"
+            style={{
+              background: "rgba(8,16,40,0.70)",
+              backdropFilter: "blur(18px)",
+              border: "1px solid rgba(120,160,255,0.18)",
+              borderBottom: "none",
+            }}
+          >
+            <h2 className="text-white text-sm font-bold text-center tracking-wide">
+              {lang === "ja" ? `${userName}さんへの質問` : `Questions for ${userName}`}
+            </h2>
+            <DiagnosisForm
+              lang={lang}
+              onSubmit={handleDiagnose}
+              onQuestionShow={speakQuestion}
+            />
           </div>
         </div>
       )}
