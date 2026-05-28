@@ -17,13 +17,22 @@ export default async function handler(req: NextRequest) {
 
   const comparisons = [c1, c2, c3].filter(Boolean);
 
+  // ogp.png を背景に使う。半透明の暗色グラデーションを重ねてテキストを読みやすくする
+  const host = new URL(req.url).origin;
+  const bgImageUrl = `${host}/ogp.png`;
+
   return new ImageResponse(
     (
       <div
         style={{
           width: '1200px',
           height: '630px',
-          background: 'linear-gradient(160deg, #0f0c29, #302b63, #24243e)',
+          backgroundImage: [
+            'linear-gradient(rgba(4,2,20,0.78), rgba(4,2,20,0.78))',
+            `url(${bgImageUrl})`,
+          ].join(', '),
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
           display: 'flex',
           flexDirection: 'column',
           padding: '56px 72px',
@@ -33,7 +42,7 @@ export default async function handler(req: NextRequest) {
         {/* header */}
         <div
           style={{
-            color: 'rgba(180,210,255,0.6)',
+            color: 'rgba(180,210,255,0.7)',
             fontSize: 22,
             letterSpacing: 6,
             textTransform: 'uppercase',
@@ -59,11 +68,11 @@ export default async function handler(req: NextRequest) {
         {/* analysis text */}
         <div
           style={{
-            color: 'rgba(255,255,255,0.88)',
+            color: 'rgba(255,255,255,0.92)',
             fontSize: 26,
             lineHeight: 1.7,
             marginTop: 24,
-            borderLeft: '4px solid rgba(160,180,255,0.7)',
+            borderLeft: '4px solid rgba(160,180,255,0.8)',
             paddingLeft: 24,
             maxWidth: 960,
             display: 'flex',
@@ -79,10 +88,10 @@ export default async function handler(req: NextRequest) {
               <div
                 key={i}
                 style={{
-                  background: 'rgba(160,130,255,0.25)',
-                  border: '1px solid rgba(160,130,255,0.5)',
+                  background: 'rgba(160,130,255,0.30)',
+                  border: '1px solid rgba(160,130,255,0.6)',
                   borderRadius: 999,
-                  color: 'rgba(210,200,255,0.95)',
+                  color: 'rgba(220,210,255,0.98)',
                   fontSize: 22,
                   padding: '6px 20px',
                   display: 'flex',
@@ -98,7 +107,7 @@ export default async function handler(req: NextRequest) {
         <div
           style={{
             marginTop: 'auto',
-            color: 'rgba(160,180,255,0.7)',
+            color: 'rgba(160,180,255,0.75)',
             fontSize: 20,
             display: 'flex',
           }}

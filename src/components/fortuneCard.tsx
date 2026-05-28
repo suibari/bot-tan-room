@@ -24,7 +24,7 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) 
   const l = LABELS[lang];
   const BASE = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://guestbook.suibari.com';
 
-  const ogParams = new URLSearchParams({
+  const shareParams = new URLSearchParams({
     name,
     analysis: fortune.analysis,
     c1: `${fortune.comparisons[0].category}／${fortune.comparisons[0].value}`,
@@ -32,9 +32,8 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) 
     c3: `${fortune.comparisons[2].category}／${fortune.comparisons[2].value}`,
     lang,
   });
-  void ogParams; // OGP は index.tsx の <Head> で使用
-
-  const shareUrl = BASE;
+  // /share?... は SSR で OGP タグを返す → SNS がシェアカードを生成する
+  const shareUrl = `${BASE}/share?${shareParams.toString()}`;
   const compSummary = fortune.comparisons.map((c) => `${c.category}: ${c.value}`).join(' / ');
   const shareText =
     lang === 'ja'
@@ -92,7 +91,7 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) 
         )}
 
         {/* comparisons pills */}
-        <div className="flex flex-wrap gap-2 pt-1">
+        <div className="flex flex-wrap pt-1" style={{ gap: '10px' }}>
           {fortune.comparisons.map(({ category, value }) => (
             <span
               key={category}
