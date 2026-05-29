@@ -19,8 +19,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const headers: HeadersInit = {
     'Accept-Profile': 'affirmative_bot',
-    'CF-Access-Client-Id': CF_ID,
-    'CF-Access-Client-Secret': CF_SECRET,
+    'cf-access-client-id': CF_ID,
+    'cf-access-client-secret': CF_SECRET,
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   };
 
