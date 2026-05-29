@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { DiagnosisResult } from '@/pages/api/fortune';
 
 type Props = {
@@ -14,11 +14,13 @@ const LABELS = {
     heading: 'botたんからのメッセージ',
     shareX: 'X でシェア',
     shareBsky: 'Bluesky でシェア',
+    sharing: '準備中...',
   },
   en: {
     heading: 'A Message from bot-tan',
     shareX: 'Share on X',
     shareBsky: 'Share on Bluesky',
+    sharing: 'Preparing...',
   },
 };
 
@@ -26,49 +28,9 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false, flat = fa
   const l = LABELS[lang];
   const BASE = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://guestbook.suibari.com';
 
-  const [shareId, setShareId] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    
-    // 診断結果データを Vercel KV に保存するためのAPI呼び出し
-    const saveShareData = async () => {
-      try {
-        const response = await fetch('/api/share/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name,
-            analysis_ja: fortune.analysis_ja,
-            analysis_en: fortune.analysis_en,
-            comparisons: fortune.comparisons,
-            lang,
-          }),
-        });
-
-        if (response.ok) {
-          const data = (await response.json()) as { id: string };
-          if (active && data.id) {
-            setShareId(data.id);
-            console.log('[FortuneCard] Successfully generated short share ID:', data.id);
-          }
-        } else {
-          console.error('[FortuneCard] API respond with error status:', response.status);
-        }
-      } catch (error) {
-        console.error('[FortuneCard] Failed to save share data to KV:', error);
-      }
-    };
-
-    // 新たな診断や設定が渡されたら新しくIDを取得する
-    saveShareData();
-
-    return () => {
-      active = false;
-    };
-  }, [name, fortune, lang]);
+  // KV保存は「シェアボタンを押したとき」だけ行う
+  const [isSharingX, setIsSharingX] = useState(false);
+  const [isSharingBsky, setIsSharingBsky] = useState(false);
 
   const analysis = lang === 'ja' ? fortune.analysis_ja : fortune.analysis_en;
   const comparisons = fortune.comparisons.map((c) => ({
@@ -76,28 +38,76 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false, flat = fa
     value: lang === 'ja' ? c.value_ja : c.value_en,
   }));
 
-  const shareParams = new URLSearchParams({
-    name,
-    analysis,
-    c1: `${comparisons[0].category}／${comparisons[0].value}`,
-    c2: `${comparisons[1].category}／${comparisons[1].value}`,
-    c3: `${comparisons[2].category}／${comparisons[2].value}`,
-    lang,
-  });
-
-  // Vercel KV からの短縮IDがある場合はそれを使用、無い場合はフォールバックとして従来の長大なクエリパラメータを使用
-  const shareUrl = shareId
-    ? `${BASE}/share?id=${shareId}`
-    : `${BASE}/share?${shareParams.toString()}`;
-
   const compSummary = comparisons.map((c) => `${c.category}: ${c.value}`).join(' / ');
-  const shareText =
-    lang === 'ja'
-      ? `${name}の全肯定診断 🌸\n${analysis}\n\n${compSummary}\n\nBotたんのお部屋で診断してもらった👉 ${shareUrl}`
-      : `${name}'s diagnosis from Bot-tan's Room 🌸\n${analysis}\n\n${compSummary}\n\nVisit Bot-tan's Room 👉 ${shareUrl}`;
 
-  const xShareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
-  const bskyShareUrl = `https://bsky.app/intent/compose?text=${encodeURIComponent(shareText)}`;
+  /** KVに保存してシェアURLを生成する。失敗時はフォールバックの長いURLを返す */
+  const buildShareUrl = async (): Promise<string> => {
+    const fallbackParams = new URLSearchParams({
+      name,
+      analysis,
+      c1: `${comparisons[0].category}／${comparisons[0].value}`,
+      c2: `${comparisons[1].category}／${comparisons[1].value}`,
+      c3: `${comparisons[2].category}／${comparisons[2].value}`,
+      lang,
+    });
+    const fallbackUrl = `${BASE}/share?${fallbackParams.toString()}`;
+
+    try {
+      const response = await fetch('/api/share/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          analysis_ja: fortune.analysis_ja,
+          analysis_en: fortune.analysis_en,
+          comparisons: fortune.comparisons,
+          lang,
+        }),
+      });
+
+      if (response.ok) {
+        const data = (await response.json()) as { id: string };
+        if (data.id) {
+          console.log('[FortuneCard] Generated short share ID:', data.id);
+          return `${BASE}/share?id=${data.id}`;
+        }
+      }
+    } catch (error) {
+      console.error('[FortuneCard] KV save failed, falling back to long URL:', error);
+    }
+
+    return fallbackUrl;
+  };
+
+  const handleShareX = async () => {
+    if (isSharingX) return;
+    setIsSharingX(true);
+    try {
+      const shareUrl = await buildShareUrl();
+      const shareText =
+        lang === 'ja'
+          ? `${name}の全肯定診断 🌸\n${analysis}\n\n${compSummary}\n\nBotたんのお部屋で診断してもらった👉 ${shareUrl}`
+          : `${name}'s diagnosis from Bot-tan's Room 🌸\n${analysis}\n\n${compSummary}\n\nVisit Bot-tan's Room 👉 ${shareUrl}`;
+      window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`, '_blank');
+    } finally {
+      setIsSharingX(false);
+    }
+  };
+
+  const handleShareBsky = async () => {
+    if (isSharingBsky) return;
+    setIsSharingBsky(true);
+    try {
+      const shareUrl = await buildShareUrl();
+      const shareText =
+        lang === 'ja'
+          ? `${name}の全肯定診断 🌸\n${analysis}\n\n${compSummary}\n\nBotたんのお部屋で診断してもらった👉 ${shareUrl}`
+          : `${name}'s diagnosis from Bot-tan's Room 🌸\n${analysis}\n\n${compSummary}\n\nVisit Bot-tan's Room 👉 ${shareUrl}`;
+      window.open(`https://bsky.app/intent/compose?text=${encodeURIComponent(shareText)}`, '_blank');
+    } finally {
+      setIsSharingBsky(false);
+    }
+  };
 
   return (
     <div
@@ -170,26 +180,24 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false, flat = fa
           ))}
         </div>
 
-        {/* share buttons */}
+        {/* share buttons — KV save happens here, on click */}
         <div className="flex gap-3 pt-2" style={{ display: 'flex', gap: '10px' }}>
-          <a
-            href={xShareUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 text-center text-sm font-extrabold rounded-full shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+          <button
+            onClick={handleShareX}
+            disabled={isSharingX || isSharingBsky}
+            className="flex-1 text-center text-sm font-extrabold rounded-full shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-wait"
             style={{ background: '#0f172a', color: '#fff', padding: '10px 16px', borderRadius: '9999px' }}
           >
-            {l.shareX}
-          </a>
-          <a
-            href={bskyShareUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1 text-center text-sm font-extrabold rounded-full shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            {isSharingX ? l.sharing : l.shareX}
+          </button>
+          <button
+            onClick={handleShareBsky}
+            disabled={isSharingX || isSharingBsky}
+            className="flex-1 text-center text-sm font-extrabold rounded-full shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-wait"
             style={{ background: '#0085ff', color: '#fff', padding: '10px 16px', borderRadius: '9999px' }}
           >
-            {l.shareBsky}
-          </a>
+            {isSharingBsky ? l.sharing : l.shareBsky}
+          </button>
         </div>
       </div>
     </div>
