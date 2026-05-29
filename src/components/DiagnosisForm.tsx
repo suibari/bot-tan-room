@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { QUESTIONS } from '@/data/questions';
+import { DEEP_QUESTIONS, ACCEPTANCE_QUESTIONS } from '@/data/questions';
 
 type AnswerItem = { question: string; answer: string };
 
@@ -28,7 +28,9 @@ export function DiagnosisForm({ lang, onSubmit, onQuestionShow }: Props) {
   const l = LABELS[lang];
 
   const selectedQuestions = useMemo(() => {
-    return [...QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 3);
+    const part1 = [...DEEP_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 2);
+    const part2 = [...ACCEPTANCE_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 1);
+    return [...part1, ...part2];
   }, []);
 
   const [currentIndex, setCurrentIndex] = useState(0);
