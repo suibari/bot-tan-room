@@ -58,6 +58,7 @@ export default function Home() {
   const [isAuthChecking, setIsAuthChecking] = useState(true); // OAuth init 解決まで true
   const [isWaitingForVoice, setIsWaitingForVoice] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isLangLocked, setIsLangLocked] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const questionAbortRef = useRef<AbortController | null>(null);
   // OAuth クライアントをマウント時に事前ロードして signInRedirect がすぐ呼べるようにする
@@ -81,10 +82,6 @@ export default function Home() {
     }
 
     // OAuth クライアントを事前ロード + init() を呼ぶ
-    // init() は2つの役割を持つ:
-    //   1. fixLocation() で開発環境の localhost → 127.0.0.1 自動リダイレクト
-    //   2. redirect_uri がルート '/' なので、OAuth 後のコールバック処理もここで行う
-    //      （URL の hash パラメータからセッションを確立し result.session/state を返す）
     import('@/features/auth/bskyOAuth')
       .then(({ getBskyOAuthClient }) => {
         const client = getBskyOAuthClient(); // 同期・シングルトン
@@ -94,7 +91,6 @@ export default function Home() {
       .then((result) => {
         if (result?.session) {
           bskySessionRef.current = result.session;
-          // signInRedirect で state にハンドルを渡している場合は優先的にフォールバック名に使う
           const fallback =
             'state' in result && typeof result.state === 'string' && result.state
               ? result.state.replace(/^@/, '')
@@ -126,7 +122,6 @@ export default function Home() {
         }
       })
       .catch((e: unknown) => {
-        // fixLocation() が localhost → 127.0.0.1 へリダイレクトする際に throw する正常動作
         if (e instanceof Error && e.message.includes('Redirecting')) return;
         console.error('[Bluesky OAuth init]', e);
         const h = window.localStorage.getItem("bsky_handle");
@@ -182,6 +177,7 @@ export default function Home() {
   const handleDiagnose = useCallback(async (answers: AnswerItem[]) => {
     setIsWaitingForVoice(true);
     setPhase("loading");
+    setIsLangLocked(true); // 診断開始時に言語をロック
 
     try {
       const res = await fetch("/api/fortune", {
@@ -203,6 +199,7 @@ export default function Home() {
     } catch (e) {
       console.error(e);
       setIsWaitingForVoice(false);
+      setIsLangLocked(false); // 失敗時はロック解除
       setPhase("questions");
     }
   }, [userName, lang, safeSpeak]);
@@ -232,6 +229,7 @@ export default function Home() {
     setUserName('');
     setNameInput('');
     setChatLog([]);
+    setIsLangLocked(false); // サインアウト時にロック解除
     setPhase('landing');
   }, []);
 
@@ -251,25 +249,28 @@ export default function Home() {
       ];
       setChatLog(messageLog);
 
-      // システムプロンプトに日英両方を出力する指示を注入（ユーザーのアクティブ言語を優先）
+      // 初回送信時に言語ロックを確実に行う
+      setIsLangLocked(true);
+
+      // システムプロンプトに指定された言語のみを出力する指示を注入
       const langDirective =
         lang === "en"
           ? "\n\n# Response Format Rules (CRITICAL)\n" +
-            "You MUST respond with BOTH a Japanese version and an English version of your reply.\n" +
-            "Because the user's active language is English, you MUST output the English response first, followed by the Japanese response.\n" +
+            "You MUST respond ONLY in English.\n" +
+            "You MUST start your response with an emotion tag like [happy], [neutral], [sad], [angry], or [relaxed] to represent your feeling.\n" +
             "Format your reply exactly like this:\n" +
-            "[en][emotion]EnglishText[ja][emotion]JapaneseText\n\n" +
+            "[emotion]EnglishText\n\n" +
             "Example:\n" +
-            "[en][happy]I'm doing great! How about you?[ja][happy]元気いっぱいだよ！そっちはどう？\n\n" +
-            "Note: The Japanese version must be in bot-tan's characteristic 10-year-old casual girl style (語尾: ～だよ, ～だね). Never use polite language in Japanese. The English version should also be cheerful, friendly, and casual."
+            "[happy]I'm doing great! How about you?\n\n" +
+            "Note: The English response should be cheerful, friendly, and casual. Keep it concise."
           : "\n\n# 返答のフォーマットルール（最重要）\n" +
-            "必ず日本語の返答と英語の返答の両方を出力してください。\n" +
-            "ユーザーの現在の言語は日本語なので、必ず日本語の返答を最初に出力し、その後に英語の返答を出力してください。\n" +
+            "必ず日本語でのみ返答してください。\n" +
+            "返答の冒頭には、必ず感情タグ（[happy]、[neutral]、[sad]、[angry]、[relaxed]のいずれか1つ）を付与して感情を表現してください。\n" +
             "フォーマットは必ず以下を厳守してください：\n" +
-            "[ja][感情タグ]日本語の返答[en][感情タグ]英語の返答\n\n" +
+            "[感情タグ]日本語の返答\n\n" +
             "例：\n" +
-            "[ja][happy]元気いっぱいだよ！そっちはどう？[en][happy]I'm doing great! How about you?\n\n" +
-            "注意：日本語の返答は、botたんの特徴（10代の女の子、カジュアルな口調、語尾は「～だよ」「～だね」、敬語禁止）を厳守してください。英語の返答も同様に明るくフレンドリーでカジュアルなトーンにしてください。";
+            "[happy]元気いっぱいだよ！そっちはどう？\n\n" +
+            "注意：日本語の返答は、botたんの特徴（10代の女の子、カジュアルな口調、語尾は「～だよ」「～だね」、敬語禁止）を厳守してください。";
 
       const messages: Message[] = [
         { role: "system", content: systemPrompt + langDirective },
@@ -299,17 +300,18 @@ export default function Home() {
       setChatLog([...messageLog, { role: "assistant", content: fullText }]);
       setChatProcessing(false);
 
-      // テキスト表示後、発話準備スピナー → 発話（発話は常に日本語）
-      // 1回のリクエストに含まれている日本語テキストを抽出し、感情タグを除去して直接発話させる（翻訳API不要！）
-      const jaRawText = parseLanguageContent(fullText, "ja");
-      const speakText = stripEmotionTags(jaRawText);
-      if (speakText) {
-        setIsWaitingForVoice(true);
-        safeSpeak(
-          speakText,
-          () => { setIsWaitingForVoice(false); setIsSpeaking(true); },
-          () => setIsSpeaking(false),
-        );
+      // テキスト表示後、発話準備スピナー → 発話（音声合成は日本語のみで有効化する）
+      if (lang === "ja") {
+        const jaRawText = parseLanguageContent(fullText, "ja");
+        const speakText = stripEmotionTags(jaRawText);
+        if (speakText) {
+          setIsWaitingForVoice(true);
+          safeSpeak(
+            speakText,
+            () => { setIsWaitingForVoice(false); setIsSpeaking(true); },
+            () => setIsSpeaking(false),
+          );
+        }
       }
     },
     [systemPrompt, chatLog, userName, lang, safeSpeak]
@@ -368,22 +370,32 @@ export default function Home() {
       <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
         {/* 言語トグル */}
         <div
-          className="flex rounded-full overflow-hidden"
+          className="flex rounded-full overflow-hidden transition-all duration-300"
           style={{
             background: "rgba(8,16,40,0.6)",
             backdropFilter: "blur(10px)",
-            border: "1px solid rgba(120,160,255,0.3)",
+            border: isLangLocked ? "1px solid rgba(120,160,255,0.15)" : "1px solid rgba(120,160,255,0.3)",
+            opacity: isLangLocked ? 0.6 : 1,
           }}
         >
+          {isLangLocked && (
+            <div className="flex items-center pl-3 text-white/40 select-none">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </div>
+          )}
           {(["en", "ja"] as const).map((l) => (
             <button
               key={l}
+              disabled={isLangLocked}
               onClick={() => switchLocale(l)}
-              className="px-4 py-2 text-sm font-bold transition-all"
+              className="px-4 py-2 text-sm font-bold transition-all disabled:cursor-not-allowed"
               style={
                 lang === l
                   ? { background: "linear-gradient(90deg, #667eea, #764ba2)", color: "#fff" }
-                  : { background: "transparent", color: "rgba(255,255,255,0.7)" }
+                  : { background: "transparent", color: isLangLocked ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.7)" }
               }
             >
               {l === "en" ? "EN" : "日本語"}
