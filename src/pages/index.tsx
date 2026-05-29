@@ -206,13 +206,31 @@ export default function Home() {
       });
       if (!res.ok) throw new Error("diagnosis failed");
       const data: DiagnosisResult = await res.json();
-      setFortune(data);
-      setPhase("fortune");
 
       const voiceText = data.analysis_ja;
+
+      let hasOpened = false;
+      const openResult = () => {
+        if (hasOpened) return;
+        hasOpened = true;
+        setFortune(data);
+        setPhase("fortune");
+      };
+
+      // 音声の準備が遅れた場合のセーフティ用タイムアウト（最大5.5秒で強制表示）
+      const timeoutId = setTimeout(() => {
+        console.log("[handleDiagnose] Safety timeout reached, opening fortune card");
+        openResult();
+      }, 5500);
+
       safeSpeak(
         voiceText,
-        () => { setIsWaitingForVoice(false); setIsSpeaking(true); },
+        () => {
+          clearTimeout(timeoutId);
+          setIsWaitingForVoice(false);
+          setIsSpeaking(true);
+          openResult(); // 音声の再生開始と同時に結果画面を表示！
+        },
         () => setIsSpeaking(false),
       );
     } catch (e) {
