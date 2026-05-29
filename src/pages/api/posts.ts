@@ -14,10 +14,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ message: 'Server Configuration Error' });
   }
 
+  // 安全に環境変数の読み込み状況と文字数を確認するためのログ（値自体は漏洩させない）
+  console.log(`[API posts debug]: DB_URL="${DB_URL}", CF_ID=${CF_ID ? 'Configured (length=' + CF_ID.length + ')' : 'Missing'}, CF_SECRET=${CF_SECRET ? 'Configured (length=' + CF_SECRET.length + ')' : 'Missing'}`);
+
   const headers: HeadersInit = {
     'Accept-Profile': 'affirmative_bot',
     'CF-Access-Client-Id': CF_ID,
     'CF-Access-Client-Secret': CF_SECRET,
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   };
 
   try {
@@ -37,8 +41,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const repliesStatus = repliesRes.status;
       let postsErrText = '';
       let repliesErrText = '';
-      try { postsErrText = await postsRes.text(); } catch (_) {}
-      try { repliesErrText = await repliesRes.text(); } catch (_) {}
+      try { postsErrText = await postsRes.text(); } catch (_) { }
+      try { repliesErrText = await repliesRes.text(); } catch (_) { }
 
       console.error(
         `[API posts DB fetch failed]:\n` +
