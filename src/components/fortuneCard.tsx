@@ -6,6 +6,7 @@ type Props = {
   fortune: DiagnosisResult;
   lang: 'ja' | 'en';
   isSpeaking?: boolean;
+  flat?: boolean;
 };
 
 const LABELS = {
@@ -21,7 +22,7 @@ const LABELS = {
   },
 };
 
-export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) {
+export function FortuneCard({ name, fortune, lang, isSpeaking = false, flat = false }: Props) {
   const l = LABELS[lang];
   const BASE = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://guestbook.suibari.com';
 
@@ -100,24 +101,30 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) 
 
   return (
     <div
-      className="w-full rounded-2xl overflow-hidden shadow-2xl"
-      style={{
-        background: 'rgba(28, 10, 50, 0.80)',
-        backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(200,140,255,0.28)',
-      }}
+      className="w-full"
+      style={
+        flat
+          ? { background: 'transparent', border: 'none', boxShadow: 'none' }
+          : {
+              background: 'rgba(255, 255, 255, 0.65)',
+              backdropFilter: 'blur(20px)',
+              border: '1.5px solid rgba(255, 255, 255, 0.55)',
+              boxShadow: '0 10px 30px rgba(15, 32, 67, 0.05)',
+              borderRadius: '1.8rem',
+              overflow: 'hidden',
+            }
+      }
     >
-      <div className="p-4 sm:p-5 space-y-3">
+      <div style={{ padding: flat ? '0' : '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
         {/* heading */}
-        <p className="text-white/60 text-xs tracking-widest uppercase"
-          style={{ color: 'rgba(220,170,255,0.75)' }}>
+        <p className="text-slate-500 text-xs font-black tracking-widest uppercase" style={{ color: 'rgba(15, 32, 67, 0.6)' }}>
           {l.heading} — {name}
         </p>
 
         {/* analysis text */}
         <p
-          className="text-white text-sm sm:text-base leading-relaxed"
-          style={{ borderLeft: '3px solid rgba(200,120,255,0.7)', paddingLeft: '12px' }}
+          className="text-slate-800 text-base sm:text-lg leading-relaxed font-bold animate-fadeIn"
+          style={{ borderLeft: '4px solid #3a9bd5', paddingLeft: '16px', color: '#1e293b' }}
         >
           {analysis}
         </p>
@@ -129,12 +136,12 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) 
               {[0, 1, 2].map((i) => (
                 <span
                   key={i}
-                  className="block w-1.5 h-4 rounded-full bg-purple-400"
+                  className="block w-1.5 h-4 rounded-full bg-sky-500"
                   style={{ animation: `bar-bounce 0.9s ease-in-out ${i * 0.15}s infinite` }}
                 />
               ))}
             </span>
-            <span className="text-purple-300 text-xs">
+            <span className="text-sky-600 font-extrabold text-xs">
               {lang === 'ja' ? '読み上げ中...' : 'Speaking...'}
             </span>
             <style jsx>{`
@@ -147,15 +154,15 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) 
         )}
 
         {/* comparisons pills */}
-        <div className="flex flex-wrap pt-1" style={{ gap: '4px' }}>
+        <div className="flex flex-wrap pt-1" style={{ gap: '6px' }}>
           {comparisons.map(({ category, value }) => (
             <span
               key={category}
-              className="text-xs px-3 py-1 rounded-full"
+              className="text-xs font-bold px-4 py-1.5 rounded-full shadow-sm"
               style={{
-                background: 'rgba(180,80,255,0.18)',
-                border: '1px solid rgba(200,120,255,0.40)',
-                color: 'rgba(230,200,255,0.95)',
+                background: 'rgba(58, 155, 213, 0.1)',
+                border: '1.5px solid rgba(58, 155, 213, 0.25)',
+                color: 'rgba(15, 32, 67, 0.85)',
               }}
             >
               {category}：{value}
@@ -164,13 +171,13 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) 
         </div>
 
         {/* share buttons */}
-        <div className="flex gap-2 pt-1">
+        <div className="flex gap-3 pt-2" style={{ display: 'flex', gap: '10px' }}>
           <a
             href={xShareUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 text-center text-xs font-bold py-2 px-3 rounded-full transition-opacity hover:opacity-80 active:opacity-60"
-            style={{ background: '#000', color: '#fff' }}
+            className="flex-1 text-center text-sm font-extrabold rounded-full shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            style={{ background: '#0f172a', color: '#fff', padding: '10px 16px', borderRadius: '9999px' }}
           >
             {l.shareX}
           </a>
@@ -178,8 +185,8 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) 
             href={bskyShareUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 text-center text-xs font-bold py-2 px-3 rounded-full transition-opacity hover:opacity-80 active:opacity-60"
-            style={{ background: '#0085ff', color: '#fff' }}
+            className="flex-1 text-center text-sm font-extrabold rounded-full shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            style={{ background: '#0085ff', color: '#fff', padding: '10px 16px', borderRadius: '9999px' }}
           >
             {l.shareBsky}
           </a>

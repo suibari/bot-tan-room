@@ -38,12 +38,12 @@ export function BlueskyPrompt({ lang, isSignedIn, onSignIn }: Props) {
   if (isSignedIn) {
     return (
       <div
-        className="w-full max-w-lg mx-auto rounded-xl px-4 py-3 text-center text-xs font-bold shadow-md"
+        className="w-full max-w-xl mx-auto rounded-full px-6 py-4 text-center text-sm font-black shadow-sm"
         style={{
-          background: 'rgba(180,60,255,0.12)',
-          border: '1px solid rgba(200,120,255,0.35)',
-          color: 'rgba(230,190,255,0.95)',
-          backdropFilter: 'blur(8px)',
+          background: 'rgba(0, 205, 172, 0.1)',
+          border: '1.5px solid rgba(0, 205, 172, 0.25)',
+          color: '#0d9488',
+          backdropFilter: 'blur(16px)',
         }}
       >
         {l.chatReady}
@@ -72,22 +72,27 @@ export function BlueskyPrompt({ lang, isSignedIn, onSignIn }: Props) {
 
   return (
     <div
-      className="w-full max-w-lg mx-auto rounded-2xl px-4 py-4 space-y-3 shadow-lg"
+      className="w-full max-w-xl mx-auto shadow-sm"
       style={{
-        background: 'rgba(0, 100, 255, 0.05)',
-        border: '1px solid rgba(0, 150, 255, 0.18)',
-        backdropFilter: 'blur(8px)',
+        background: 'rgba(255, 255, 255, 0.55)',
+        border: '1.5px solid rgba(255, 255, 255, 0.45)',
+        backdropFilter: 'blur(20px)',
+        borderRadius: '1.8rem',
+        padding: '0.85rem 1.25rem',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.75rem',
       }}
     >
       <div className="flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse shrink-0" />
-        <p className="text-white font-bold text-xs leading-relaxed" style={{ color: 'rgba(215, 230, 255, 0.9)' }}>
+        <span className="w-2.5 h-2.5 rounded-full bg-sky-400 animate-pulse shrink-0" />
+        <p className="text-slate-800 font-extrabold text-sm leading-relaxed">
           {l.desc}
         </p>
       </div>
 
-      <div className="space-y-2.5">
-        <div className="flex gap-2">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <input
             type="text"
             value={handle}
@@ -95,20 +100,30 @@ export function BlueskyPrompt({ lang, isSignedIn, onSignIn }: Props) {
             onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
             placeholder={l.placeholder}
             disabled={isLoading}
-            className="flex-1 px-3 py-2 rounded-xl text-white placeholder-white/30 outline-none focus:ring-1 focus:ring-blue-400/50 text-xs disabled:opacity-50 transition-all"
+            className="flex-1 text-slate-800 placeholder-slate-400 outline-none text-xs font-semibold shadow-inner transition-all duration-200"
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              background: 'rgba(255, 255, 255, 0.52)',
+              border: '1.5px solid rgba(58, 155, 213, 0.25)',
+              borderRadius: '9999px',
+              padding: '10px 18px',
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = 'var(--theme-blue)';
+              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(58, 155, 213, 0.15)';
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = 'rgba(58, 155, 213, 0.25)';
+              e.currentTarget.style.boxShadow = 'none';
             }}
           />
 
           <button
             onClick={handleSubmit}
             disabled={!handle.trim() || isLoading}
-            className="px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 shadow-md whitespace-nowrap"
+            className="text-xs font-black text-white shadow-sm tracking-wider transition-all duration-300 hover:brightness-105 active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap bg-theme-gradient"
             style={{
-              background: 'linear-gradient(135deg, #0085ff, #00baee)',
-              color: '#fff',
+              borderRadius: '9999px',
+              padding: '10px 20px',
             }}
           >
             {isLoading ? l.signing : l.signIn}
@@ -116,7 +131,7 @@ export function BlueskyPrompt({ lang, isSignedIn, onSignIn }: Props) {
         </div>
 
         {errorMsg && (
-          <p className="text-[11px] font-medium" style={{ color: 'rgba(255, 130, 130, 0.95)' }}>
+          <p className="text-[11px] font-bold pl-2" style={{ color: 'rgba(220, 50, 50, 0.95)' }}>
             {errorMsg}
           </p>
         )}
@@ -125,11 +140,13 @@ export function BlueskyPrompt({ lang, isSignedIn, onSignIn }: Props) {
           href="https://bsky.app/"
           target="_blank"
           rel="noopener noreferrer"
-          className="block w-full py-2 px-4 rounded-xl text-[11px] font-bold text-center transition-all duration-200 hover:bg-white/10 active:scale-[0.98]"
+          className="block w-full text-xs font-black text-center transition-all duration-300 hover:brightness-105 active:scale-[0.98] shadow-sm"
           style={{
-            background: 'rgba(255, 255, 255, 0.08)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            color: 'rgba(200, 225, 255, 0.95)',
+            background: 'rgba(255, 255, 255, 0.65)',
+            border: '1.5px solid rgba(58, 155, 213, 0.25)',
+            color: '#0085ff',
+            borderRadius: '9999px',
+            padding: '10px 16px',
           }}
         >
           {l.noAccount}

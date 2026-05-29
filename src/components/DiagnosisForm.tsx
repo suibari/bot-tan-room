@@ -64,34 +64,34 @@ export function DiagnosisForm({ lang, onSubmit, onQuestionShow }: Props) {
   const q = selectedQuestions[currentIndex];
 
   return (
-    <div className="space-y-4">
+    <div className="w-full" style={{ display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
       {/* progress indicator */}
       <div className="flex items-center justify-between">
-        <div className="flex gap-1.5">
+        <div className="flex gap-2">
           {[0, 1, 2].map((i) => (
             <span
               key={i}
               className="block rounded-full transition-all"
               style={{
-                width: i === currentIndex ? 20 : 8,
-                height: 8,
+                width: i === currentIndex ? 24 : 10,
+                height: 10,
                 background:
                   i < currentIndex
                     ? 'var(--theme-mint)'
                     : i === currentIndex
                     ? 'var(--theme-mint)'
-                    : 'rgba(255,255,255,0.2)',
+                    : 'rgba(15, 32, 67, 0.15)',
               }}
             />
           ))}
         </div>
-        <span className="text-white/50 text-xs font-mono">
+        <span className="text-slate-400 text-xs font-mono font-bold">
           {l.progress(currentIndex + 1, 3)}
         </span>
       </div>
 
       {/* question */}
-      <p className="text-white text-sm font-medium leading-relaxed min-h-[2.5rem]">
+      <p className="text-slate-800 text-lg font-black leading-relaxed" style={{ minHeight: '3rem', margin: '0' }}>
         {lang === 'ja' ? q.ja : q.en}
       </p>
 
@@ -107,15 +107,32 @@ export function DiagnosisForm({ lang, onSubmit, onQuestionShow }: Props) {
         placeholder={l.placeholder}
         maxLength={30}
         autoFocus
-        className="w-full px-3 py-2 rounded-xl text-white placeholder-white/40 ring-theme-glow text-sm"
-        style={{ background: 'rgba(255,255,255,0.10)' }}
+        className="w-full text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
+        style={{
+          background: "rgba(255, 255, 255, 0.55)",
+          border: "1.5px solid rgba(58, 155, 213, 0.25)",
+          borderRadius: "9999px",
+          padding: "13px 24px",
+        }}
+        onFocus={(e) => {
+          e.currentTarget.style.borderColor = 'var(--theme-blue)';
+          e.currentTarget.style.boxShadow = '0 0 0 4px rgba(58, 155, 213, 0.15)';
+        }}
+        onBlur={(e) => {
+          e.currentTarget.style.borderColor = 'rgba(58, 155, 213, 0.25)';
+          e.currentTarget.style.boxShadow = 'none';
+        }}
       />
 
       {/* next / submit button */}
       <button
         onClick={handleNext}
         disabled={!canProceed}
-        className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed bg-theme-gradient-3"
+        className="w-full font-black text-white text-base shadow-md tracking-wider transition-all duration-300 hover:shadow-lg hover:brightness-105 active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed bg-theme-gradient"
+        style={{
+          borderRadius: "9999px",
+          padding: "13px 24px",
+        }}
       >
         {isLast ? l.submit : l.next}
       </button>

@@ -538,20 +538,23 @@ export default function Home() {
       <VrmViewer />
 
       {/* トップバー（言語スイッチャー + 名前 + サインアウト）— 常時表示 */}
-      <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
+      <div className="absolute z-30 flex items-center animate-fadeIn" style={{ top: "1.5rem", right: "1.5rem", gap: "14px" }}>
         {/* ポリシーボタン */}
         <button
           onClick={() => setShowPolicy(true)}
           title={t("policy.link")}
-          className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:opacity-85 active:scale-95 shrink-0"
+          className="rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 shrink-0"
           style={{
-            background: "var(--theme-bg-dark-half)",
-            backdropFilter: "blur(10px)",
-            border: "1px solid var(--theme-border-glow-strong)",
-            color: "#fff",
+            width: "48px",
+            height: "48px",
+            background: "rgba(255, 255, 255, 0.65)",
+            backdropFilter: "blur(20px)",
+            border: "1px solid rgba(255, 255, 255, 0.45)",
+            color: "rgba(15, 32, 67, 0.8)",
+            boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
           }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="16" x2="12" y2="12" />
             <line x1="12" y1="8" x2="12.01" y2="8" />
@@ -560,17 +563,23 @@ export default function Home() {
 
         {/* 言語トグル */}
         <div
-          className="flex rounded-full overflow-hidden transition-all duration-300"
+          className="transition-all duration-300"
           style={{
-            background: "var(--theme-bg-dark-half)",
-            backdropFilter: "blur(10px)",
-            border: isLangLocked ? "1px solid var(--theme-border-glow-light)" : "1px solid var(--theme-border-glow-strong)",
+            padding: "5px",
+            gap: "6px",
+            background: "rgba(255, 255, 255, 0.65)",
+            backdropFilter: "blur(20px)",
+            border: "1px solid rgba(255, 255, 255, 0.45)",
             opacity: isLangLocked ? 0.6 : 1,
+            boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
+            borderRadius: "9999px",
+            display: "flex",
+            alignItems: "center",
           }}
         >
           {isLangLocked && (
-            <div className="flex items-center pl-3 text-white/40 select-none">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+            <div className="flex items-center pl-3 pr-1 text-slate-400 select-none">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
@@ -581,58 +590,67 @@ export default function Home() {
               key={l}
               disabled={isLangLocked}
               onClick={() => switchLocale(l)}
-              className="px-4 py-2 text-sm font-bold transition-all disabled:cursor-not-allowed"
-              style={
+              className={`text-[15px] font-black transition-all duration-300 rounded-full disabled:cursor-not-allowed select-none ${
                 lang === l
-                  ? { background: "var(--primary-gradient)", color: "#fff" }
-                  : { background: "transparent", color: isLangLocked ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.7)" }
-              }
+                  ? "bg-theme-gradient text-white shadow-md shadow-theme-blue/15 scale-100"
+                  : "text-slate-600 hover:text-slate-800 hover:bg-white/40 active:scale-95"
+              }`}
+              style={{
+                borderRadius: "9999px",
+                padding: "10px 24px",
+              }}
             >
               {l === "en" ? "EN" : "日本語"}
             </button>
           ))}
         </div>
 
-        {/* サインイン済み: 名前チップ + サインアウト */}
+        {/* サインイン済み: サインアウト */}
         {isSignedIn && (
-          <>
-            <div
-              className="px-3 py-2 rounded-full text-sm font-bold max-w-[140px] truncate"
-              style={{
-                background: "var(--theme-bg-dark-half)",
-                backdropFilter: "blur(10px)",
-                border: "1px solid var(--theme-border-glow-strong)",
-                color: "rgba(230,255,250,0.95)",
-              }}
-              title={userName}
-            >
-              👤 {userName}
-            </div>
-            <button
-              onClick={handleSignOut}
-              className="px-4 py-2 rounded-full text-sm font-bold transition-opacity hover:opacity-80 active:opacity-60"
-              style={{
-                background: "var(--theme-ring-glow)",
-                backdropFilter: "blur(10px)",
-                border: "1px solid var(--theme-ring-glow-strong)",
-                color: "rgba(230,255,250,0.98)",
-              }}
-            >
-              {lang === "ja" ? "サインアウト" : "Sign out"}
-            </button>
-          </>
+          <button
+            onClick={handleSignOut}
+            className="rounded-full font-black transition-all duration-300 hover:scale-105 active:scale-95 select-none"
+            style={{
+              height: "48px",
+              padding: "0 24px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "rgba(255, 255, 255, 0.65)",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(255, 255, 255, 0.45)",
+              color: "#0085ff",
+              boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
+              fontSize: "15px",
+            }}
+          >
+            {lang === "ja" ? "サインアウト" : "Sign out"}
+          </button>
         )}
       </div>
 
       {/* ===== LANDING ===== */}
       {phase === "landing" && !isAuthChecking && !quotaExceeded && (
-        <div className="absolute bottom-4 left-4 right-4 z-20 flex justify-center">
-          <div className="w-full max-w-lg px-4 pb-8 pt-5 space-y-3 rounded-3xl shadow-2xl bg-theme-card">
-            <h1 className="text-white text-lg font-bold text-center tracking-wide"
-              style={{ textShadow: '0 0 18px var(--theme-border-glow-active)' }}>
+        <div className="absolute z-20 flex justify-center" style={{ left: "1.5rem", right: "1.5rem", bottom: "1.5rem", top: 'auto' }}>
+          <div 
+            className="w-full max-w-xl shadow-2xl relative overflow-hidden transition-all duration-300"
+            style={{
+              background: "rgba(255, 255, 255, 0.72)",
+              backdropFilter: "blur(30px) saturate(140%)",
+              border: "1.5px solid rgba(255, 255, 255, 0.55)",
+              borderRadius: "2.5rem",
+              padding: "1.5rem 2.25rem",
+              display: "flex",
+              flexDirection: "column",
+              gap: "1.15rem",
+              boxShadow: "0 24px 64px -16px rgba(15, 32, 67, 0.12)",
+            }}
+          >
+            <h1 className="text-slate-800 text-2xl font-black text-center tracking-wide"
+              style={{ textShadow: '0 2px 10px rgba(58, 155, 213, 0.15)' }}>
               {lang === "ja" ? "Botたんのお部屋へようこそ" : "Welcome to Bot-tan's Room"}
             </h1>
-            <p className="text-xs text-center leading-relaxed" style={{ color: "rgba(255, 255, 255, 0.85)" }}>
+            <p className="text-sm font-semibold text-slate-600 text-center leading-relaxed">
               {lang === "ja"
                 ? "あなたのこと、botたんに話してみて。どんなことも、ぜんぶ受け止めるよ"
                 : "Tell bot-tan about yourself. I will embrace every part of you with warmth"}
@@ -645,29 +663,36 @@ export default function Home() {
               onKeyDown={(e) => e.key === "Enter" && handleNameSubmit()}
               placeholder={LABEL.placeholder}
               maxLength={30}
-              className="w-full px-4 py-3 rounded-xl text-white placeholder-white/35 outline-none text-sm"
+              className="w-full text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
               style={{
-                background: "rgba(255,255,255,0.08)",
-                border: "1px solid var(--theme-border-glow-strong)",
-                boxShadow: "0 0 0 0 transparent",
-                transition: "box-shadow 0.2s",
+                background: "rgba(255, 255, 255, 0.55)",
+                border: "1.5px solid rgba(58, 155, 213, 0.25)",
+                borderRadius: "9999px",
+                padding: "13px 24px",
               }}
-              onFocus={(e) => (e.currentTarget.style.boxShadow = '0 0 0 2px var(--theme-ring-glow-strong)')}
-              onBlur={(e) => (e.currentTarget.style.boxShadow = '0 0 0 0 transparent')}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = 'var(--theme-blue)';
+                e.currentTarget.style.boxShadow = '0 0 0 4px rgba(58, 155, 213, 0.15)';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(58, 155, 213, 0.25)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             />
             <button
               onClick={handleNameSubmit}
-              className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all hover:brightness-110 active:scale-[0.98] bg-theme-gradient-3"
+              className="w-full font-black text-white text-base shadow-md tracking-wider transition-all duration-300 hover:shadow-lg hover:brightness-105 active:scale-[0.97] bg-theme-gradient"
+              style={{
+                borderRadius: "9999px",
+                padding: "13px 24px",
+              }}
             >
               {LABEL.button}
             </button>
-            <div className="text-center pt-1">
+            <div className="text-center">
               <button
                 onClick={() => setShowPolicy(true)}
-                className="text-xs transition-colors underline"
-                style={{ color: "rgba(255, 255, 255, 0.45)" }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(255, 255, 255, 0.75)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255, 255, 255, 0.45)")}
+                className="text-xs transition-colors underline text-slate-400 hover:text-slate-600 font-semibold"
               >
                 {t("policy.link")}
               </button>
@@ -678,10 +703,23 @@ export default function Home() {
 
       {/* ===== QUESTIONS ===== */}
       {phase === "questions" && !quotaExceeded && (
-        <div className="absolute bottom-4 left-4 right-4 z-20 flex justify-center">
-          <div className="w-full max-w-lg px-4 pb-8 pt-5 space-y-3 rounded-3xl shadow-2xl bg-theme-card">
-            <h2 className="text-white text-sm font-bold text-center tracking-wide"
-              style={{ textShadow: '0 0 12px var(--theme-border-glow-active)' }}>
+        <div className="absolute z-20 flex justify-center" style={{ left: "1.5rem", right: "1.5rem", bottom: "1.5rem", top: 'auto' }}>
+          <div 
+            className="w-full max-w-xl shadow-2xl relative overflow-hidden transition-all duration-300"
+            style={{
+              background: "rgba(255, 255, 255, 0.72)",
+              backdropFilter: "blur(30px) saturate(140%)",
+              border: "1.5px solid rgba(255, 255, 255, 0.55)",
+              borderRadius: "2.5rem",
+              padding: "1.5rem 2.25rem",
+              display: "flex",
+              flexDirection: "column",
+              gap: "1.15rem",
+              boxShadow: "0 24px 64px -16px rgba(15, 32, 67, 0.12)",
+            }}
+          >
+            <h2 className="text-slate-800 text-lg font-black text-center tracking-wide"
+              style={{ textShadow: '0 2px 10px rgba(58, 155, 213, 0.12)' }}>
               {lang === "ja"
                 ? `${userName}さんのこと、聞かせてね`
                 : `Tell me about you, ${userName}`}
@@ -699,23 +737,24 @@ export default function Home() {
       {isWaitingForVoice && (
         <div className="absolute inset-x-0 top-1/3 z-30 flex justify-center pointer-events-none">
           <div
-            className="flex flex-col items-center gap-3 px-8 py-5 rounded-2xl"
+            className="flex flex-col items-center gap-4 px-10 py-7 rounded-3xl"
             style={{
-              background: "var(--theme-bg-dark-hover)",
-              backdropFilter: "blur(16px)",
-              border: "1px solid var(--theme-border-glow-strong)",
+              background: "rgba(255, 255, 255, 0.70)",
+              backdropFilter: "blur(20px)",
+              border: "1.5px solid rgba(255, 255, 255, 0.55)",
+              boxShadow: "0 24px 64px -16px rgba(15, 32, 67, 0.12)",
             }}
           >
             <div className="spinner-ring" />
-            <span className="text-white/90 text-sm font-semibold">
+            <span className="text-slate-800 text-base font-bold" style={{ color: "#0f172a" }}>
               {phase === "loading" ? LABEL.loading : LABEL.voiceLoading}
             </span>
             <style jsx global>{`
               .spinner-ring {
-                width: 40px;
-                height: 40px;
+                width: 44px;
+                height: 44px;
                 border-radius: 50%;
-                border: 4px solid var(--theme-ring-glow);
+                border: 4px solid rgba(58, 155, 213, 0.15);
                 border-top-color: var(--theme-mint);
                 animation: spinner-turn 0.75s linear infinite;
                 flex-shrink: 0;
@@ -730,17 +769,34 @@ export default function Home() {
 
       {/* ===== FORTUNE ===== */}
       {phase === "fortune" && fortune && !quotaExceeded && (
-        <div className="absolute bottom-4 left-4 right-4 z-20 flex justify-center pointer-events-none">
-          <div className="w-full max-w-lg px-4 pb-8 pt-4 space-y-3 rounded-3xl shadow-2xl max-h-[58vh] overflow-y-auto pointer-events-auto bg-theme-card">
+        <div className="absolute z-20 flex justify-center pointer-events-none" style={{ left: "1.5rem", right: "1.5rem", bottom: "1.5rem", top: 'auto' }}>
+          <div 
+            className="w-full max-w-xl shadow-2xl max-h-[72vh] overflow-y-auto pointer-events-auto scrollbar-thin"
+            style={{
+              background: "rgba(255, 255, 255, 0.72)",
+              backdropFilter: "blur(30px) saturate(140%)",
+              border: "1.5px solid rgba(255, 255, 255, 0.55)",
+              borderRadius: "2.5rem",
+              padding: "1.5rem 2.25rem",
+              display: "flex",
+              flexDirection: "column",
+              gap: "1.15rem",
+              boxShadow: "0 24px 64px -16px rgba(15, 32, 67, 0.12)",
+            }}
+          >
             {/* ドラッグハンドル */}
-            <div className="w-10 h-1 rounded-full mx-auto mb-1"
-              style={{ background: "var(--theme-border-glow-active)" }} />
-            <FortuneCard name={userName} fortune={fortune} lang={lang} isSpeaking={isSpeaking} />
+            <div className="w-12 h-1.5 rounded-full mx-auto mb-2"
+              style={{ background: "rgba(58, 155, 213, 0.25)" }} />
+            <FortuneCard name={userName} fortune={fortune} lang={lang} isSpeaking={isSpeaking} flat={true} />
             <BlueskyPrompt lang={lang} isSignedIn={isSignedIn} onSignIn={handleSignIn} />
             {isSignedIn && (
               <button
                 onClick={handleStartChat}
-                className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all hover:brightness-110 active:scale-[0.98] bg-theme-gradient-3"
+                className="w-full font-black text-white text-base shadow-md tracking-wider transition-all duration-300 hover:shadow-lg hover:brightness-105 active:scale-[0.97] bg-theme-gradient"
+                style={{
+                  borderRadius: "9999px",
+                  padding: "13px 24px",
+                }}
               >
                 {LABEL.chat}
               </button>
@@ -761,12 +817,25 @@ export default function Home() {
 
       {/* ===== POLICY MODAL ===== */}
       {showPolicy && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-          <div className="w-full max-w-lg p-6 rounded-3xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-fadeIn bg-theme-card-strong">
+        <div 
+          onClick={() => setShowPolicy(false)}
+          className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-xl rounded-[2.5rem] shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-fadeIn cursor-default"
+            style={{
+              padding: "1.5rem 2.25rem",
+              background: "rgba(255, 255, 255, 0.72)",
+              backdropFilter: "blur(30px) saturate(140%)",
+              border: "1.5px solid rgba(255, 255, 255, 0.55)",
+              boxShadow: "0 24px 64px -16px rgba(15, 32, 67, 0.12)",
+            }}
+          >
             {/* Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-white/10">
-              <h2 className="text-white text-lg font-bold tracking-wide flex items-center gap-2">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--theme-mint)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <div className="flex items-center justify-between pb-3.5">
+              <h2 className="text-slate-800 text-xl font-black tracking-wide flex items-center gap-2" style={{ color: "#0f172a" }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00cdac" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                   <polyline points="14 2 14 8 20 8" />
                   <line x1="16" y1="13" x2="8" y2="13" />
@@ -777,7 +846,8 @@ export default function Home() {
               </h2>
               <button
                 onClick={() => setShowPolicy(false)}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+                style={{ borderRadius: "9999px" }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18" />
@@ -787,39 +857,39 @@ export default function Home() {
             </div>
 
             {/* Content (Scrollable) */}
-            <div className="flex-1 overflow-y-auto py-4 pr-1 text-white/95 space-y-4 scrollbar-thin scrollbar-thumb-white/10 text-sm leading-relaxed">
+            <div className="flex-1 overflow-y-auto py-4 pr-1 text-slate-700 space-y-4 scrollbar-thin text-sm leading-relaxed font-medium">
               <div className="space-y-1">
-                <h3 className="font-bold text-theme-mint flex items-center gap-1.5">
+                <h3 className="font-extrabold text-base flex items-center gap-1.5" style={{ color: "#0085ff" }}>
                   {t("policy.aiTitle")}
                 </h3>
-                <p className="text-white/85 text-xs pl-0">
+                <p className="text-slate-600 text-xs pl-0">
                   {t("policy.aiText")}
                 </p>
               </div>
 
               <div className="space-y-1">
-                <h3 className="font-bold text-theme-mint flex items-center gap-1.5">
+                <h3 className="font-extrabold text-base flex items-center gap-1.5" style={{ color: "#0085ff" }}>
                   {t("policy.privacyTitle")}
                 </h3>
-                <p className="text-white/85 text-xs pl-0">
+                <p className="text-slate-600 text-xs pl-0">
                   {t("policy.privacyText")}
                 </p>
               </div>
 
               <div className="space-y-1">
-                <h3 className="font-bold text-theme-mint flex items-center gap-1.5">
+                <h3 className="font-extrabold text-base flex items-center gap-1.5" style={{ color: "#0085ff" }}>
                   {t("policy.disclaimerTitle")}
                 </h3>
-                <p className="text-white/85 text-xs pl-0">
+                <p className="text-slate-600 text-xs pl-0">
                   {t("policy.disclaimerText")}
                 </p>
               </div>
 
               <div className="space-y-1">
-                <h3 className="font-bold text-theme-mint flex items-center gap-1.5">
+                <h3 className="font-extrabold text-base flex items-center gap-1.5" style={{ color: "#0085ff" }}>
                   {t("policy.developerTitle")}
                 </h3>
-                <p className="text-white/85 text-xs pl-0">
+                <p className="text-slate-600 text-xs pl-0">
                   {lang === "ja" ? (
                     <>
                       本アプリは{" "}
@@ -827,7 +897,8 @@ export default function Home() {
                         href="https://suibari.com"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-theme-blue hover:underline font-bold"
+                        className="hover:underline font-extrabold"
+                        style={{ color: "#0085ff" }}
                       >
                         すいばり (suibari.com)
                       </a>{" "}
@@ -840,7 +911,8 @@ export default function Home() {
                         href="https://suibari.com"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-theme-blue hover:underline font-bold"
+                        className="hover:underline font-extrabold"
+                        style={{ color: "#0085ff" }}
                       >
                         suibari (suibari.com)
                       </a>
@@ -852,10 +924,15 @@ export default function Home() {
             </div>
 
             {/* Footer */}
-            <div className="pt-4 border-t border-white/10 flex justify-end">
+            <div className="pt-3.5 flex justify-end">
               <button
                 onClick={() => setShowPolicy(false)}
-                className="px-6 py-2 rounded-xl text-sm font-bold text-white transition-all hover:brightness-110 active:scale-95 bg-theme-gradient"
+                className="font-black text-white text-sm shadow-md transition-all duration-300 hover:brightness-105 active:scale-95 bg-theme-gradient"
+                style={{
+                  height: "40px",
+                  padding: "0 28px",
+                  borderRadius: "9999px",
+                }}
               >
                 {t("policy.close")}
               </button>
@@ -866,19 +943,33 @@ export default function Home() {
 
       {/* ===== QUOTA EXCEEDED (INOPERABLE STATE) ===== */}
       {quotaExceeded && (
-        <div className="absolute inset-0 z-45 flex items-center justify-center p-4 bg-black/55 backdrop-blur-md">
-          <div className="w-full max-w-lg p-8 space-y-4 rounded-3xl shadow-2xl text-center animate-fadeIn bg-theme-card-strong">
-            <div className="w-16 h-16 bg-red-500/10 border border-red-500/30 rounded-full flex items-center justify-center mx-auto text-red-400">
+        <div className="absolute inset-0 z-45 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md">
+          <div 
+            className="w-full max-w-xl shadow-2xl text-center animate-fadeIn"
+            style={{
+              padding: "1.5rem 2.25rem",
+              background: "rgba(255, 255, 255, 0.72)",
+              backdropFilter: "blur(30px) saturate(140%)",
+              border: "1.5px solid rgba(255, 255, 255, 0.55)",
+              borderRadius: "2.5rem",
+              display: "flex",
+              flexDirection: "column",
+              gap: "1.15rem",
+              alignItems: "center",
+              boxShadow: "0 24px 64px -16px rgba(15, 32, 67, 0.12)",
+            }}
+          >
+            <div className="w-16 h-16 bg-red-50 border border-red-100 rounded-full flex items-center justify-center mx-auto text-red-500" style={{ borderRadius: "9999px" }}>
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10" />
                 <line x1="12" y1="8" x2="12" y2="12" />
                 <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
             </div>
-            <h2 className="text-white text-lg font-bold tracking-wide" style={{ textShadow: '0 0 15px rgba(255, 90, 95, 0.4)' }}>
+            <h2 className="text-slate-800 text-xl font-black tracking-wide" style={{ textShadow: '0 2px 10px rgba(239, 68, 68, 0.12)', color: "#0f172a", margin: 0 }}>
               {t("quota.title")}
             </h2>
-            <p className="text-sm leading-relaxed" style={{ color: "rgba(255, 255, 255, 0.85)" }}>
+            <p className="text-base leading-relaxed font-semibold" style={{ color: "#1e293b", margin: 0 }}>
               {t("quota.message")}
             </p>
           </div>

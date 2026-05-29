@@ -81,22 +81,37 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend }: P
   return (
     <>
       {/* 下部パネル: 回答 + 入力バーを1つにまとめる（診断結果と同じ位置） */}
-      <div className="absolute bottom-4 left-4 right-4 z-20 flex justify-center">
-        <div className="w-full max-w-lg px-4 pb-6 pt-4 space-y-3 rounded-3xl shadow-2xl bg-theme-card">
+      <div className="absolute z-20 flex justify-center" style={{ left: '1.5rem', right: '1.5rem', bottom: '1.5rem', top: 'auto' }}>
+        <div 
+          className="w-full max-w-xl shadow-2xl relative overflow-hidden transition-all duration-300"
+          style={{
+            background: "rgba(255, 255, 255, 0.72)",
+            backdropFilter: "blur(30px) saturate(140%)",
+            border: "1.5px solid rgba(255, 255, 255, 0.55)",
+            borderRadius: "2.5rem",
+            padding: "1.5rem 2.25rem",
+            display: "flex",
+            flexDirection: "column",
+            gap: "1.15rem",
+            boxShadow: "0 24px 64px -16px rgba(15, 32, 67, 0.12)",
+          }}
+        >
           {/* アシスタント発言 */}
           {cleanMessage && (
-            <div
-              className="w-full rounded-2xl overflow-hidden"
-              style={{
-                background: "rgba(8, 24, 30, 0.75)",
-                border: "1px solid var(--theme-border-glow-strong)",
-              }}
-            >
-              <div className="px-4 py-2 text-xs font-bold tracking-widest bg-theme-gradient text-white">
-                {l.name}
+            <div className="w-full flex flex-col" style={{ gap: '0.5rem' }}>
+              <div className="text-[13px] font-black tracking-widest px-1" style={{ color: 'rgba(15, 32, 67, 0.6)' }}>
+                💬 {l.name}
               </div>
-              <div className="px-4 py-3 max-h-[28vh] overflow-y-auto">
-                <p className="text-white text-sm leading-relaxed">
+              <div 
+                className="w-full max-h-[28vh] overflow-y-auto scrollbar-thin"
+                style={{
+                  background: "rgba(255, 255, 255, 0.55)",
+                  border: "1.5px solid rgba(58, 155, 213, 0.25)",
+                  borderRadius: "1.5rem",
+                  padding: "1rem 1.25rem",
+                }}
+              >
+                <p className="text-slate-800 text-base leading-relaxed font-semibold" style={{ color: '#1e293b' }}>
                   {cleanMessage}
                 </p>
               </div>
@@ -104,27 +119,7 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend }: P
           )}
 
           {/* 入力バー */}
-          <div className="flex items-center gap-2">
-            {/* マイク */}
-            <button
-              onClick={handleClickMic}
-              disabled={isChatProcessing}
-              aria-label="mic"
-              className="shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-opacity hover:opacity-80 active:opacity-60 disabled:opacity-40"
-              style={{
-                background: isMicRecording
-                  ? "var(--primary-gradient)"
-                  : "rgba(255,255,255,0.08)",
-                border: "1px solid var(--theme-border-glow-strong)",
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" y1="19" x2="12" y2="23" />
-              </svg>
-            </button>
-
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             {/* テキスト入力 */}
             <input
               type="text"
@@ -138,14 +133,22 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend }: P
               }}
               placeholder={l.placeholder}
               disabled={isChatProcessing}
-              className="flex-1 px-4 py-3 rounded-xl text-white placeholder-white/35 outline-none text-sm disabled:opacity-50"
+              className="flex-1 text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
               style={{
-                background: "rgba(255,255,255,0.08)",
-                border: "1px solid var(--theme-border-glow-strong)",
-                transition: "box-shadow 0.2s",
+                height: "48px",
+                background: "rgba(255, 255, 255, 0.55)",
+                border: "1.5px solid rgba(58, 155, 213, 0.25)",
+                borderRadius: "9999px",
+                padding: "0 20px",
               }}
-              onFocus={(e) => (e.currentTarget.style.boxShadow = '0 0 0 2px var(--theme-ring-glow-strong)')}
-              onBlur={(e) => (e.currentTarget.style.boxShadow = '0 0 0 0 transparent')}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = 'var(--theme-blue)';
+                e.currentTarget.style.boxShadow = '0 0 0 4px rgba(58, 155, 213, 0.15)';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(58, 155, 213, 0.25)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
             />
 
             {/* 送信 */}
@@ -153,15 +156,21 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend }: P
               onClick={handleSend}
               disabled={isChatProcessing || !userMessage.trim()}
               aria-label="send"
-              className="shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-all hover:brightness-110 active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed bg-theme-gradient"
+              className="shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed bg-theme-gradient shadow-md"
+              style={{
+                width: "48px",
+                height: "48px",
+                borderRadius: "9999px",
+              }}
             >
               {isChatProcessing ? (
                 <span
-                  className="block w-4 h-4 rounded-full"
+                  className="block w-4 h-4"
                   style={{
                     border: "2px solid rgba(255,255,255,0.3)",
                     borderTopColor: "#fff",
                     animation: "chat-spin 0.75s linear infinite",
+                    borderRadius: "50%",
                   }}
                 />
               ) : (

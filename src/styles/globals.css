@@ -3,32 +3,62 @@
 @tailwind utilities;
 
 :root {
-  --theme-blue: #00b4db;
+  --theme-blue: #3a9bd5;
   --theme-mint: #00cdac;
-  --theme-dark-blue: #0072ff;
+  --theme-dark-blue: #1d4ed8;
   
   --primary-gradient: linear-gradient(135deg, var(--theme-blue), var(--theme-mint));
   --primary-gradient-3: linear-gradient(135deg, var(--theme-dark-blue), var(--theme-blue), var(--theme-mint));
   
-  --theme-bg-dark: rgba(8, 24, 30, 0.78);
-  --theme-bg-darker: rgba(8, 24, 30, 0.88);
-  --theme-bg-dark-hover: rgba(8, 24, 30, 0.85);
-  --theme-bg-dark-half: rgba(8, 24, 30, 0.70);
+  /* Retained/remapped for backwards-compatibility with new premium light glassmorphism */
+  --theme-bg-dark: rgba(255, 255, 255, 0.55);
+  --theme-bg-darker: rgba(255, 255, 255, 0.70);
+  --theme-bg-dark-hover: rgba(255, 255, 255, 0.62);
+  --theme-bg-dark-half: rgba(255, 255, 255, 0.45);
   
-  --theme-border-glow: rgba(0, 205, 172, 0.22);
-  --theme-border-glow-light: rgba(0, 205, 172, 0.15);
-  --theme-border-glow-strong: rgba(0, 205, 172, 0.35);
-  --theme-border-glow-active: rgba(0, 205, 172, 0.45);
+  --theme-border-glow: rgba(255, 255, 255, 0.45);
+  --theme-border-glow-light: rgba(255, 255, 255, 0.30);
+  --theme-border-glow-strong: rgba(58, 155, 213, 0.25);
+  --theme-border-glow-active: rgba(58, 155, 213, 0.45);
   
-  --theme-ring-glow: rgba(0, 180, 219, 0.45);
-  --theme-ring-glow-strong: rgba(0, 180, 219, 0.50);
+  --theme-ring-glow: rgba(58, 155, 213, 0.25);
+  --theme-ring-glow-strong: rgba(58, 155, 213, 0.50);
 }
 
-body {
-  background-position: top center;
-  background-attachment: fixed;
-  background-size: cover;
-  background-repeat: no-repeat;
+@layer base {
+  body {
+    background-position: top center;
+    background-attachment: fixed;
+    background-size: cover;
+    background-repeat: no-repeat;
+  }
+
+  /* Force global roundness and dark readable color on standard form controls and buttons */
+  input[type="text"], input[type="email"], input[type="password"], select {
+    border-radius: 9999px !important;
+    color: #0f172a !important;
+  }
+  textarea {
+    border-radius: 1.5rem !important;
+    color: #0f172a !important;
+  }
+  button {
+    border-radius: 9999px !important;
+  }
+
+  /* Ensure autofill doesn't break readability and colors */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover, 
+  input:-webkit-autofill:focus, 
+  input:-webkit-autofill:active,
+  textarea:-webkit-autofill,
+  textarea:-webkit-autofill:hover,
+  textarea:-webkit-autofill:focus,
+  textarea:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px rgba(255, 255, 255, 0.85) inset !important;
+    -webkit-text-fill-color: #0f172a !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
 }
 
 @layer components {
@@ -72,13 +102,15 @@ body {
   /* Shared Theme Card Backgrounds */
   .bg-theme-card {
     background: var(--theme-bg-dark);
-    backdrop-filter: blur(20px);
-    border: 1px solid var(--theme-border-glow);
+    backdrop-filter: blur(24px) saturate(140%);
+    border: 1.5px solid var(--theme-border-glow);
+    box-shadow: 0 24px 64px -16px rgba(15, 32, 67, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.6);
   }
   .bg-theme-card-strong {
     background: var(--theme-bg-darker);
-    backdrop-filter: blur(20px);
-    border: 1px solid var(--theme-border-glow-strong);
+    backdrop-filter: blur(30px) saturate(140%);
+    border: 1.5px solid var(--theme-border-glow-strong);
+    box-shadow: 0 32px 80px -16px rgba(15, 32, 67, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.7);
   }
   
   /* Shared Theme Gradients */
@@ -101,7 +133,7 @@ body {
   }
   .ring-theme-glow:focus {
     outline: none;
-    box-shadow: 0 0 0 2px var(--theme-ring-glow-strong);
+    box-shadow: 0 0 0 3px var(--theme-ring-glow-strong);
   }
 }
 
