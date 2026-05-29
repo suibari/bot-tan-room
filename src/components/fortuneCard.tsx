@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { DiagnosisResult } from '@/pages/api/fortune';
 
 type Props = {
@@ -24,6 +25,50 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) 
   const l = LABELS[lang];
   const BASE = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://guestbook.suibari.com';
 
+  const [shareId, setShareId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    
+    // 診断結果データを Vercel KV に保存するためのAPI呼び出し
+    const saveShareData = async () => {
+      try {
+        const response = await fetch('/api/share/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name,
+            analysis_ja: fortune.analysis_ja,
+            analysis_en: fortune.analysis_en,
+            comparisons: fortune.comparisons,
+            lang,
+          }),
+        });
+
+        if (response.ok) {
+          const data = (await response.json()) as { id: string };
+          if (active && data.id) {
+            setShareId(data.id);
+            console.log('[FortuneCard] Successfully generated short share ID:', data.id);
+          }
+        } else {
+          console.error('[FortuneCard] API respond with error status:', response.status);
+        }
+      } catch (error) {
+        console.error('[FortuneCard] Failed to save share data to KV:', error);
+      }
+    };
+
+    // 新たな診断や設定が渡されたら新しくIDを取得する
+    saveShareData();
+
+    return () => {
+      active = false;
+    };
+  }, [name, fortune, lang]);
+
   const analysis = lang === 'ja' ? fortune.analysis_ja : fortune.analysis_en;
   const comparisons = fortune.comparisons.map((c) => ({
     category: lang === 'ja' ? c.category_ja : c.category_en,
@@ -38,8 +83,12 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) 
     c3: `${comparisons[2].category}／${comparisons[2].value}`,
     lang,
   });
-  // /share?... は SSR で OGP タグを返す → SNS がシェアカードを生成する
-  const shareUrl = `${BASE}/share?${shareParams.toString()}`;
+
+  // Vercel KV からの短縮IDがある場合はそれを使用、無い場合はフォールバックとして従来の長大なクエリパラメータを使用
+  const shareUrl = shareId
+    ? `${BASE}/share?id=${shareId}`
+    : `${BASE}/share?${shareParams.toString()}`;
+
   const compSummary = comparisons.map((c) => `${c.category}: ${c.value}`).join(' / ');
   const shareText =
     lang === 'ja'
