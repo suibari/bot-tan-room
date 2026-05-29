@@ -1,11 +1,11 @@
 {
   "meta": {
-    "title": "Bot-tan's GuestBook",
-    "description": "全肯定botたんとおしゃべりできるゲストブックです。あいさつを残していってもらえると嬉しいです。"
+    "title": "Botたんのお部屋",
+    "description": "あなたの内面をbotたんに打ち明けてみて。どんなあなたも、まるごと肯定してもらえるよ。"
   },
   "introduction": {
-    "title": "全肯定botたんゲストブック",
-    "description": "全肯定botたんとおしゃべりできるゲストブックです。あいさつを残していってもらえると嬉しいです。",
+    "title": "Botたんのお部屋",
+    "description": "あなたの内面をbotたんに打ち明けてみて。どんなあなたも、まるごと肯定してもらえるよ。",
     "userNameLabel": "あなたのお名前",
     "userNamePlaceholder": "お名前を入力してください",
     "techIntroTitle": "技術紹介",

@@ -81,14 +81,13 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend }: P
   return (
     <>
       {/* 下部パネル: 回答 + 入力バーを1つにまとめる（診断結果と同じ位置） */}
-      <div className="absolute bottom-0 left-0 right-0 z-20">
+      <div className="absolute bottom-4 left-4 right-4 z-20 flex justify-center">
         <div
-          className="mx-auto w-full max-w-lg px-4 pb-6 pt-4 space-y-3 rounded-t-3xl shadow-2xl"
+          className="w-full max-w-lg px-4 pb-6 pt-4 space-y-3 rounded-3xl shadow-2xl"
           style={{
-            background: "rgba(8,16,40,0.70)",
-            backdropFilter: "blur(18px)",
-            border: "1px solid rgba(120,160,255,0.18)",
-            borderBottom: "none",
+            background: "rgba(20,8,38,0.78)",
+            backdropFilter: "blur(20px)",
+            border: "1px solid rgba(220,160,255,0.18)",
           }}
         >
           {/* アシスタント発言 */}
@@ -96,14 +95,14 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend }: P
             <div
               className="w-full rounded-2xl overflow-hidden"
               style={{
-                background: "rgba(10,20,50,0.6)",
-                border: "1px solid rgba(120,160,255,0.25)",
+                background: "rgba(28,10,50,0.65)",
+                border: "1px solid rgba(200,140,255,0.25)",
               }}
             >
               <div
                 className="px-4 py-2 text-xs font-bold tracking-widest"
                 style={{
-                  background: "linear-gradient(90deg, #667eea, #764ba2)",
+                  background: "linear-gradient(135deg, #c471ed, #8c44b5)",
                   color: "#fff",
                 }}
               >
@@ -127,9 +126,9 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend }: P
               className="shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-opacity hover:opacity-80 active:opacity-60 disabled:opacity-40"
               style={{
                 background: isMicRecording
-                  ? "linear-gradient(90deg, #667eea, #764ba2)"
-                  : "rgba(255,255,255,0.10)",
-                border: "1px solid rgba(120,160,255,0.3)",
+                  ? "linear-gradient(135deg, #c471ed, #8c44b5)"
+                  : "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(220,140,255,0.3)",
               }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -152,8 +151,14 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend }: P
               }}
               placeholder={l.placeholder}
               disabled={isChatProcessing}
-              className="flex-1 px-4 py-3 rounded-xl text-white placeholder-white/40 outline-none focus:ring-2 focus:ring-purple-400 text-sm disabled:opacity-50"
-              style={{ background: "rgba(255,255,255,0.10)" }}
+              className="flex-1 px-4 py-3 rounded-xl text-white placeholder-white/35 outline-none text-sm disabled:opacity-50"
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(220,140,255,0.18)",
+                transition: "box-shadow 0.2s",
+              }}
+              onFocus={(e) => (e.currentTarget.style.boxShadow = '0 0 0 2px rgba(200,120,255,0.4)')}
+              onBlur={(e) => (e.currentTarget.style.boxShadow = '0 0 0 0 transparent')}
             />
 
             {/* 送信 */}
@@ -161,8 +166,8 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend }: P
               onClick={handleSend}
               disabled={isChatProcessing || !userMessage.trim()}
               aria-label="send"
-              className="shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-opacity hover:opacity-80 active:opacity-60 disabled:opacity-30 disabled:cursor-not-allowed"
-              style={{ background: "linear-gradient(90deg, #667eea, #764ba2)" }}
+              className="shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-all hover:brightness-110 active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed"
+              style={{ background: "linear-gradient(135deg, #c471ed, #8c44b5)" }}
             >
               {isChatProcessing ? (
                 <span

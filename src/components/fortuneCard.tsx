@@ -9,12 +9,12 @@ type Props = {
 
 const LABELS = {
   ja: {
-    heading: '全肯定診断結果',
+    heading: 'botたんからのメッセージ',
     shareX: 'X でシェア',
     shareBsky: 'Bluesky でシェア',
   },
   en: {
-    heading: 'Personality Diagnosis',
+    heading: 'A Message from bot-tan',
     shareX: 'Share on X',
     shareBsky: 'Share on Bluesky',
   },
@@ -43,8 +43,8 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) 
   const compSummary = comparisons.map((c) => `${c.category}: ${c.value}`).join(' / ');
   const shareText =
     lang === 'ja'
-      ? `${name}の全肯定診断 🔮\n${analysis}\n\n${compSummary}\n\nbotたんに診断してもらおう👉 ${shareUrl}`
-      : `${name}'s personality diagnosis 🔮\n${analysis}\n\n${compSummary}\n\nGet diagnosed by bot-tan 👉 ${shareUrl}`;
+      ? `${name}の全肯定診断 🌸\n${analysis}\n\n${compSummary}\n\nBotたんのお部屋で診断してもらった👉 ${shareUrl}`
+      : `${name}'s diagnosis from Bot-tan's Room 🌸\n${analysis}\n\n${compSummary}\n\nVisit Bot-tan's Room 👉 ${shareUrl}`;
 
   const xShareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
   const bskyShareUrl = `https://bsky.app/intent/compose?text=${encodeURIComponent(shareText)}`;
@@ -53,21 +53,22 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) 
     <div
       className="w-full rounded-2xl overflow-hidden shadow-2xl"
       style={{
-        background: 'rgba(10, 20, 50, 0.72)',
+        background: 'rgba(28, 10, 50, 0.80)',
         backdropFilter: 'blur(16px)',
-        border: '1px solid rgba(120,160,255,0.25)',
+        border: '1px solid rgba(200,140,255,0.28)',
       }}
     >
       <div className="p-4 sm:p-5 space-y-3">
         {/* heading */}
-        <p className="text-white/60 text-xs tracking-widest uppercase">
+        <p className="text-white/60 text-xs tracking-widest uppercase"
+          style={{ color: 'rgba(220,170,255,0.75)' }}>
           {l.heading} — {name}
         </p>
 
         {/* analysis text */}
         <p
           className="text-white text-sm sm:text-base leading-relaxed"
-          style={{ borderLeft: '3px solid rgba(150,180,255,0.6)', paddingLeft: '12px' }}
+          style={{ borderLeft: '3px solid rgba(200,120,255,0.7)', paddingLeft: '12px' }}
         >
           {analysis}
         </p>
@@ -103,9 +104,9 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) 
               key={category}
               className="text-xs px-3 py-1 rounded-full"
               style={{
-                background: 'rgba(130,100,255,0.22)',
-                border: '1px solid rgba(150,120,255,0.4)',
-                color: 'rgba(210,200,255,0.95)',
+                background: 'rgba(180,80,255,0.18)',
+                border: '1px solid rgba(200,120,255,0.40)',
+                color: 'rgba(230,200,255,0.95)',
               }}
             >
               {category}：{value}

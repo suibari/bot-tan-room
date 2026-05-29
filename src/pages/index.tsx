@@ -359,18 +359,18 @@ export default function Home() {
   // --- labels ---
   const LABEL = {
     ja: {
-      placeholder: "あなたの名前を入力",
-      button: "次へ →",
-      loading: "診断中...",
-      voiceLoading: "音声を準備中...",
-      chat: "botたんと話す",
+      placeholder: "あなたの名前やよびかたを入力",
+      button: "お部屋に入る →",
+      loading: "botたんが読んでるよ...",
+      voiceLoading: "声を準備してるよ...",
+      chat: "もっとbotたんと話す 💬",
     },
     en: {
-      placeholder: "Enter your name",
-      button: "Next →",
-      loading: "Diagnosing...",
+      placeholder: "Enter your name or nickname",
+      button: "Enter the Room →",
+      loading: "bot-tan is reading...",
       voiceLoading: "Preparing voice...",
-      chat: "Chat with bot-tan",
+      chat: "Keep talking with bot-tan 💬",
     },
   }[lang];
 
@@ -411,9 +411,9 @@ export default function Home() {
         <div
           className="flex rounded-full overflow-hidden transition-all duration-300"
           style={{
-            background: "rgba(8,16,40,0.6)",
+            background: "rgba(20,8,38,0.70)",
             backdropFilter: "blur(10px)",
-            border: isLangLocked ? "1px solid rgba(120,160,255,0.15)" : "1px solid rgba(120,160,255,0.3)",
+            border: isLangLocked ? "1px solid rgba(200,140,255,0.12)" : "1px solid rgba(200,140,255,0.30)",
             opacity: isLangLocked ? 0.6 : 1,
           }}
         >
@@ -433,7 +433,7 @@ export default function Home() {
               className="px-4 py-2 text-sm font-bold transition-all disabled:cursor-not-allowed"
               style={
                 lang === l
-                  ? { background: "linear-gradient(90deg, #667eea, #764ba2)", color: "#fff" }
+                  ? { background: "linear-gradient(135deg, #c471ed, #8c44b5)", color: "#fff" }
                   : { background: "transparent", color: isLangLocked ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.7)" }
               }
             >
@@ -448,10 +448,10 @@ export default function Home() {
             <div
               className="px-3 py-2 rounded-full text-sm font-bold max-w-[140px] truncate"
               style={{
-                background: "rgba(8,16,40,0.6)",
+                background: "rgba(20,8,38,0.70)",
                 backdropFilter: "blur(10px)",
-                border: "1px solid rgba(120,160,255,0.3)",
-                color: "rgba(220,225,255,0.95)",
+                border: "1px solid rgba(200,140,255,0.30)",
+                color: "rgba(230,210,255,0.95)",
               }}
               title={userName}
             >
@@ -461,10 +461,10 @@ export default function Home() {
               onClick={handleSignOut}
               className="px-4 py-2 rounded-full text-sm font-bold transition-opacity hover:opacity-80 active:opacity-60"
               style={{
-                background: "rgba(118,75,162,0.35)",
+                background: "rgba(180,80,255,0.25)",
                 backdropFilter: "blur(10px)",
-                border: "1px solid rgba(150,120,255,0.5)",
-                color: "rgba(220,210,255,0.98)",
+                border: "1px solid rgba(200,120,255,0.45)",
+                color: "rgba(230,210,255,0.98)",
               }}
             >
               {lang === "ja" ? "サインアウト" : "Sign out"}
@@ -475,23 +475,23 @@ export default function Home() {
 
       {/* ===== LANDING ===== */}
       {phase === "landing" && !isAuthChecking && (
-        <div className="absolute bottom-0 left-0 right-0 z-20">
+        <div className="absolute bottom-4 left-4 right-4 z-20 flex justify-center">
           <div
-            className="mx-auto w-full max-w-lg px-4 pb-8 pt-5 space-y-3 rounded-t-3xl shadow-2xl"
+            className="w-full max-w-lg px-4 pb-8 pt-5 space-y-3 rounded-3xl shadow-2xl"
             style={{
-              background: "rgba(8,16,40,0.70)",
-              backdropFilter: "blur(18px)",
-              border: "1px solid rgba(120,160,255,0.18)",
-              borderBottom: "none",
+              background: "rgba(20,8,38,0.78)",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(220,160,255,0.18)",
             }}
           >
-            <h1 className="text-white text-lg font-bold text-center tracking-wide">
-              {lang === "ja" ? "bot-tan 全肯定診断 ✨" : "bot-tan Personality ✨"}
+            <h1 className="text-white text-lg font-bold text-center tracking-wide"
+              style={{ textShadow: '0 0 18px rgba(220,140,255,0.45)' }}>
+              {lang === "ja" ? "Botたんのお部屋へようこそ" : "Welcome to Bot-tan's Room"}
             </h1>
-            <p className="text-white/60 text-xs text-center leading-relaxed">
+            <p className="text-xs text-center leading-relaxed" style={{ color: "rgba(255, 255, 255, 0.85)" }}>
               {lang === "ja"
-                ? "3つの質問に答えてbotたんの性格分析を受けよう"
-                : "Answer 3 questions and get your personality analysis from bot-tan"}
+                ? "あなたのこと、botたんに話してみて。どんなことも、ぜんぶ受け止めるよ"
+                : "Tell bot-tan about yourself. I will embrace every part of you with warmth"}
             </p>
             <input
               ref={nameInputRef}
@@ -501,13 +501,20 @@ export default function Home() {
               onKeyDown={(e) => e.key === "Enter" && handleNameSubmit()}
               placeholder={LABEL.placeholder}
               maxLength={30}
-              className="w-full px-4 py-3 rounded-xl text-white placeholder-white/40 outline-none focus:ring-2 focus:ring-purple-400 text-sm"
-              style={{ background: "rgba(255,255,255,0.10)" }}
+              className="w-full px-4 py-3 rounded-xl text-white placeholder-white/35 outline-none text-sm"
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(220,160,255,0.22)",
+                boxShadow: "0 0 0 0 transparent",
+                transition: "box-shadow 0.2s",
+              }}
+              onFocus={(e) => (e.currentTarget.style.boxShadow = '0 0 0 2px rgba(200,120,255,0.45)')}
+              onBlur={(e) => (e.currentTarget.style.boxShadow = '0 0 0 0 transparent')}
             />
             <button
               onClick={handleNameSubmit}
-              className="w-full py-3 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-80 active:opacity-60"
-              style={{ background: "linear-gradient(90deg, #667eea, #764ba2)" }}
+              className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all hover:brightness-110 active:scale-[0.98]"
+              style={{ background: "linear-gradient(135deg, #c471ed, #8c44b5, #6a3de8)" }}
             >
               {LABEL.button}
             </button>
@@ -517,18 +524,20 @@ export default function Home() {
 
       {/* ===== QUESTIONS ===== */}
       {phase === "questions" && (
-        <div className="absolute bottom-0 left-0 right-0 z-20">
+        <div className="absolute bottom-4 left-4 right-4 z-20 flex justify-center">
           <div
-            className="mx-auto w-full max-w-lg px-4 pb-8 pt-5 space-y-3 rounded-t-3xl shadow-2xl"
+            className="w-full max-w-lg px-4 pb-8 pt-5 space-y-3 rounded-3xl shadow-2xl"
             style={{
-              background: "rgba(8,16,40,0.70)",
-              backdropFilter: "blur(18px)",
-              border: "1px solid rgba(120,160,255,0.18)",
-              borderBottom: "none",
+              background: "rgba(20,8,38,0.78)",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(220,160,255,0.18)",
             }}
           >
-            <h2 className="text-white text-sm font-bold text-center tracking-wide">
-              {lang === "ja" ? `${userName}さんへの質問` : `Questions for ${userName}`}
+            <h2 className="text-white text-sm font-bold text-center tracking-wide"
+              style={{ textShadow: '0 0 12px rgba(220,140,255,0.35)' }}>
+              {lang === "ja"
+                ? `${userName}さんのこと、聞かせてね`
+                : `Tell me about you, ${userName}`}
             </h2>
             <DiagnosisForm
               lang={lang}
@@ -544,10 +553,14 @@ export default function Home() {
         <div className="absolute inset-x-0 top-1/3 z-30 flex justify-center pointer-events-none">
           <div
             className="flex flex-col items-center gap-3 px-8 py-5 rounded-2xl"
-            style={{ background: "rgba(8,16,40,0.80)", backdropFilter: "blur(14px)" }}
+            style={{
+              background: "rgba(20,8,38,0.85)",
+              backdropFilter: "blur(16px)",
+              border: "1px solid rgba(220,140,255,0.2)",
+            }}
           >
             <div className="spinner-ring" />
-            <span className="text-white text-sm font-semibold">
+            <span className="text-white/90 text-sm font-semibold">
               {phase === "loading" ? LABEL.loading : LABEL.voiceLoading}
             </span>
             <style jsx global>{`
@@ -555,8 +568,8 @@ export default function Home() {
                 width: 40px;
                 height: 40px;
                 border-radius: 50%;
-                border: 4px solid rgba(255, 255, 255, 0.2);
-                border-top-color: #ffffff;
+                border: 4px solid rgba(200, 120, 255, 0.25);
+                border-top-color: #d88fff;
                 animation: spinner-turn 0.75s linear infinite;
                 flex-shrink: 0;
               }
@@ -570,25 +583,25 @@ export default function Home() {
 
       {/* ===== FORTUNE ===== */}
       {phase === "fortune" && fortune && (
-        <div className="absolute bottom-0 left-0 right-0 z-20 max-h-[58vh] overflow-y-auto">
+        <div className="absolute bottom-4 left-4 right-4 z-20 flex justify-center pointer-events-none">
           <div
-            className="mx-auto w-full max-w-lg px-4 pb-8 pt-4 space-y-3 rounded-t-3xl"
+            className="w-full max-w-lg px-4 pb-8 pt-4 space-y-3 rounded-3xl shadow-2xl max-h-[58vh] overflow-y-auto pointer-events-auto"
             style={{
-              background: "rgba(8,16,40,0.70)",
-              backdropFilter: "blur(18px)",
-              border: "1px solid rgba(120,160,255,0.18)",
-              borderBottom: "none",
+              background: "rgba(20,8,38,0.78)",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(220,160,255,0.18)",
             }}
           >
             {/* ドラッグハンドル */}
-            <div className="w-10 h-1 bg-white/30 rounded-full mx-auto mb-1" />
+            <div className="w-10 h-1 rounded-full mx-auto mb-1"
+              style={{ background: "rgba(220,140,255,0.35)" }} />
             <FortuneCard name={userName} fortune={fortune} lang={lang} isSpeaking={isSpeaking} />
             <BlueskyPrompt lang={lang} isSignedIn={isSignedIn} onSignIn={handleSignIn} />
             {isSignedIn && (
               <button
                 onClick={handleStartChat}
-                className="w-full py-3 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-80 active:opacity-60"
-                style={{ background: "linear-gradient(90deg, #667eea, #764ba2)" }}
+                className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all hover:brightness-110 active:scale-[0.98]"
+                style={{ background: "linear-gradient(135deg, #c471ed, #8c44b5, #6a3de8)" }}
               >
                 {LABEL.chat}
               </button>

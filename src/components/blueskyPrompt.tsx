@@ -8,23 +8,23 @@ type Props = {
 
 const LABELS = {
   ja: {
-    desc: 'Blueskyにサインインして、botたんと会話！',
+    desc: 'Blueskyにサインインして、botたんのお部屋で話そう！',
     placeholder: 'ハンドル（例: user.bsky.social）',
     signIn: 'サインイン',
     signing: '接続中...',
     error: 'サインインに失敗しました。ハンドルを確認してね。',
     popupBlocked: 'ポップアップがブロックされました。許可してから再試行してください。',
-    chatReady: 'botたんと会話中！',
+    chatReady: 'botたんのお部屋へようこそ。たくさん話してね 🌸',
     noAccount: 'アカウントを持っていない？ 新規作成（無料） ↗',
   },
   en: {
-    desc: 'Sign in to Bluesky to chat with bot-tan!',
+    desc: 'Sign in to Bluesky to enter Bot-tan\'s Room!',
     placeholder: 'Handle (e.g. user.bsky.social)',
     signIn: 'Sign In',
     signing: 'Connecting...',
     error: 'Sign-in failed. Please check your handle and try again.',
     popupBlocked: 'Popup was blocked. Please allow popups and try again.',
-    chatReady: "You're chatting with bot-tan!",
+    chatReady: "Welcome to Bot-tan's Room. Let's talk a lot 🌸",
     noAccount: "Don't have an account? Create one (Free) ↗",
   },
 };
@@ -40,9 +40,9 @@ export function BlueskyPrompt({ lang, isSignedIn, onSignIn }: Props) {
       <div
         className="w-full max-w-lg mx-auto rounded-xl px-4 py-3 text-center text-xs font-bold shadow-md"
         style={{
-          background: 'rgba(0, 133, 255, 0.12)',
-          border: '1px solid rgba(0, 133, 255, 0.35)',
-          color: 'rgba(160, 210, 255, 0.95)',
+          background: 'rgba(180,60,255,0.12)',
+          border: '1px solid rgba(200,120,255,0.35)',
+          color: 'rgba(230,190,255,0.95)',
           backdropFilter: 'blur(8px)',
         }}
       >

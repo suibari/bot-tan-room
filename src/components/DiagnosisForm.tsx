@@ -115,8 +115,8 @@ export function DiagnosisForm({ lang, onSubmit, onQuestionShow }: Props) {
       <button
         onClick={handleNext}
         disabled={!canProceed}
-        className="w-full py-3 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-80 active:opacity-60 disabled:opacity-30 disabled:cursor-not-allowed"
-        style={{ background: 'linear-gradient(90deg, #667eea, #764ba2)' }}
+        className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed"
+        style={{ background: 'linear-gradient(135deg, #c471ed, #8c44b5, #6a3de8)' }}
       >
         {isLast ? l.submit : l.next}
       </button>

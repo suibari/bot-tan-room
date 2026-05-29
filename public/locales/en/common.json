@@ -1,11 +1,11 @@
 {
   "meta": {
-    "title": "Bot-tan's GuestBook",
-    "description": "Talk to a 3D character in your browser!"
+    "title": "Bot-tan's Room",
+    "description": "Share your inner world with bot-tan. No matter what you feel, she'll embrace every part of you."
   },
   "introduction": {
-    "title": "Bot-tan's Guestbook",
-    "description": "This is a guestbook where you can chat with Bot-tan. I'd be happy if you left a greeting.",
+    "title": "Bot-tan's Room",
+    "description": "Share your inner world with bot-tan. No matter what you feel, she'll embrace every part of you.",
     "userNameLabel": "Your Name",
     "userNamePlaceholder": "Please enter your name",
     "techIntroTitle": "Tech Stack",
