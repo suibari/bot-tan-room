@@ -1,6 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { kv } from "@vercel/kv";
-import { GEMINI_MODEL } from "@/features/constants/aiModels";
+import { GEMINI_MODELS } from "@/features/constants/aiModels";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(
@@ -20,7 +19,7 @@ export default async function handler(
     return;
   }
 
-  const { messages, userName } = req.body;
+  const { messages } = req.body;
 
   if (!messages || !Array.isArray(messages)) {
     res.status(400).json({ message: "Invalid messages format" });
@@ -41,120 +40,67 @@ export default async function handler(
 
   const lastMessage = history.pop();
 
-  // Fetch recent history from KV for context (optional, but good for shared context awareness)
-  // For now, we rely on the client sending the conversation history, but the prompt implies "shared history".
-  // If "shared history" impacts the bot's *knowledge*, we should prepend relevant past conversation.
-  // However, "messages" from body usually contains the current session.
-  // The user requirement says "Conversation history... common to all users".
-  // This likely means I should Load recent history from KV and append the new message?
-  // Or maybe the client sends the whole history?
-  // Let's assume the client sends the message log it has (which it fetched from history).
-  // But wait, if multiple users talk, the client might be outdated.
-  // It's safer to fetch recent history from KV to feed the LLM context if we want "Chat Room" style context.
-  // Let's grab the last 10-20 messages from KV to serve as context.
-
-  let recentHistory: any[] = [];
-  try {
-    const kvHistory = await kv.lrange("chat_history", 0, -1);
-    const validKvHistory = Array.isArray(kvHistory) ? kvHistory : [];
-
-    // Filter history for the current user
-    // logic: if message has userName, match it. If not (legacy), maybe include or exclude? 
-    // Safest is to treat missing userName as "Guest" or check against currentUserName.
-    const currentUserName = userName || "Guest";
-    const filteredHistory = validKvHistory.filter((m: any) => {
-      const msgUser = m.userName || "Guest";
-      return msgUser === currentUserName;
-    });
-
-    // Take last 20 of filtered history
-    recentHistory = filteredHistory.slice(-20).map((m: any) => ({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: `[${m.role === 'assistant' ? 'Bot' : 'User'}] ${m.content}` }],
-    }));
-  } catch (e) {
-    console.warn("Failed to fetch KV history for context", e);
-  }
-
-  // Combine passed system prompt with recent history from server + current message
-  // Note: 'messages' body in typical ChatVRM includes system prompt + current session log.
-  // If we want "global shared state", we should probably ignore most of 'messages' passed from client except the system prompt?
-  // Or maybe just append the new message to the global history.
-  // Simplest interpretation: Use the messages passed by client (which includes system prompt) 
-  // but maybe replace the middle implementation with server history?
-  // Actually, client 'chatLog' will now be initialized from server history.
-  // So client sends [System, ...History, CurrentUserMessage].
-  // This seems correct. So 'history' variable above is already based on shared history provided by client state.
-  // Just proceed.
-
-  // Save USER message to KV
-  if (lastMessage) {
-    const userMsg = {
-      role: "user",
-      content: lastMessage.parts[0].text,
-      userName: userName || "Guest",
-      timestamp: Date.now()
-    };
-    try {
-      await kv.rpush("chat_history", userMsg);
-    } catch (e) { console.error("KV Error", e); }
-  }
-
-
+  // 文脈はクライアントが送る history（現在のセッションの会話ログ）をそのまま使う。
+  // 会話履歴の DB(KV) 連携は廃止。
 
   if (!lastMessage) {
     res.status(400).json({ message: "No user message found" });
     return;
   }
 
-  try {
-    let fullResponse = "";
-    const streamResult = await client.models.generateContentStream({
-      model: GEMINI_MODEL,
-      config: {
-        systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
-      },
-      contents: [
-        ...recentHistory,
-        lastMessage
-      ]
-    });
+  let fullResponse = "";
+  let streamStarted = false; // 最初のチャンク出力後は true（以降フォールバック不可）
+  let lastErr: unknown = null;
 
-    // Set headers for streaming
-    res.writeHead(200, {
-      'Content-Type': 'text/plain; charset=utf-8',
-      'Transfer-Encoding': 'chunked',
-    });
+  // モデルを優先順に試す。最初のチャンクを書き込むまでにエラーが起きたら次のモデルへ。
+  for (const model of GEMINI_MODELS) {
+    try {
+      const streamResult = await client.models.generateContentStream({
+        model,
+        config: {
+          systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
+        },
+        contents: [
+          ...history,
+          lastMessage
+        ]
+      });
 
-    for await (const chunk of streamResult) {
-      const chunkText = chunk.text;
-      if (chunkText) {
-        res.write(chunkText);
-        fullResponse += chunkText;
+      for await (const chunk of streamResult) {
+        const chunkText = chunk.text;
+        if (chunkText) {
+          if (!streamStarted) {
+            // 最初の有効チャンクが来たタイミングでヘッダーを送る
+            res.writeHead(200, {
+              'Content-Type': 'text/plain; charset=utf-8',
+              'Transfer-Encoding': 'chunked',
+            });
+            streamStarted = true;
+          }
+          res.write(chunkText);
+          fullResponse += chunkText;
+        }
       }
-    }
 
-    // Save ASSISTANT message to KV
-    if (fullResponse) {
-      const assistantMsg = {
-        role: "assistant",
-        content: fullResponse,
-        userName: userName || "Guest",
-        timestamp: Date.now()
-      };
-      try {
-        await kv.rpush("chat_history", assistantMsg);
-      } catch (e) { console.error("KV Error (Assistant)", e); }
-    }
-
-    res.end();
-
-  } catch (error) {
-    console.error("Gemini API Error:", error);
-    if (!res.headersSent) {
-      res.status(500).json({ message: "Internal Server Error" });
-    } else {
-      res.end();
+      lastErr = null;
+      break; // このモデルで正常に完走
+    } catch (error) {
+      console.error(`Gemini API Error (model: ${model}):`, error);
+      lastErr = error;
+      // すでにクライアントへ書き込み中なら途中で別モデルに切り替えられないので中断
+      if (streamStarted) break;
+      // まだヘッダー未送信なら次のモデルへフォールバック
     }
   }
+
+  // 全モデルが出力前に失敗した場合
+  if (!streamStarted) {
+    console.error("All Gemini models failed:", lastErr);
+    if (!res.headersSent) {
+      res.status(500).json({ message: "AI応答の生成に失敗しました。しばらくしてからもう一度お試しください。" });
+    }
+    return;
+  }
+
+  res.end();
 }

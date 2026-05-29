@@ -10,6 +10,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@atproto/oauth-client-browser": "^0.4.1",
     "@charcoal-ui/icons": "^2.6.0",
     "@google/genai": "^1.33.0",
     "@tailwindcss/line-clamp": "^0.4.4",

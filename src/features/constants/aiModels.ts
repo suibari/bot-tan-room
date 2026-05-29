@@ -1,1 +1,5 @@
-export const GEMINI_MODEL = 'gemini-2.5-flash-lite';
+// 優先順にモデルを並べる。先頭から順に試し、エラーなら次へフォールバックする。
+export const GEMINI_MODELS = ['gemma-4-31b-it', 'gemma-4-26b-a4b-it'] as const;
+
+// 後方互換: 単一モデルを参照していた箇所向け（プライマリ）
+export const GEMINI_MODEL = GEMINI_MODELS[0];

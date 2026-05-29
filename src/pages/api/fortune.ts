@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { GEMINI_MODEL } from '@/features/constants/aiModels';
+import { GEMINI_MODELS } from '@/features/constants/aiModels';
 
 export type DiagnosisResult = {
   analysis: string;      // 表示用（選択言語）
@@ -118,21 +118,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const client = new GoogleGenAI({ apiKey });
 
-  try {
-    const result = await client.models.generateContent({
-      model: GEMINI_MODEL,
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: { responseMimeType: 'application/json' },
-    });
+  // モデルを優先順に試し、エラーなら次へフォールバックする
+  let json: DiagnosisResult | null = null;
+  let lastErr: unknown = null;
+  for (const model of GEMINI_MODELS) {
+    try {
+      const result = await client.models.generateContent({
+        model,
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: { responseMimeType: 'application/json' },
+      });
+      const text = result.text ?? '';
+      json = JSON.parse(text) as DiagnosisResult;
+      break;
+    } catch (e) {
+      console.error(`fortune API error (model: ${model}):`, e);
+      lastErr = e;
+    }
+  }
 
-    const text = result.text ?? '';
-    const json: DiagnosisResult = JSON.parse(text);
-
-    if (!json.analysis_ja) json.analysis_ja = json.analysis;
-
-    return res.status(200).json(json);
-  } catch (e) {
-    console.error('fortune API error:', e);
+  if (!json) {
+    console.error('fortune API: all models failed', lastErr);
     return res.status(500).json({ message: 'Failed to generate diagnosis' });
   }
+
+  if (!json.analysis_ja) json.analysis_ja = json.analysis;
+  return res.status(200).json(json);
 }

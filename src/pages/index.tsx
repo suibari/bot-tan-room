@@ -5,14 +5,12 @@ import { ViewerContext } from "@/features/vrmViewer/viewerContext";
 import {
   Message,
   textsToScreenplay,
-  Screenplay,
 } from "@/features/messages/messages";
 import { speakCharacter } from "@/features/messages/speakCharacter";
-import { MessageInputContainer } from "@/components/messageInputContainer";
 import { SYSTEM_PROMPT } from "@/features/constants/systemPromptConstants";
 import { KoeiroParam, DEFAULT_PARAM } from "@/features/constants/koeiroParam";
 import { getGeminiResponseStream } from "@/features/chat/geminiChat";
-import { Menu } from "@/components/menu";
+import { ChatView } from "@/components/chatView";
 import { GetStaticProps } from "next";
 import { useRouter } from "next/router";
 import { serverSideTranslations } from "next-i18next/serverSideTranslations";
@@ -26,6 +24,11 @@ import { fetchAudio } from "@/features/messages/speakCharacter";
 
 type AnswerItem = { question: string; answer: string };
 type Phase = "landing" | "questions" | "loading" | "fortune" | "chat";
+
+// OAuthSession 型は @atproto/oauth-client の exports 解決問題で直接 import できないため
+// BrowserOAuthClient.init() の戻り値から導出する
+type BskyOAuthClient = import('@atproto/oauth-client-browser').BrowserOAuthClient;
+type BskySession = NonNullable<Awaited<ReturnType<BskyOAuthClient['init']>>>['session'];
 
 export default function Home() {
   const { viewer } = useContext(ViewerContext);
@@ -51,16 +54,21 @@ export default function Home() {
   const [nameInput, setNameInput] = useState("");
   const [fortune, setFortune] = useState<DiagnosisResult | null>(null);
   const [isSignedIn, setIsSignedIn] = useState(false);
+  const [isAuthChecking, setIsAuthChecking] = useState(true); // OAuth init 解決まで true
   const [isWaitingForVoice, setIsWaitingForVoice] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const questionAbortRef = useRef<AbortController | null>(null);
+  // OAuth クライアントをマウント時に事前ロードして signInRedirect がすぐ呼べるようにする
+  const bskyClientRef = useRef<BskyOAuthClient | null>(null);
+  // サインアウト時に session.signOut() を呼ぶため OAuthSession を保持
+  const bskySessionRef = useRef<BskySession | null>(null);
 
   // OGP base URL
   const BASE_URL =
     process.env.NEXT_PUBLIC_BASE_URL ?? "https://guestbook.suibari.com";
 
-  // Restore persisted settings
+  // Restore persisted settings + OAuth client pre-load
   useEffect(() => {
     const storedName = window.localStorage.getItem("chatVRM_userName");
     if (storedName) setUserName(storedName);
@@ -71,18 +79,60 @@ export default function Home() {
       if (p.koeiroParam) setKoeiroParam(p.koeiroParam);
     }
 
-    const bskyHandle = window.localStorage.getItem("bsky_handle");
-    if (bskyHandle) setIsSignedIn(true);
-  }, []);
+    // OAuth クライアントを事前ロード + init() を呼ぶ
+    // init() は2つの役割を持つ:
+    //   1. fixLocation() で開発環境の localhost → 127.0.0.1 自動リダイレクト
+    //   2. redirect_uri がルート '/' なので、OAuth 後のコールバック処理もここで行う
+    //      （URL の hash パラメータからセッションを確立し result.session/state を返す）
+    import('@/features/auth/bskyOAuth')
+      .then(({ getBskyOAuthClient }) => {
+        const client = getBskyOAuthClient(); // 同期・シングルトン
+        bskyClientRef.current = client;
+        return client.init();
+      })
+      .then((result) => {
+        if (result?.session) {
+          bskySessionRef.current = result.session;
+          // signInRedirect で state にハンドルを渡している場合は優先的にフォールバック名に使う
+          const fallback =
+            'state' in result && typeof result.state === 'string' && result.state
+              ? result.state.replace(/^@/, '')
+              : result.session.did;
+          setUserName(fallback);
+          window.localStorage.setItem('chatVRM_userName', fallback);
+          window.localStorage.setItem('bsky_handle', fallback);
+          setIsSignedIn(true);
+          setPhase('chat'); // 診断をスキップして会話から開始
+          setIsAuthChecking(false);
 
-  // Load chat history when entering chat phase
-  useEffect(() => {
-    if (phase !== "chat") return;
-    fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/history`)
-      .then((r) => r.json())
-      .then((data) => Array.isArray(data) && setChatLog(data))
-      .catch((e) => console.error(e));
-  }, [phase]);
+          // プロフィール名（displayName 優先）を非同期取得して上書き
+          result.session
+            .fetchHandler(
+              `/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(result.session.did)}`
+            )
+            .then((r: Response) => r.json())
+            .then((p: { displayName?: string; handle?: string }) => {
+              const name = p.displayName?.trim() || p.handle || fallback;
+              setUserName(name);
+              window.localStorage.setItem('chatVRM_userName', name);
+              window.localStorage.setItem('bsky_handle', name);
+            })
+            .catch((e: unknown) => console.error('[bsky getProfile]', e));
+        } else {
+          const h = window.localStorage.getItem("bsky_handle");
+          if (h) setIsSignedIn(true);
+          setIsAuthChecking(false);
+        }
+      })
+      .catch((e: unknown) => {
+        // fixLocation() が localhost → 127.0.0.1 へリダイレクトする際に throw する正常動作
+        if (e instanceof Error && e.message.includes('Redirecting')) return;
+        console.error('[Bluesky OAuth init]', e);
+        const h = window.localStorage.getItem("bsky_handle");
+        if (h) setIsSignedIn(true);
+        setIsAuthChecking(false);
+      });
+  }, []);
 
   // 質問専用スピーカー: キューを使わず直接再生。新しい呼び出しで前の音声を中断する
   const speakQuestion = useCallback(async (text: string) => {
@@ -156,25 +206,44 @@ export default function Home() {
     }
   }, [userName, lang, safeSpeak]);
 
-  const handleSignIn = useCallback(() => {
-    alert("Bluesky OAuth - coming soon");
+  const handleSignIn = useCallback(async (handle: string) => {
+    const { getBskyOAuthClient } = await import('@/features/auth/bskyOAuth');
+    const client = bskyClientRef.current ?? getBskyOAuthClient();
+    // フルページリダイレクト方式でポップアップ・BroadcastChannel 問題を回避
+    // state にハンドルを渡してコールバックで復元できるようにする
+    await client.signInRedirect(handle, { state: handle });
   }, []);
 
   const handleStartChat = useCallback(() => {
     setPhase("chat");
   }, []);
 
-  // --- chat logic (from original) ---
-  const handleSpeakAi = useCallback(
-    async (screenplay: Screenplay, onStart?: () => void, onEnd?: () => void) =>
-      speakCharacter(screenplay, viewer, koeiromapKey, onStart, onEnd),
-    [viewer, koeiromapKey]
-  );
+  const handleSignOut = useCallback(async () => {
+    try {
+      await bskySessionRef.current?.signOut();
+    } catch (e) {
+      console.error('[Bluesky signOut]', e);
+    }
+    bskySessionRef.current = null;
+    window.localStorage.removeItem('bsky_handle');
+    window.localStorage.removeItem('chatVRM_userName');
+    setIsSignedIn(false);
+    setUserName('');
+    setNameInput('');
+    setChatLog([]);
+    setPhase('landing');
+  }, []);
 
+  // --- chat logic ---
+  // ユーザーを待たせない方針:
+  //   1. 応答テキストを受信しながら逐次バブルに表示（生成中は送信ボタンがスピナー）
+  //   2. 全文受信後、発話準備の中央スピナーを表示
+  //   3. VoiceVox の再生開始でスピナーを消して発話
   const handleSendChat = useCallback(
     async (text: string) => {
       if (!text) return;
       setChatProcessing(true);
+      setAssistantMessage("");
       const messageLog: Message[] = [
         ...chatLog,
         { role: "user", content: text, userName },
@@ -192,41 +261,14 @@ export default function Home() {
       if (!stream) { setChatProcessing(false); return; }
 
       const reader = stream.getReader();
-      let receivedMessage = "";
-      let aiTextLog = "";
-      let tag = "";
-      const sentences: string[] = [];
-      let lastSpeakPromise = Promise.resolve();
-
+      let fullText = "";
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          receivedMessage += value;
-
-          const tagMatch = receivedMessage.match(/^\[(.*?)\]/);
-          if (tagMatch?.[0]) {
-            tag = tagMatch[0];
-            receivedMessage = receivedMessage.slice(tag.length);
-          }
-
-          const sentenceMatch = receivedMessage.match(
-            /^(.+[。．！？\n]|.{10,}[、,])/
-          );
-          if (sentenceMatch?.[0]) {
-            const sentence = sentenceMatch[0];
-            sentences.push(sentence);
-            receivedMessage = receivedMessage.slice(sentence.length).trimStart();
-
-            if (!sentence.replace(/^[\s\[\(\{「［（【『〈《〔｛«‹〘〚〛〙›»〕》〉』】）］」\}\)\]]+$/g, "")) continue;
-
-            const aiTalks = textsToScreenplay([`${tag} ${sentence}`], koeiroParam);
-            aiTextLog += `${tag} ${sentence}`;
-
-            const currentMsg = sentences.join(" ");
-            const p = handleSpeakAi(aiTalks[0], () => setAssistantMessage(currentMsg));
-            if (p) lastSpeakPromise = p as unknown as Promise<void>;
-          }
+          fullText += value;
+          // 感情タグを除いた表示用テキストを逐次更新（待たせない）
+          setAssistantMessage(fullText.replace(/\[([a-zA-Z]*?)\]/g, ""));
         }
       } catch (e) {
         console.error(e);
@@ -234,17 +276,21 @@ export default function Home() {
         reader.releaseLock();
       }
 
-      setChatLog([...messageLog, { role: "assistant", content: aiTextLog }]);
-      await lastSpeakPromise;
+      setChatLog([...messageLog, { role: "assistant", content: fullText }]);
       setChatProcessing(false);
-    },
-    [systemPrompt, chatLog, handleSpeakAi, koeiroParam, userName]
-  );
 
-  const handleChangeChatLog = useCallback(
-    (idx: number, text: string) =>
-      setChatLog((prev) => prev.map((v, i) => (i === idx ? { ...v, content: text } : v))),
-    []
+      // テキスト表示後、発話準備スピナー → 発話
+      const speakText = fullText.replace(/\[([a-zA-Z]*?)\]/g, "").trim();
+      if (speakText) {
+        setIsWaitingForVoice(true);
+        safeSpeak(
+          speakText,
+          () => { setIsWaitingForVoice(false); setIsSpeaking(true); },
+          () => setIsSpeaking(false),
+        );
+      }
+    },
+    [systemPrompt, chatLog, userName, safeSpeak]
   );
 
   // --- labels ---
@@ -296,26 +342,66 @@ export default function Home() {
       {/* VRM viewer — always rendered */}
       <VrmViewer />
 
-      {/* 言語スイッチャー — 常時表示 */}
-      <div className="absolute top-4 right-4 z-30 flex gap-1">
-        {(["en", "ja"] as const).map((l) => (
-          <button
-            key={l}
-            onClick={() => switchLocale(l)}
-            className="text-xs font-bold px-3 py-1.5 rounded-full transition-all"
-            style={
-              lang === l
-                ? { background: "rgba(255,255,255,0.9)", color: "#1a1a2e" }
-                : { background: "rgba(255,255,255,0.18)", color: "rgba(255,255,255,0.8)" }
-            }
-          >
-            {l === "en" ? "EN" : "JP"}
-          </button>
-        ))}
+      {/* トップバー（言語スイッチャー + 名前 + サインアウト）— 常時表示 */}
+      <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
+        {/* 言語トグル */}
+        <div
+          className="flex rounded-full overflow-hidden"
+          style={{
+            background: "rgba(8,16,40,0.6)",
+            backdropFilter: "blur(10px)",
+            border: "1px solid rgba(120,160,255,0.3)",
+          }}
+        >
+          {(["en", "ja"] as const).map((l) => (
+            <button
+              key={l}
+              onClick={() => switchLocale(l)}
+              className="px-4 py-2 text-sm font-bold transition-all"
+              style={
+                lang === l
+                  ? { background: "linear-gradient(90deg, #667eea, #764ba2)", color: "#fff" }
+                  : { background: "transparent", color: "rgba(255,255,255,0.7)" }
+              }
+            >
+              {l === "en" ? "EN" : "日本語"}
+            </button>
+          ))}
+        </div>
+
+        {/* サインイン済み: 名前チップ + サインアウト */}
+        {isSignedIn && (
+          <>
+            <div
+              className="px-3 py-2 rounded-full text-sm font-bold max-w-[140px] truncate"
+              style={{
+                background: "rgba(8,16,40,0.6)",
+                backdropFilter: "blur(10px)",
+                border: "1px solid rgba(120,160,255,0.3)",
+                color: "rgba(220,225,255,0.95)",
+              }}
+              title={userName}
+            >
+              👤 {userName}
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="px-4 py-2 rounded-full text-sm font-bold transition-opacity hover:opacity-80 active:opacity-60"
+              style={{
+                background: "rgba(118,75,162,0.35)",
+                backdropFilter: "blur(10px)",
+                border: "1px solid rgba(150,120,255,0.5)",
+                color: "rgba(220,210,255,0.98)",
+              }}
+            >
+              {lang === "ja" ? "サインアウト" : "Sign out"}
+            </button>
+          </>
+        )}
       </div>
 
       {/* ===== LANDING ===== */}
-      {phase === "landing" && (
+      {phase === "landing" && !isAuthChecking && (
         <div className="absolute bottom-0 left-0 right-0 z-20">
           <div
             className="mx-auto w-full max-w-lg px-4 pb-8 pt-5 space-y-3 rounded-t-3xl shadow-2xl"
@@ -440,24 +526,12 @@ export default function Home() {
 
       {/* ===== CHAT ===== */}
       {phase === "chat" && (
-        <>
-          <MessageInputContainer
-            isChatProcessing={chatProcessing}
-            onChatProcessStart={handleSendChat}
-          />
-          <Menu
-            chatLog={chatLog}
-            koeiroParam={koeiroParam}
-            assistantMessage={assistantMessage}
-            koeiromapKey={koeiromapKey}
-            userName={userName}
-            onChangeChatLog={handleChangeChatLog}
-            onChangeKoeiromapParam={setKoeiroParam}
-            onChangeUserName={setUserName}
-            handleClickResetChatLog={() => setChatLog([])}
-            onChangeKoeiromapKey={() => {}}
-          />
-        </>
+        <ChatView
+          lang={lang}
+          assistantMessage={assistantMessage}
+          isChatProcessing={chatProcessing}
+          onSend={handleSendChat}
+        />
       )}
     </div>
   );
