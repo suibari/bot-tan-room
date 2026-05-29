@@ -28,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const response = await fetch(
         `${DB_URL}/followers?did=eq.${encodeURIComponent(did)}`,
-        { headers }
+        { headers, keepalive: true }
       );
 
       if (!response.ok) {
@@ -83,6 +83,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           method: 'PATCH',
           headers,
           body: JSON.stringify({ conv_history: truncatedHistory }),
+          keepalive: true,
         }
       );
 

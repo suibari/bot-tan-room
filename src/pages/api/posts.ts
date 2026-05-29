@@ -28,11 +28,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const [postsRes, repliesRes] = await Promise.all([
       fetch(
         `${DB_URL}/posts?score=gte.80&select=post,created_at&order=created_at.desc&limit=50`,
-        { headers }
+        { headers, keepalive: true }
       ),
       fetch(
         `${DB_URL}/replies?select=reply,created_at&order=created_at.desc&limit=50`,
-        { headers }
+        { headers, keepalive: true }
       ),
     ]);
 
