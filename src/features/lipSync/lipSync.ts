@@ -47,14 +47,18 @@ export class LipSync {
 
   public async playFromArrayBuffer(buffer: ArrayBuffer, onEnded?: () => void) {
     this.stop();
+    if (this.audio.state === "suspended") {
+      await this.audio.resume();
+    }
     const audioBuffer = await this.audio.decodeAudioData(buffer);
 
     const bufferSource = this.audio.createBufferSource();
     this._currentSource = bufferSource;
     bufferSource.buffer = audioBuffer;
 
-    bufferSource.connect(this.audio.destination);
+    // analyser を destination の前段に接続（リップシンク + 音声出力）
     bufferSource.connect(this.analyser);
+    this.analyser.connect(this.audio.destination);
     bufferSource.start();
     bufferSource.addEventListener("ended", () => {
       if (this._currentSource === bufferSource) this._currentSource = null;
@@ -65,38 +69,26 @@ export class LipSync {
   public async playFromURL(url: string, onEnded?: () => void) {
     const res = await fetch(url);
     const buffer = await res.arrayBuffer();
-    this.playFromArrayBuffer(buffer, onEnded);
+    await this.playFromArrayBuffer(buffer, onEnded);
   }
 
+  /**
+   * URLからMP3を全取得してArrayBufferとして再生する。
+   * VoiceVox の mp3StreamingUrl は真のストリームではないため、
+   * 先に全取得してからデコードすることで再生途切れを防ぐ。
+   */
   public async playFromStream(url: string, onEnded?: () => void) {
-    this.stop();
-
     if (typeof window === "undefined") {
       onEnded?.();
       return;
     }
-
-    if (!this._audioElement) {
-      this._audioElement = new Audio();
-      this._audioElement.crossOrigin = "anonymous";
-      this._mediaElementSource = this.audio.createMediaElementSource(this._audioElement);
-      this._mediaElementSource.connect(this.analyser);
-      this.analyser.connect(this.audio.destination);
-    }
-
-    const audio = this._audioElement;
-    audio.src = url;
-
-    const handleEnded = () => {
-      audio.removeEventListener("ended", handleEnded);
+    try {
+      const res = await fetch(url);
+      const buffer = await res.arrayBuffer();
+      await this.playFromArrayBuffer(buffer, onEnded);
+    } catch (e) {
+      console.error("[LipSync] playFromStream fetch error:", e);
       onEnded?.();
-    };
-    audio.addEventListener("ended", handleEnded);
-
-    if (this.audio.state === "suspended") {
-      await this.audio.resume();
     }
-
-    await audio.play();
   }
 }
