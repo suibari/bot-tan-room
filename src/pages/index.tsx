@@ -70,6 +70,11 @@ export default function Home() {
   const BASE_URL =
     process.env.NEXT_PUBLIC_BASE_URL ?? "https://guestbook.suibari.com";
 
+  const routerRef = useRef(router);
+  useEffect(() => {
+    routerRef.current = router;
+  }, [router]);
+
   // Restore persisted settings + OAuth client pre-load
   useEffect(() => {
     const storedName = window.localStorage.getItem("chatVRM_userName");
@@ -101,6 +106,20 @@ export default function Home() {
           setIsSignedIn(true);
           setPhase('chat'); // 診断をスキップして会話から開始
           setIsAuthChecking(false);
+
+          // サインイン前の言語を復元する
+          const storedLang = window.localStorage.getItem('pre_signin_lang');
+          if (storedLang) {
+            window.localStorage.removeItem('pre_signin_lang');
+            const currentLocale = routerRef.current.locale;
+            if (storedLang !== currentLocale) {
+              routerRef.current.push(
+                routerRef.current.pathname,
+                routerRef.current.asPath,
+                { locale: storedLang }
+              );
+            }
+          }
 
           // プロフィール名（displayName 優先）を非同期取得して上書き
           result.session
@@ -205,12 +224,14 @@ export default function Home() {
   }, [userName, lang, safeSpeak]);
 
   const handleSignIn = useCallback(async (handle: string) => {
+    // サインイン前の言語を退避
+    window.localStorage.setItem('pre_signin_lang', lang);
     const { getBskyOAuthClient } = await import('@/features/auth/bskyOAuth');
     const client = bskyClientRef.current ?? getBskyOAuthClient();
     // フルページリダイレクト方式でポップアップ・BroadcastChannel 問題を回避
     // state にハンドルを渡してコールバックで復元できるようにする
     await client.signInRedirect(handle, { state: handle });
-  }, []);
+  }, [lang]);
 
   const handleStartChat = useCallback(() => {
     setPhase("chat");

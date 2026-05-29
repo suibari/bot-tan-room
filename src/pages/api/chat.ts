@@ -52,8 +52,8 @@ export default async function handler(
   let streamStarted = false; // 最初のチャンク出力後は true（以降フォールバック不可）
   let lastErr: unknown = null;
 
-  // 会話機能には 26b を使用
-  const chatModels = ['gemma-4-26b-a4b-it'] as const;
+  // 会話機能には Gemini 2.5 Flash Lite を使用
+  const chatModels = GEMINI_MODELS;
   for (const model of chatModels) {
     try {
       const streamResult = await client.models.generateContentStream({

@@ -96,8 +96,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const client = new GoogleGenAI({ apiKey });
 
-  // 診断機能には 31b を使用
-  const fortuneModels = ['gemma-4-31b-it'] as const;
+  // 診断機能には Gemini 2.5 Flash Lite を使用
+  const fortuneModels = GEMINI_MODELS;
   let parsedJson: any = null;
   let lastErr: unknown = null;
   for (const model of fortuneModels) {
