@@ -50,6 +50,7 @@ export default function Home() {
   const [chatLog, setChatLog] = useState<Message[]>([]);
   const [assistantMessage, setAssistantMessage] = useState("");
   const [showPolicy, setShowPolicy] = useState(false);
+  const [quotaExceeded, setQuotaExceeded] = useState(false);
 
   // --- new state ---
   const [phase, setPhase] = useState<Phase>("landing");
@@ -278,6 +279,12 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: userName, lang, answers }),
       });
+      if (res.status === 429) {
+        setIsWaitingForVoice(false);
+        setIsLangLocked(false);
+        setQuotaExceeded(true);
+        return;
+      }
       if (!res.ok) throw new Error("diagnosis failed");
       const data: DiagnosisResult = await res.json();
 
@@ -401,7 +408,13 @@ export default function Home() {
       ];
 
       const stream = await getGeminiResponseStream(messages, userName, lang).catch(
-        (e) => { console.error(e); return null; }
+        (e) => {
+          if (e.message === "quota_exceeded") {
+            setQuotaExceeded(true);
+          }
+          console.error(e);
+          return null;
+        }
       );
       if (!stream) { setChatProcessing(false); return; }
 
@@ -612,7 +625,7 @@ export default function Home() {
       </div>
 
       {/* ===== LANDING ===== */}
-      {phase === "landing" && !isAuthChecking && (
+      {phase === "landing" && !isAuthChecking && !quotaExceeded && (
         <div className="absolute bottom-4 left-4 right-4 z-20 flex justify-center">
           <div
             className="w-full max-w-lg px-4 pb-8 pt-5 space-y-3 rounded-3xl shadow-2xl"
@@ -672,7 +685,7 @@ export default function Home() {
       )}
 
       {/* ===== QUESTIONS ===== */}
-      {phase === "questions" && (
+      {phase === "questions" && !quotaExceeded && (
         <div className="absolute bottom-4 left-4 right-4 z-20 flex justify-center">
           <div
             className="w-full max-w-lg px-4 pb-8 pt-5 space-y-3 rounded-3xl shadow-2xl"
@@ -731,7 +744,7 @@ export default function Home() {
       )}
 
       {/* ===== FORTUNE ===== */}
-      {phase === "fortune" && fortune && (
+      {phase === "fortune" && fortune && !quotaExceeded && (
         <div className="absolute bottom-4 left-4 right-4 z-20 flex justify-center pointer-events-none">
           <div
             className="w-full max-w-lg px-4 pb-8 pt-4 space-y-3 rounded-3xl shadow-2xl max-h-[58vh] overflow-y-auto pointer-events-auto"
@@ -760,7 +773,7 @@ export default function Home() {
       )}
 
       {/* ===== CHAT ===== */}
-      {phase === "chat" && (
+      {phase === "chat" && !quotaExceeded && (
         <ChatView
           lang={lang}
           assistantMessage={assistantMessage}
@@ -878,6 +891,34 @@ export default function Home() {
                 {t("policy.close")}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== QUOTA EXCEEDED (INOPERABLE STATE) ===== */}
+      {quotaExceeded && (
+        <div className="absolute inset-0 z-45 flex items-center justify-center p-4 bg-black/55 backdrop-blur-md">
+          <div
+            className="w-full max-w-lg p-8 space-y-4 rounded-3xl shadow-2xl text-center animate-fadeIn"
+            style={{
+              background: "rgba(25, 10, 45, 0.85)",
+              border: "2px solid rgba(255, 90, 95, 0.3)",
+              boxShadow: "0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+            }}
+          >
+            <div className="w-16 h-16 bg-red-500/10 border border-red-500/30 rounded-full flex items-center justify-center mx-auto text-red-400">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+            <h2 className="text-white text-lg font-bold tracking-wide" style={{ textShadow: '0 0 15px rgba(255, 90, 95, 0.4)' }}>
+              {t("quota.title")}
+            </h2>
+            <p className="text-sm leading-relaxed" style={{ color: "rgba(255, 255, 255, 0.85)" }}>
+              {t("quota.message")}
+            </p>
           </div>
         </div>
       )}

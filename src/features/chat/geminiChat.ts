@@ -11,6 +11,9 @@ export async function getGeminiResponseStream(messages: Message[], userName?: st
   });
 
   if (!res.ok || !res.body) {
+    if (res.status === 429) {
+      throw new Error("quota_exceeded");
+    }
     throw new Error("Failed to connect to Chat API");
   }
 

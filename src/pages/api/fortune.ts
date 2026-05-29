@@ -144,6 +144,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const fortuneModels = GEMINI_MODELS;
   let parsedJson: any = null;
   let lastErr: unknown = null;
+  let isQuotaExceeded = false;
   for (const model of fortuneModels) {
     try {
       console.log(`[API fortune] Sending request to model: ${model}`);
@@ -167,14 +168,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       parsedJson = JSON.parse(text);
       break;
-    } catch (e) {
+    } catch (e: any) {
       console.error(`fortune API error (model: ${model}):`, e);
       lastErr = e;
+      if (isQuotaExceededError(e)) {
+        isQuotaExceeded = true;
+      }
     }
   }
 
   if (!parsedJson) {
     console.error('fortune API: all models failed', lastErr);
+    if (isQuotaExceeded || isQuotaExceededError(lastErr)) {
+      return res.status(429).json({
+        error: 'quota_exceeded',
+        message: '今日はbotたんのお部屋は満員になっちゃった！　また明日ね！',
+      });
+    }
     return res.status(500).json({ message: 'Failed to generate diagnosis' });
   }
 
@@ -214,4 +224,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   return res.status(200).json(finalResult);
+}
+
+function isQuotaExceededError(err: any): boolean {
+  if (!err) return false;
+  const status = err.status ?? err.statusCode ?? err.status_code;
+  if (status === 429 || status === 403) {
+    return true;
+  }
+  const errString = String(err.message ?? err.stack ?? err.toString() ?? "").toLowerCase();
+  return (
+    errString.includes("429") ||
+    errString.includes("403") ||
+    errString.includes("resource_exhausted") ||
+    errString.includes("quota") ||
+    errString.includes("limit") ||
+    errString.includes("exhausted") ||
+    errString.includes("billing") ||
+    errString.includes("budget")
+  );
 }

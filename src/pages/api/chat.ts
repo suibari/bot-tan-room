@@ -67,6 +67,7 @@ export default async function handler(
   let fullResponse = "";
   let streamStarted = false; // 最初のチャンク出力後は true（以降フォールバック不可）
   let lastErr: unknown = null;
+  let isQuotaExceeded = false;
 
   // 会話機能には Gemini 2.5 Flash Lite を使用
   const chatModels = GEMINI_MODELS;
@@ -109,6 +110,9 @@ export default async function handler(
     } catch (error) {
       console.error(`Gemini API Error (model: ${model}):`, error);
       lastErr = error;
+      if (isQuotaExceededError(error)) {
+        isQuotaExceeded = true;
+      }
       // すでにクライアントへ書き込み中なら途中で別モデルに切り替えられないので中断
       if (streamStarted) break;
       // まだヘッダー未送信なら次のモデルへフォールバック
@@ -119,10 +123,36 @@ export default async function handler(
   if (!streamStarted) {
     console.error("All Gemini models failed:", lastErr);
     if (!res.headersSent) {
-      res.status(500).json({ message: "AI応答の生成に失敗しました。しばらくしてからもう一度お試しください。" });
+      if (isQuotaExceeded || isQuotaExceededError(lastErr)) {
+        res.status(429).json({
+          error: 'quota_exceeded',
+          message: '今日はbotたんのお部屋は満員になっちゃった！　また明日ね！',
+        });
+      } else {
+        res.status(500).json({ message: "AI応答の生成に失敗しました。しばらくしてからもう一度お試しください。" });
+      }
     }
     return;
   }
 
   res.end();
+}
+
+function isQuotaExceededError(err: any): boolean {
+  if (!err) return false;
+  const status = err.status ?? err.statusCode ?? err.status_code;
+  if (status === 429 || status === 403) {
+    return true;
+  }
+  const errString = String(err.message ?? err.stack ?? err.toString() ?? "").toLowerCase();
+  return (
+    errString.includes("429") ||
+    errString.includes("403") ||
+    errString.includes("resource_exhausted") ||
+    errString.includes("quota") ||
+    errString.includes("limit") ||
+    errString.includes("exhausted") ||
+    errString.includes("billing") ||
+    errString.includes("budget")
+  );
 }

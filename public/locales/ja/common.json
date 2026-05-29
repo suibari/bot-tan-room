@@ -42,5 +42,9 @@
     "developerTitle": "4. 開発者について",
     "developerText": "本アプリは すいばり（suibari.com）によって開発されました。",
     "close": "閉じる"
+  },
+  "quota": {
+    "title": "お部屋が満員になりました",
+    "message": "今日はbotたんのお部屋は満員になっちゃった！　また明日ね！"
   }
 }

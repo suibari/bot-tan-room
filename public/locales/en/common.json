@@ -42,5 +42,9 @@
     "developerTitle": "4. Creator",
     "developerText": "This application was developed by suibari (suibari.com).",
     "close": "Close"
+  },
+  "quota": {
+    "title": "The Room is Full",
+    "message": "Today, Bot-tan's room is full! Please come back tomorrow!"
   }
 }
