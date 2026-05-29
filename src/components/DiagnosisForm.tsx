@@ -77,9 +77,9 @@ export function DiagnosisForm({ lang, onSubmit, onQuestionShow }: Props) {
                 height: 8,
                 background:
                   i < currentIndex
-                    ? 'rgba(167,139,250,0.9)'
+                    ? 'var(--theme-mint)'
                     : i === currentIndex
-                    ? 'rgba(167,139,250,0.9)'
+                    ? 'var(--theme-mint)'
                     : 'rgba(255,255,255,0.2)',
               }}
             />
@@ -107,7 +107,7 @@ export function DiagnosisForm({ lang, onSubmit, onQuestionShow }: Props) {
         placeholder={l.placeholder}
         maxLength={30}
         autoFocus
-        className="w-full px-3 py-2 rounded-xl text-white placeholder-white/40 outline-none focus:ring-2 focus:ring-purple-400 text-sm"
+        className="w-full px-3 py-2 rounded-xl text-white placeholder-white/40 ring-theme-glow text-sm"
         style={{ background: 'rgba(255,255,255,0.10)' }}
       />
 
@@ -115,8 +115,7 @@ export function DiagnosisForm({ lang, onSubmit, onQuestionShow }: Props) {
       <button
         onClick={handleNext}
         disabled={!canProceed}
-        className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed"
-        style={{ background: 'linear-gradient(135deg, #c471ed, #8c44b5, #6a3de8)' }}
+        className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed bg-theme-gradient-3"
       >
         {isLast ? l.submit : l.next}
       </button>

@@ -2,6 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --theme-blue: #00b4db;
+  --theme-mint: #00cdac;
+  --theme-dark-blue: #0072ff;
+  
+  --primary-gradient: linear-gradient(135deg, var(--theme-blue), var(--theme-mint));
+  --primary-gradient-3: linear-gradient(135deg, var(--theme-dark-blue), var(--theme-blue), var(--theme-mint));
+  
+  --theme-bg-dark: rgba(8, 24, 30, 0.78);
+  --theme-bg-darker: rgba(8, 24, 30, 0.88);
+  --theme-bg-dark-hover: rgba(8, 24, 30, 0.85);
+  --theme-bg-dark-half: rgba(8, 24, 30, 0.70);
+  
+  --theme-border-glow: rgba(0, 205, 172, 0.22);
+  --theme-border-glow-light: rgba(0, 205, 172, 0.15);
+  --theme-border-glow-strong: rgba(0, 205, 172, 0.35);
+  --theme-border-glow-active: rgba(0, 205, 172, 0.45);
+  
+  --theme-ring-glow: rgba(0, 180, 219, 0.45);
+  --theme-ring-glow-strong: rgba(0, 180, 219, 0.50);
+}
+
 body {
   background-position: top center;
   background-attachment: fixed;
@@ -45,6 +67,41 @@ body {
 
   .scroll-hidden::-webkit-scrollbar {
     display: none;
+  }
+  
+  /* Shared Theme Card Backgrounds */
+  .bg-theme-card {
+    background: var(--theme-bg-dark);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--theme-border-glow);
+  }
+  .bg-theme-card-strong {
+    background: var(--theme-bg-darker);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--theme-border-glow-strong);
+  }
+  
+  /* Shared Theme Gradients */
+  .bg-theme-gradient {
+    background: var(--primary-gradient);
+  }
+  .bg-theme-gradient-3 {
+    background: var(--primary-gradient-3);
+  }
+  
+  /* Shared Theme Text and Borders */
+  .text-theme-mint {
+    color: var(--theme-mint);
+  }
+  .text-theme-blue {
+    color: var(--theme-blue);
+  }
+  .border-theme-glow {
+    border-color: var(--theme-border-glow-strong);
+  }
+  .ring-theme-glow:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--theme-ring-glow-strong);
   }
 }
 

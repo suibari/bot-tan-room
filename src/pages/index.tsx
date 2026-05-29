@@ -545,9 +545,9 @@ export default function Home() {
           title={t("policy.link")}
           className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:opacity-85 active:scale-95 shrink-0"
           style={{
-            background: "rgba(20,8,38,0.70)",
+            background: "var(--theme-bg-dark-half)",
             backdropFilter: "blur(10px)",
-            border: "1px solid rgba(200,140,255,0.30)",
+            border: "1px solid var(--theme-border-glow-strong)",
             color: "#fff",
           }}
         >
@@ -562,9 +562,9 @@ export default function Home() {
         <div
           className="flex rounded-full overflow-hidden transition-all duration-300"
           style={{
-            background: "rgba(20,8,38,0.70)",
+            background: "var(--theme-bg-dark-half)",
             backdropFilter: "blur(10px)",
-            border: isLangLocked ? "1px solid rgba(200,140,255,0.12)" : "1px solid rgba(200,140,255,0.30)",
+            border: isLangLocked ? "1px solid var(--theme-border-glow-light)" : "1px solid var(--theme-border-glow-strong)",
             opacity: isLangLocked ? 0.6 : 1,
           }}
         >
@@ -584,7 +584,7 @@ export default function Home() {
               className="px-4 py-2 text-sm font-bold transition-all disabled:cursor-not-allowed"
               style={
                 lang === l
-                  ? { background: "linear-gradient(135deg, #c471ed, #8c44b5)", color: "#fff" }
+                  ? { background: "var(--primary-gradient)", color: "#fff" }
                   : { background: "transparent", color: isLangLocked ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.7)" }
               }
             >
@@ -599,10 +599,10 @@ export default function Home() {
             <div
               className="px-3 py-2 rounded-full text-sm font-bold max-w-[140px] truncate"
               style={{
-                background: "rgba(20,8,38,0.70)",
+                background: "var(--theme-bg-dark-half)",
                 backdropFilter: "blur(10px)",
-                border: "1px solid rgba(200,140,255,0.30)",
-                color: "rgba(230,210,255,0.95)",
+                border: "1px solid var(--theme-border-glow-strong)",
+                color: "rgba(230,255,250,0.95)",
               }}
               title={userName}
             >
@@ -612,10 +612,10 @@ export default function Home() {
               onClick={handleSignOut}
               className="px-4 py-2 rounded-full text-sm font-bold transition-opacity hover:opacity-80 active:opacity-60"
               style={{
-                background: "rgba(180,80,255,0.25)",
+                background: "var(--theme-ring-glow)",
                 backdropFilter: "blur(10px)",
-                border: "1px solid rgba(200,120,255,0.45)",
-                color: "rgba(230,210,255,0.98)",
+                border: "1px solid var(--theme-ring-glow-strong)",
+                color: "rgba(230,255,250,0.98)",
               }}
             >
               {lang === "ja" ? "サインアウト" : "Sign out"}
@@ -627,16 +627,9 @@ export default function Home() {
       {/* ===== LANDING ===== */}
       {phase === "landing" && !isAuthChecking && !quotaExceeded && (
         <div className="absolute bottom-4 left-4 right-4 z-20 flex justify-center">
-          <div
-            className="w-full max-w-lg px-4 pb-8 pt-5 space-y-3 rounded-3xl shadow-2xl"
-            style={{
-              background: "rgba(20,8,38,0.78)",
-              backdropFilter: "blur(20px)",
-              border: "1px solid rgba(220,160,255,0.18)",
-            }}
-          >
+          <div className="w-full max-w-lg px-4 pb-8 pt-5 space-y-3 rounded-3xl shadow-2xl bg-theme-card">
             <h1 className="text-white text-lg font-bold text-center tracking-wide"
-              style={{ textShadow: '0 0 18px rgba(220,140,255,0.45)' }}>
+              style={{ textShadow: '0 0 18px var(--theme-border-glow-active)' }}>
               {lang === "ja" ? "Botたんのお部屋へようこそ" : "Welcome to Bot-tan's Room"}
             </h1>
             <p className="text-xs text-center leading-relaxed" style={{ color: "rgba(255, 255, 255, 0.85)" }}>
@@ -655,17 +648,16 @@ export default function Home() {
               className="w-full px-4 py-3 rounded-xl text-white placeholder-white/35 outline-none text-sm"
               style={{
                 background: "rgba(255,255,255,0.08)",
-                border: "1px solid rgba(220,160,255,0.22)",
+                border: "1px solid var(--theme-border-glow-strong)",
                 boxShadow: "0 0 0 0 transparent",
                 transition: "box-shadow 0.2s",
               }}
-              onFocus={(e) => (e.currentTarget.style.boxShadow = '0 0 0 2px rgba(200,120,255,0.45)')}
+              onFocus={(e) => (e.currentTarget.style.boxShadow = '0 0 0 2px var(--theme-ring-glow-strong)')}
               onBlur={(e) => (e.currentTarget.style.boxShadow = '0 0 0 0 transparent')}
             />
             <button
               onClick={handleNameSubmit}
-              className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all hover:brightness-110 active:scale-[0.98]"
-              style={{ background: "linear-gradient(135deg, #c471ed, #8c44b5, #6a3de8)" }}
+              className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all hover:brightness-110 active:scale-[0.98] bg-theme-gradient-3"
             >
               {LABEL.button}
             </button>
@@ -687,16 +679,9 @@ export default function Home() {
       {/* ===== QUESTIONS ===== */}
       {phase === "questions" && !quotaExceeded && (
         <div className="absolute bottom-4 left-4 right-4 z-20 flex justify-center">
-          <div
-            className="w-full max-w-lg px-4 pb-8 pt-5 space-y-3 rounded-3xl shadow-2xl"
-            style={{
-              background: "rgba(20,8,38,0.78)",
-              backdropFilter: "blur(20px)",
-              border: "1px solid rgba(220,160,255,0.18)",
-            }}
-          >
+          <div className="w-full max-w-lg px-4 pb-8 pt-5 space-y-3 rounded-3xl shadow-2xl bg-theme-card">
             <h2 className="text-white text-sm font-bold text-center tracking-wide"
-              style={{ textShadow: '0 0 12px rgba(220,140,255,0.35)' }}>
+              style={{ textShadow: '0 0 12px var(--theme-border-glow-active)' }}>
               {lang === "ja"
                 ? `${userName}さんのこと、聞かせてね`
                 : `Tell me about you, ${userName}`}
@@ -716,9 +701,9 @@ export default function Home() {
           <div
             className="flex flex-col items-center gap-3 px-8 py-5 rounded-2xl"
             style={{
-              background: "rgba(20,8,38,0.85)",
+              background: "var(--theme-bg-dark-hover)",
               backdropFilter: "blur(16px)",
-              border: "1px solid rgba(220,140,255,0.2)",
+              border: "1px solid var(--theme-border-glow-strong)",
             }}
           >
             <div className="spinner-ring" />
@@ -730,8 +715,8 @@ export default function Home() {
                 width: 40px;
                 height: 40px;
                 border-radius: 50%;
-                border: 4px solid rgba(200, 120, 255, 0.25);
-                border-top-color: #d88fff;
+                border: 4px solid var(--theme-ring-glow);
+                border-top-color: var(--theme-mint);
                 animation: spinner-turn 0.75s linear infinite;
                 flex-shrink: 0;
               }
@@ -746,24 +731,16 @@ export default function Home() {
       {/* ===== FORTUNE ===== */}
       {phase === "fortune" && fortune && !quotaExceeded && (
         <div className="absolute bottom-4 left-4 right-4 z-20 flex justify-center pointer-events-none">
-          <div
-            className="w-full max-w-lg px-4 pb-8 pt-4 space-y-3 rounded-3xl shadow-2xl max-h-[58vh] overflow-y-auto pointer-events-auto"
-            style={{
-              background: "rgba(20,8,38,0.78)",
-              backdropFilter: "blur(20px)",
-              border: "1px solid rgba(220,160,255,0.18)",
-            }}
-          >
+          <div className="w-full max-w-lg px-4 pb-8 pt-4 space-y-3 rounded-3xl shadow-2xl max-h-[58vh] overflow-y-auto pointer-events-auto bg-theme-card">
             {/* ドラッグハンドル */}
             <div className="w-10 h-1 rounded-full mx-auto mb-1"
-              style={{ background: "rgba(220,140,255,0.35)" }} />
+              style={{ background: "var(--theme-border-glow-active)" }} />
             <FortuneCard name={userName} fortune={fortune} lang={lang} isSpeaking={isSpeaking} />
             <BlueskyPrompt lang={lang} isSignedIn={isSignedIn} onSignIn={handleSignIn} />
             {isSignedIn && (
               <button
                 onClick={handleStartChat}
-                className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all hover:brightness-110 active:scale-[0.98]"
-                style={{ background: "linear-gradient(135deg, #c471ed, #8c44b5, #6a3de8)" }}
+                className="w-full py-3 rounded-xl font-bold text-white text-sm transition-all hover:brightness-110 active:scale-[0.98] bg-theme-gradient-3"
               >
                 {LABEL.chat}
               </button>
@@ -785,18 +762,11 @@ export default function Home() {
       {/* ===== POLICY MODAL ===== */}
       {showPolicy && (
         <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-          <div
-            className="w-full max-w-lg p-6 rounded-3xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-fadeIn"
-            style={{
-              background: "rgba(25, 12, 45, 0.88)",
-              border: "1px solid rgba(220, 160, 255, 0.3)",
-              boxShadow: "0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
-            }}
-          >
+          <div className="w-full max-w-lg p-6 rounded-3xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-fadeIn bg-theme-card-strong">
             {/* Header */}
             <div className="flex items-center justify-between pb-4 border-b border-white/10">
               <h2 className="text-white text-lg font-bold tracking-wide flex items-center gap-2">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d88fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--theme-mint)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                   <polyline points="14 2 14 8 20 8" />
                   <line x1="16" y1="13" x2="8" y2="13" />
@@ -819,7 +789,7 @@ export default function Home() {
             {/* Content (Scrollable) */}
             <div className="flex-1 overflow-y-auto py-4 pr-1 text-white/95 space-y-4 scrollbar-thin scrollbar-thumb-white/10 text-sm leading-relaxed">
               <div className="space-y-1">
-                <h3 className="font-bold text-[#d88fff] flex items-center gap-1.5">
+                <h3 className="font-bold text-theme-mint flex items-center gap-1.5">
                   {t("policy.aiTitle")}
                 </h3>
                 <p className="text-white/85 text-xs pl-0">
@@ -828,7 +798,7 @@ export default function Home() {
               </div>
 
               <div className="space-y-1">
-                <h3 className="font-bold text-[#d88fff] flex items-center gap-1.5">
+                <h3 className="font-bold text-theme-mint flex items-center gap-1.5">
                   {t("policy.privacyTitle")}
                 </h3>
                 <p className="text-white/85 text-xs pl-0">
@@ -837,7 +807,7 @@ export default function Home() {
               </div>
 
               <div className="space-y-1">
-                <h3 className="font-bold text-[#d88fff] flex items-center gap-1.5">
+                <h3 className="font-bold text-theme-mint flex items-center gap-1.5">
                   {t("policy.disclaimerTitle")}
                 </h3>
                 <p className="text-white/85 text-xs pl-0">
@@ -846,7 +816,7 @@ export default function Home() {
               </div>
 
               <div className="space-y-1">
-                <h3 className="font-bold text-[#d88fff] flex items-center gap-1.5">
+                <h3 className="font-bold text-theme-mint flex items-center gap-1.5">
                   {t("policy.developerTitle")}
                 </h3>
                 <p className="text-white/85 text-xs pl-0">
@@ -857,7 +827,7 @@ export default function Home() {
                         href="https://suibari.com"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[#c471ed] hover:underline font-bold"
+                        className="text-theme-blue hover:underline font-bold"
                       >
                         すいばり (suibari.com)
                       </a>{" "}
@@ -870,7 +840,7 @@ export default function Home() {
                         href="https://suibari.com"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[#c471ed] hover:underline font-bold"
+                        className="text-theme-blue hover:underline font-bold"
                       >
                         suibari (suibari.com)
                       </a>
@@ -885,8 +855,7 @@ export default function Home() {
             <div className="pt-4 border-t border-white/10 flex justify-end">
               <button
                 onClick={() => setShowPolicy(false)}
-                className="px-6 py-2 rounded-xl text-sm font-bold text-white transition-all hover:brightness-110 active:scale-95"
-                style={{ background: "linear-gradient(135deg, #c471ed, #8c44b5)" }}
+                className="px-6 py-2 rounded-xl text-sm font-bold text-white transition-all hover:brightness-110 active:scale-95 bg-theme-gradient"
               >
                 {t("policy.close")}
               </button>
@@ -898,14 +867,7 @@ export default function Home() {
       {/* ===== QUOTA EXCEEDED (INOPERABLE STATE) ===== */}
       {quotaExceeded && (
         <div className="absolute inset-0 z-45 flex items-center justify-center p-4 bg-black/55 backdrop-blur-md">
-          <div
-            className="w-full max-w-lg p-8 space-y-4 rounded-3xl shadow-2xl text-center animate-fadeIn"
-            style={{
-              background: "rgba(25, 10, 45, 0.85)",
-              border: "2px solid rgba(255, 90, 95, 0.3)",
-              boxShadow: "0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
-            }}
-          >
+          <div className="w-full max-w-lg p-8 space-y-4 rounded-3xl shadow-2xl text-center animate-fadeIn bg-theme-card-strong">
             <div className="w-16 h-16 bg-red-500/10 border border-red-500/30 rounded-full flex items-center justify-center mx-auto text-red-400">
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10" />

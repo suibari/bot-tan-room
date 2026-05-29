@@ -82,30 +82,17 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend }: P
     <>
       {/* 下部パネル: 回答 + 入力バーを1つにまとめる（診断結果と同じ位置） */}
       <div className="absolute bottom-4 left-4 right-4 z-20 flex justify-center">
-        <div
-          className="w-full max-w-lg px-4 pb-6 pt-4 space-y-3 rounded-3xl shadow-2xl"
-          style={{
-            background: "rgba(20,8,38,0.78)",
-            backdropFilter: "blur(20px)",
-            border: "1px solid rgba(220,160,255,0.18)",
-          }}
-        >
+        <div className="w-full max-w-lg px-4 pb-6 pt-4 space-y-3 rounded-3xl shadow-2xl bg-theme-card">
           {/* アシスタント発言 */}
           {cleanMessage && (
             <div
               className="w-full rounded-2xl overflow-hidden"
               style={{
-                background: "rgba(28,10,50,0.65)",
-                border: "1px solid rgba(200,140,255,0.25)",
+                background: "rgba(8, 24, 30, 0.75)",
+                border: "1px solid var(--theme-border-glow-strong)",
               }}
             >
-              <div
-                className="px-4 py-2 text-xs font-bold tracking-widest"
-                style={{
-                  background: "linear-gradient(135deg, #c471ed, #8c44b5)",
-                  color: "#fff",
-                }}
-              >
+              <div className="px-4 py-2 text-xs font-bold tracking-widest bg-theme-gradient text-white">
                 {l.name}
               </div>
               <div className="px-4 py-3 max-h-[28vh] overflow-y-auto">
@@ -126,9 +113,9 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend }: P
               className="shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-opacity hover:opacity-80 active:opacity-60 disabled:opacity-40"
               style={{
                 background: isMicRecording
-                  ? "linear-gradient(135deg, #c471ed, #8c44b5)"
+                  ? "var(--primary-gradient)"
                   : "rgba(255,255,255,0.08)",
-                border: "1px solid rgba(220,140,255,0.3)",
+                border: "1px solid var(--theme-border-glow-strong)",
               }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -154,10 +141,10 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend }: P
               className="flex-1 px-4 py-3 rounded-xl text-white placeholder-white/35 outline-none text-sm disabled:opacity-50"
               style={{
                 background: "rgba(255,255,255,0.08)",
-                border: "1px solid rgba(220,140,255,0.18)",
+                border: "1px solid var(--theme-border-glow-strong)",
                 transition: "box-shadow 0.2s",
               }}
-              onFocus={(e) => (e.currentTarget.style.boxShadow = '0 0 0 2px rgba(200,120,255,0.4)')}
+              onFocus={(e) => (e.currentTarget.style.boxShadow = '0 0 0 2px var(--theme-ring-glow-strong)')}
               onBlur={(e) => (e.currentTarget.style.boxShadow = '0 0 0 0 transparent')}
             />
 
@@ -166,8 +153,7 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend }: P
               onClick={handleSend}
               disabled={isChatProcessing || !userMessage.trim()}
               aria-label="send"
-              className="shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-all hover:brightness-110 active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed"
-              style={{ background: "linear-gradient(135deg, #c471ed, #8c44b5)" }}
+              className="shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-all hover:brightness-110 active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed bg-theme-gradient"
             >
               {isChatProcessing ? (
                 <span
