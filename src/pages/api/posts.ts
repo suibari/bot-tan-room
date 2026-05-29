@@ -6,8 +6,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const DB_URL = process.env.DB_URL ?? 'https://db.suibari.com';
-  const CF_ID = process.env.CF_ACCESS_CLIENT_ID!;
-  const CF_SECRET = process.env.CF_ACCESS_CLIENT_SECRET!;
+  const CF_ID = process.env.CF_ACCESS_CLIENT_ID;
+  const CF_SECRET = process.env.CF_ACCESS_CLIENT_SECRET;
+
+  if (!CF_ID || !CF_SECRET) {
+    console.error('[API posts error]: Cloudflare Access Client ID/Secret not configured in environment variables.');
+    return res.status(500).json({ message: 'Server Configuration Error' });
+  }
 
   const headers: HeadersInit = {
     'Accept-Profile': 'affirmative_bot',
@@ -19,15 +24,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const [postsRes, repliesRes] = await Promise.all([
       fetch(
         `${DB_URL}/posts?score=gte.80&select=post,created_at&order=created_at.desc&limit=50`,
-        { headers, next: { revalidate: 300 } } as RequestInit
+        { headers }
       ),
       fetch(
         `${DB_URL}/replies?select=reply,created_at&order=created_at.desc&limit=50`,
-        { headers, next: { revalidate: 300 } } as RequestInit
+        { headers }
       ),
     ]);
 
     if (!postsRes.ok || !repliesRes.ok) {
+      const postsStatus = postsRes.status;
+      const repliesStatus = repliesRes.status;
+      let postsErrText = '';
+      let repliesErrText = '';
+      try { postsErrText = await postsRes.text(); } catch (_) {}
+      try { repliesErrText = await repliesRes.text(); } catch (_) {}
+
+      console.error(
+        `[API posts DB fetch failed]:\n` +
+        `- posts endpoint: status=${postsStatus}, body=${postsErrText}\n` +
+        `- replies endpoint: status=${repliesStatus}, body=${repliesErrText}`
+      );
       throw new Error('DB fetch failed');
     }
 
