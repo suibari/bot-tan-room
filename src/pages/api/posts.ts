@@ -25,16 +25,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   };
 
   try {
-    const [postsRes, repliesRes] = await Promise.all([
-      fetch(
-        `${DB_URL}/posts?score=gte.80&select=post,created_at&order=created_at.desc&limit=50`,
-        { headers, keepalive: true }
-      ),
-      fetch(
-        `${DB_URL}/replies?select=reply,created_at&order=created_at.desc&limit=50`,
-        { headers, keepalive: true }
-      ),
-    ]);
+    const postsRes = await fetch(
+      `${DB_URL}/posts?score=gte.80&select=post,created_at&order=created_at.desc&limit=50`,
+      { headers, keepalive: true }
+    );
+    const repliesRes = await fetch(
+      `${DB_URL}/replies?select=reply,created_at&order=created_at.desc&limit=50`,
+      { headers, keepalive: true }
+    );
 
     if (!postsRes.ok || !repliesRes.ok) {
       const postsStatus = postsRes.status;
@@ -67,3 +65,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ message: 'Internal Server Error' });
   }
 }
+
