@@ -29,9 +29,17 @@ export default async function handler(
   const client = new GoogleGenAI({ apiKey });
 
   // System prompt logic
-  const systemInstruction = messages.find((m: any) => m.role === 'system')?.content;
+  let systemInstruction = messages.find((m: any) => m.role === 'system')?.content;
+  if (systemInstruction) {
+    // 確実に出力を抑制するための最重要指示を末尾に追加
+    systemInstruction +=
+      "\n\n[最重要：出力の制限ルール]\n" +
+      "1. あなたの返答は、絶対に1〜2文（60〜100文字程度）の超簡潔なプレーンテキストにしてください。長文や要約、解説は禁止です。\n" +
+      "2. 太字（**）や箇条書き（*）、リンクなどのマークダウン装飾は【絶対に】使用しないでください。必ず平文のみで答えてください。\n" +
+      "3. 過去の会話をまとめたり、要約して振り返ったりしないでください。現在の最後のメッセージに対して直接、自然に1言で返答してください。";
+  }
 
-  const history = messages
+  let history = messages
     .filter((m: any) => m.role !== 'system')
     .map((m: any) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
@@ -40,12 +48,20 @@ export default async function handler(
 
   const lastMessage = history.pop();
 
-  // 文脈はクライアントが送る history（現在のセッションの会話ログ）をそのまま使う。
-  // 会話履歴の DB(KV) 連携は廃止。
-
   if (!lastMessage) {
     res.status(400).json({ message: "No user message found" });
     return;
+  }
+
+  // 最後のユーザー発言の末尾に、強力なフォーマット制約をインジェクションして出力崩れと長文化を完全に防ぐ
+  if (lastMessage.parts && lastMessage.parts[0] && typeof lastMessage.parts[0].text === 'string') {
+    const rawText = lastMessage.parts[0].text;
+    
+    // システムの返答ルールをモデルに強制的に意識させるための割り込み命令
+    const constraintSuffix = 
+      "\n\n(※システムルール遵守：絶対に太字(**)やイタリック(*)、箇条書きなどのマークダウン装飾を使用せず、1〜2文(最大100文字)の超簡潔なプレーンテキストで、改行を使わずに1段落で返答してください。過去の会話全体の要約や振り返りは絶対に禁止です。)";
+    
+    lastMessage.parts[0].text = rawText + constraintSuffix;
   }
 
   let fullResponse = "";

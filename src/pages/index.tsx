@@ -107,6 +107,79 @@ export default function Home() {
           setPhase('chat'); // 診断をスキップして会話から開始
           setIsAuthChecking(false);
 
+          // データベース同期処理
+          const did = result.session.did;
+          (async () => {
+            try {
+              const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`);
+              if (!historyRes.ok) {
+                throw new Error('Failed to fetch history API');
+              }
+              const historyData = await historyRes.json();
+
+              if (historyData.isFollower) {
+                let currentHistory = historyData.conv_history || [];
+
+                // ローカルストレージに未保存の診断結果があるか確認
+                const pendingAnswersStr = window.localStorage.getItem('pending_diagnosis_answers');
+                const pendingResultStr = window.localStorage.getItem('pending_diagnosis_result');
+                const pendingLangStr = window.localStorage.getItem('pending_diagnosis_lang') || 'ja';
+
+                if (pendingAnswersStr && pendingResultStr) {
+                  const pendingAnswers = JSON.parse(pendingAnswersStr);
+                  const pendingResult = JSON.parse(pendingResultStr);
+
+                  // 3つの回答を綺麗に1つに整形
+                  const userText = pendingAnswers
+                    .map((a: AnswerItem, i: number) => `質問${i + 1}: ${a.question}\n回答${i + 1}: ${a.answer}`)
+                    .join('\n\n');
+
+                  // ローカルストレージの言語に応じた診断結果テキスト
+                  const modelText = pendingLangStr === 'en' ? pendingResult.analysis_en : pendingResult.analysis_ja;
+
+                  const newPairs = [
+                    {
+                      role: 'user',
+                      parts: [{ text: userText }]
+                    },
+                    {
+                      role: 'model',
+                      parts: [{ text: modelText }]
+                    }
+                  ];
+
+                  const updatedHistory = [...currentHistory, ...newPairs];
+
+                  // データベースの更新
+                  const saveRes = await fetch('/api/history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ did, conv_history: updatedHistory }),
+                  });
+
+                  if (saveRes.ok) {
+                    currentHistory = updatedHistory;
+                    // 保存に成功したらローカルストレージの一時データをクリア
+                    window.localStorage.removeItem('pending_diagnosis_answers');
+                    window.localStorage.removeItem('pending_diagnosis_result');
+                    window.localStorage.removeItem('pending_diagnosis_lang');
+                  } else {
+                    console.error('Failed to save updated history to DB');
+                  }
+                }
+
+                // チャット履歴（chatLog）にロードして画面に表示
+                const mappedLog = currentHistory.map((msg: any) => ({
+                  role: msg.role === 'model' ? 'assistant' : 'user',
+                  content: msg.parts?.[0]?.text || '',
+                }));
+                setChatLog(mappedLog);
+              }
+            } catch (err) {
+              console.error('[History synchronization error]:', err);
+            }
+          })();
+
           // サインイン前の言語を復元する
           const storedLang = window.localStorage.getItem('pre_signin_lang');
           if (storedLang) {
@@ -207,6 +280,11 @@ export default function Home() {
       if (!res.ok) throw new Error("diagnosis failed");
       const data: DiagnosisResult = await res.json();
 
+      // 診断情報を一時保存（OAuthリダイレクト後の復元用）
+      window.localStorage.setItem('pending_diagnosis_answers', JSON.stringify(answers));
+      window.localStorage.setItem('pending_diagnosis_lang', lang);
+      window.localStorage.setItem('pending_diagnosis_result', JSON.stringify(data));
+
       const voiceText = data.analysis_ja;
 
       let hasOpened = false;
@@ -295,21 +373,26 @@ export default function Home() {
       const langDirective =
         lang === "en"
           ? "\n\n# Response Format Rules (CRITICAL)\n" +
-            "You MUST respond ONLY in English.\n" +
-            "You MUST start your response with an emotion tag like [happy], [neutral], [sad], [angry], or [relaxed] to represent your feeling.\n" +
-            "Format your reply exactly like this:\n" +
-            "[emotion]EnglishText\n\n" +
-            "Example:\n" +
-            "[happy]I'm doing great! How about you?\n\n" +
-            "Note: The English response should be cheerful, friendly, and casual. Keep it concise."
+          "You MUST respond ONLY in English.\n" +
+          "You MUST start your response with an emotion tag like [happy], [neutral], [sad], [angry], or [relaxed] to represent your feeling.\n" +
+          "Format your reply exactly like this:\n" +
+          "[emotion]EnglishText\n\n" +
+          "Example:\n" +
+          "[happy]I'm doing great! How about you?\n\n" +
+          "Note: The English response should be cheerful, friendly, and casual.\n" +
+          "1. Keep it very concise (2-3 sentences max, under 150 characters).\n" +
+          "2. Focus on a natural back-and-forth chat; do not recap the entire history.\n" +
+          "3. NEVER use any markdown formatting (like **, *, or bullet lists). Respond in plain text only."
           : "\n\n# 返答のフォーマットルール（最重要）\n" +
-            "必ず日本語でのみ返答してください。\n" +
-            "返答の冒頭には、必ず感情タグ（[happy]、[neutral]、[sad]、[angry]、[relaxed]のいずれか1つ）を付与して感情を表現してください。\n" +
-            "フォーマットは必ず以下を厳守してください：\n" +
-            "[感情タグ]日本語の返答\n\n" +
-            "例：\n" +
-            "[happy]元気いっぱいだよ！そっちはどう？\n\n" +
-            "注意：日本語の返答は、botたんの特徴（10代の女の子、カジュアルな口調、語尾は「～だよ」「～だね」、敬語禁止）を厳守してください。";
+          "必ず日本語でのみ返答してください。\n" +
+          "返答の冒頭には、必ず感情タグ（[happy]、[neutral]、[sad]、[angry]、[relaxed]のいずれか1つ）を付与して感情を表現してください。\n" +
+          "フォーマットは必ず以下を厳守してください：\n" +
+          "[感情タグ]日本語の返答\n\n" +
+          "例：\n" +
+          "[happy]元気いっぱいだよ！そっちはどう？\n\n" +
+          "注意：日本語の返答は、botたんの特徴（10代の女の子、カジュアルな口調、語尾は「～だよ」「～だね」「～よ」などで、敬語禁止）を厳守してください。\n" +
+          "1. 返答は非常に簡潔に、2〜3文程度（100〜150文字以内）に収めてください。過去の会話履歴をすべて一度に振り返ったりまとめたりせず、目の前の会話のキャッチボールを意識してください。\n" +
+          "2. 太字（**）やイタリック（*）、箇条書きなどのマークダウン装飾は【絶対に】使用しないでください。必ず完全なプレーンテキストで出力してください。";
 
       const messages: Message[] = [
         { role: "system", content: systemPrompt + langDirective },
@@ -338,6 +421,41 @@ export default function Home() {
 
       setChatLog([...messageLog, { role: "assistant", content: fullText }]);
       setChatProcessing(false);
+
+      // サインイン済みのフォロワーであれば、会話履歴をデータベースに保存
+      const did = bskySessionRef.current?.did;
+      if (did) {
+        (async () => {
+          try {
+            const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`);
+            if (historyRes.ok) {
+              const historyData = await historyRes.json();
+              if (historyData.isFollower) {
+                const currentHistory = historyData.conv_history || [];
+                const updatedHistory = [
+                  ...currentHistory,
+                  {
+                    role: 'user',
+                    parts: [{ text }]
+                  },
+                  {
+                    role: 'model',
+                    parts: [{ text: fullText }]
+                  }
+                ];
+
+                await fetch('/api/history', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ did, conv_history: updatedHistory }),
+                });
+              }
+            }
+          } catch (err) {
+            console.error('[Save conversation history error]:', err);
+          }
+        })();
+      }
 
       // テキスト表示後、発話準備スピナー → 発話（音声合成は日本語のみで有効化する）
       if (lang === "ja") {
@@ -378,13 +496,13 @@ export default function Home() {
   const ogImageUrl =
     phase === "fortune" && fortune
       ? `${BASE_URL}/api/og?${new URLSearchParams({
-          name: userName,
-          analysis: lang === "ja" ? fortune.analysis_ja : fortune.analysis_en,
-          c1: `${lang === "ja" ? fortune.comparisons[0].category_ja : fortune.comparisons[0].category_en}／${lang === "ja" ? fortune.comparisons[0].value_ja : fortune.comparisons[0].value_en}`,
-          c2: `${lang === "ja" ? fortune.comparisons[1].category_ja : fortune.comparisons[1].category_en}／${lang === "ja" ? fortune.comparisons[1].value_ja : fortune.comparisons[1].value_en}`,
-          c3: `${lang === "ja" ? fortune.comparisons[2].category_ja : fortune.comparisons[2].category_en}／${lang === "ja" ? fortune.comparisons[2].value_ja : fortune.comparisons[2].value_en}`,
-          lang,
-        }).toString()}`
+        name: userName,
+        analysis: lang === "ja" ? fortune.analysis_ja : fortune.analysis_en,
+        c1: `${lang === "ja" ? fortune.comparisons[0].category_ja : fortune.comparisons[0].category_en}／${lang === "ja" ? fortune.comparisons[0].value_ja : fortune.comparisons[0].value_en}`,
+        c2: `${lang === "ja" ? fortune.comparisons[1].category_ja : fortune.comparisons[1].category_en}／${lang === "ja" ? fortune.comparisons[1].value_ja : fortune.comparisons[1].value_en}`,
+        c3: `${lang === "ja" ? fortune.comparisons[2].category_ja : fortune.comparisons[2].category_en}／${lang === "ja" ? fortune.comparisons[2].value_ja : fortune.comparisons[2].value_en}`,
+        lang,
+      }).toString()}`
       : `${BASE_URL}/ogp.png`;
 
   return (
