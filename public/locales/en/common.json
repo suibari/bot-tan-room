@@ -29,5 +29,18 @@
     "userName": "Name",
     "userNamePlaceholder": "Please enter your name",
     "language": "Language"
+  },
+  "policy": {
+    "link": "Privacy Policy",
+    "title": "Privacy Policy & Disclaimer",
+    "aiTitle": "1. Use of AI",
+    "aiText": "This app uses text-generation AI (Gemini API). However, your input data is NOT used for AI training.",
+    "privacyTitle": "2. Personal Information",
+    "privacyText": "Please enter personal information at your own risk. Do not enter sensitive details such as passwords or financial information.",
+    "disclaimerTitle": "3. Disclaimer",
+    "disclaimerText": "The developer holds no responsibility for any issues, damages, or consequences resulting from the use of this application.",
+    "developerTitle": "4. Creator",
+    "developerText": "This application was developed by suibari (suibari.com).",
+    "close": "Close"
   }
 }

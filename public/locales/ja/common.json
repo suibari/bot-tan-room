@@ -29,5 +29,18 @@
     "userName": "お名前",
     "userNamePlaceholder": "お名前を入力してください",
     "language": "言語設定"
+  },
+  "policy": {
+    "link": "免責事項・ポリシー",
+    "title": "免責事項・プライバシーポリシー",
+    "aiTitle": "1. AIの利用について",
+    "aiText": "本アプリは文章生成AI（Gemini API）を使用していますが、ユーザーが入力したデータがAIの学習に使用されることはありません。",
+    "privacyTitle": "2. 個人情報について",
+    "privacyText": "個人情報の入力は自己責任で行ってください。パスワードやクレジットカード情報などの重要な個人情報は入力しないようお願いいたします。",
+    "disclaimerTitle": "3. 免責事項",
+    "disclaimerText": "本アプリの使用によって生じたあらゆる損害やトラブルについて、開発者は一切の責任を負いません。",
+    "developerTitle": "4. 開発者について",
+    "developerText": "本アプリは すいばり（suibari.com）によって開発されました。",
+    "close": "閉じる"
   }
 }

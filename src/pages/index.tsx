@@ -49,6 +49,7 @@ export default function Home() {
   const [chatProcessing, setChatProcessing] = useState(false);
   const [chatLog, setChatLog] = useState<Message[]>([]);
   const [assistantMessage, setAssistantMessage] = useState("");
+  const [showPolicy, setShowPolicy] = useState(false);
 
   // --- new state ---
   const [phase, setPhase] = useState<Phase>("landing");
@@ -525,6 +526,25 @@ export default function Home() {
 
       {/* トップバー（言語スイッチャー + 名前 + サインアウト）— 常時表示 */}
       <div className="absolute top-4 right-4 z-30 flex items-center gap-2">
+        {/* ポリシーボタン */}
+        <button
+          onClick={() => setShowPolicy(true)}
+          title={t("policy.link")}
+          className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:opacity-85 active:scale-95 shrink-0"
+          style={{
+            background: "rgba(20,8,38,0.70)",
+            backdropFilter: "blur(10px)",
+            border: "1px solid rgba(200,140,255,0.30)",
+            color: "#fff",
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="16" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+        </button>
+
         {/* 言語トグル */}
         <div
           className="flex rounded-full overflow-hidden transition-all duration-300"
@@ -636,6 +656,17 @@ export default function Home() {
             >
               {LABEL.button}
             </button>
+            <div className="text-center pt-1">
+              <button
+                onClick={() => setShowPolicy(true)}
+                className="text-xs transition-colors underline"
+                style={{ color: "rgba(255, 255, 255, 0.45)" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "rgba(255, 255, 255, 0.75)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "rgba(255, 255, 255, 0.45)")}
+              >
+                {t("policy.link")}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -736,6 +767,119 @@ export default function Home() {
           isChatProcessing={chatProcessing}
           onSend={handleSendChat}
         />
+      )}
+
+      {/* ===== POLICY MODAL ===== */}
+      {showPolicy && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+          <div
+            className="w-full max-w-lg p-6 rounded-3xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-fadeIn"
+            style={{
+              background: "rgba(25, 12, 45, 0.88)",
+              border: "1px solid rgba(220, 160, 255, 0.3)",
+              boxShadow: "0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+            }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-white/10">
+              <h2 className="text-white text-lg font-bold tracking-wide flex items-center gap-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d88fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+                {t("policy.title")}
+              </h2>
+              <button
+                onClick={() => setShowPolicy(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content (Scrollable) */}
+            <div className="flex-1 overflow-y-auto py-4 pr-1 text-white/95 space-y-4 scrollbar-thin scrollbar-thumb-white/10 text-sm leading-relaxed">
+              <div className="space-y-1">
+                <h3 className="font-bold text-[#d88fff] flex items-center gap-1.5">
+                  {t("policy.aiTitle")}
+                </h3>
+                <p className="text-white/85 text-xs pl-0">
+                  {t("policy.aiText")}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="font-bold text-[#d88fff] flex items-center gap-1.5">
+                  {t("policy.privacyTitle")}
+                </h3>
+                <p className="text-white/85 text-xs pl-0">
+                  {t("policy.privacyText")}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="font-bold text-[#d88fff] flex items-center gap-1.5">
+                  {t("policy.disclaimerTitle")}
+                </h3>
+                <p className="text-white/85 text-xs pl-0">
+                  {t("policy.disclaimerText")}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="font-bold text-[#d88fff] flex items-center gap-1.5">
+                  {t("policy.developerTitle")}
+                </h3>
+                <p className="text-white/85 text-xs pl-0">
+                  {lang === "ja" ? (
+                    <>
+                      本アプリは{" "}
+                      <a
+                        href="https://suibari.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#c471ed] hover:underline font-bold"
+                      >
+                        すいばり (suibari.com)
+                      </a>{" "}
+                      によって開発されました。
+                    </>
+                  ) : (
+                    <>
+                      This application was developed by{" "}
+                      <a
+                        href="https://suibari.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#c471ed] hover:underline font-bold"
+                      >
+                        suibari (suibari.com)
+                      </a>
+                      .
+                    </>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="pt-4 border-t border-white/10 flex justify-end">
+              <button
+                onClick={() => setShowPolicy(false)}
+                className="px-6 py-2 rounded-xl text-sm font-bold text-white transition-all hover:brightness-110 active:scale-95"
+                style={{ background: "linear-gradient(135deg, #c471ed, #8c44b5)" }}
+              >
+                {t("policy.close")}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
