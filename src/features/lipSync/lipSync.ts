@@ -7,6 +7,8 @@ export class LipSync {
   public readonly analyser: AnalyserNode;
   public readonly timeDomainData: Float32Array;
   private _currentSource: AudioBufferSourceNode | null = null;
+  private _audioElement: HTMLAudioElement | null = null;
+  private _mediaElementSource: MediaElementAudioSourceNode | null = null;
 
   public constructor(audio: AudioContext) {
     this.audio = audio;
@@ -37,6 +39,10 @@ export class LipSync {
       try { this._currentSource.stop(); } catch { /* already stopped */ }
       this._currentSource = null;
     }
+    if (this._audioElement) {
+      try { this._audioElement.pause(); } catch { /* ignore */ }
+      this._audioElement.src = "";
+    }
   }
 
   public async playFromArrayBuffer(buffer: ArrayBuffer, onEnded?: () => void) {
@@ -60,5 +66,37 @@ export class LipSync {
     const res = await fetch(url);
     const buffer = await res.arrayBuffer();
     this.playFromArrayBuffer(buffer, onEnded);
+  }
+
+  public async playFromStream(url: string, onEnded?: () => void) {
+    this.stop();
+
+    if (typeof window === "undefined") {
+      onEnded?.();
+      return;
+    }
+
+    if (!this._audioElement) {
+      this._audioElement = new Audio();
+      this._audioElement.crossOrigin = "anonymous";
+      this._mediaElementSource = this.audio.createMediaElementSource(this._audioElement);
+      this._mediaElementSource.connect(this.analyser);
+      this.analyser.connect(this.audio.destination);
+    }
+
+    const audio = this._audioElement;
+    audio.src = url;
+
+    const handleEnded = () => {
+      audio.removeEventListener("ended", handleEnded);
+      onEnded?.();
+    };
+    audio.addEventListener("ended", handleEnded);
+
+    if (this.audio.state === "suspended") {
+      await this.audio.resume();
+    }
+
+    await audio.play();
   }
 }

@@ -22,21 +22,21 @@ const createSpeakCharacter = () => {
         await wait(1000 - (now - lastTime));
       }
 
-      const buffer = await fetchAudio(screenplay.talk, koeiroApiKey).catch(
+      const url = await fetchAudioUrl(screenplay.talk, koeiroApiKey).catch(
         () => null
       );
       lastTime = Date.now();
-      return buffer;
+      return url;
     });
 
     prevFetchPromise = fetchPromise;
     prevSpeakPromise = Promise.all([fetchPromise, prevSpeakPromise]).then(
-      ([audioBuffer]) => {
+      ([audioUrl]) => {
         onStart?.();
-        if (!audioBuffer) {
+        if (!audioUrl) {
           return;
         }
-        return viewer.model?.speak(audioBuffer, screenplay);
+        return viewer.model?.speakStream(audioUrl, screenplay);
       }
     );
     prevSpeakPromise.then(() => {
@@ -50,10 +50,10 @@ const createSpeakCharacter = () => {
 
 export const speakCharacter = createSpeakCharacter();
 
-export const fetchAudio = async (
+export const fetchAudioUrl = async (
   talk: Talk,
   apiKey: string
-): Promise<ArrayBuffer> => {
+): Promise<string> => {
   const ttsVoice = await voicevoxTts(
     talk.message,
     talk.speakerX,
@@ -65,7 +65,14 @@ export const fetchAudio = async (
   if (url == null) {
     throw new Error("Something went wrong");
   }
+  return url;
+};
 
+export const fetchAudio = async (
+  talk: Talk,
+  apiKey: string
+): Promise<ArrayBuffer> => {
+  const url = await fetchAudioUrl(talk, apiKey);
   const resAudio = await fetch(url);
   const buffer = await resAudio.arrayBuffer();
   return buffer;

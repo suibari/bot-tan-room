@@ -20,7 +20,7 @@ import { FortuneCard } from "@/components/fortuneCard";
 import { DiagnosisForm } from "@/components/DiagnosisForm";
 import { BlueskyPrompt } from "@/components/blueskyPrompt";
 import type { DiagnosisResult } from "@/pages/api/fortune";
-import { fetchAudio } from "@/features/messages/speakCharacter";
+import { fetchAudio, fetchAudioUrl } from "@/features/messages/speakCharacter";
 import { parseLanguageContent, stripEmotionTags } from "@/utils/languageParser";
 
 type AnswerItem = { question: string; answer: string };
@@ -157,10 +157,10 @@ export default function Home() {
 
     try {
       const talks = textsToScreenplay([`[neutral]${text}`], koeiroParam);
-      const buffer = await fetchAudio(talks[0].talk, koeiromapKey).catch(() => null);
-      if (controller.signal.aborted || !buffer) return;
+      const url = await fetchAudioUrl(talks[0].talk, koeiromapKey).catch(() => null);
+      if (controller.signal.aborted || !url) return;
       viewer.model?.stopSpeak();
-      await viewer.model?.speak(buffer, talks[0]);
+      await viewer.model?.speakStream(url, talks[0]);
     } catch (e) {
       if (!controller.signal.aborted) console.error('Question VoiceVox error:', e);
     }

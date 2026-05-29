@@ -82,6 +82,15 @@ export class Model {
     });
   }
 
+  public async speakStream(url: string, screenplay: Screenplay) {
+    this.emoteController?.playEmotion(screenplay.expression);
+    await new Promise((resolve) => {
+      this._lipSync?.playFromStream(url, () => {
+        resolve(true);
+      });
+    });
+  }
+
   public update(delta: number): void {
     if (this._lipSync) {
       const { volume } = this._lipSync.update();
