@@ -81,7 +81,7 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend }: P
   return (
     <>
       {/* 下部パネル: 回答 + 入力バーを1つにまとめる（診断結果と同じ位置） */}
-      <div className="absolute z-20 flex justify-center" style={{ left: '1.5rem', right: '1.5rem', bottom: '1.5rem', top: 'auto' }}>
+      <div className="absolute z-20 flex justify-center" style={{ left: '1.5rem', right: '1.5rem', bottom: 'calc(max(1.5rem, env(safe-area-inset-bottom)))', top: 'auto' }}>
         <div 
           className="w-full max-w-xl shadow-2xl relative overflow-hidden transition-all duration-300"
           style={{

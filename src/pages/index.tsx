@@ -385,30 +385,21 @@ function MainHome() {
       // 初回送信時に言語ロックを確実に行う
       setIsLangLocked(true);
 
-      // システムプロンプトに指定された言語のみを出力する指示を注入
+      // 統合型システム指示: 常に [ja]日本語 [en]英語 の両方を同時に出力させる。
+      // 表示は lang で切り替え、発話は常に [ja] ブロックを使う。
       const langDirective =
-        lang === "en"
-          ? "\n\n# Response Format Rules (CRITICAL)\n" +
-          "You MUST respond ONLY in English.\n" +
-          "You MUST start your response with an emotion tag like [happy], [neutral], [sad], [angry], or [relaxed] to represent your feeling.\n" +
-          "Format your reply exactly like this:\n" +
-          "[emotion]EnglishText\n\n" +
-          "Example:\n" +
-          "[happy]I'm doing great! How about you?\n\n" +
-          "Note: The English response should be cheerful, friendly, and casual.\n" +
-          "1. Keep it very concise (2-3 sentences max, under 150 characters).\n" +
-          "2. Focus on a natural back-and-forth chat; do not recap the entire history.\n" +
-          "3. NEVER use any markdown formatting (like **, *, or bullet lists). Respond in plain text only."
-          : "\n\n# 返答のフォーマットルール（最重要）\n" +
-          "必ず日本語でのみ返答してください。\n" +
-          "返答の冒頭には、必ず感情タグ（[happy]、[neutral]、[sad]、[angry]、[relaxed]のいずれか1つ）を付与して感情を表現してください。\n" +
-          "フォーマットは必ず以下を厳守してください：\n" +
-          "[感情タグ]日本語の返答\n\n" +
-          "例：\n" +
-          "[happy]元気いっぱいだよ！そっちはどう？\n\n" +
-          "注意：日本語の返答は、botたんの特徴（10代の女の子、カジュアルな口調、語尾は「～だよ」「～だね」「～よ」などで、敬語禁止）を厳守してください。\n" +
-          "1. 返答は非常に簡潔に、2〜3文程度（100〜150文字以内）に収めてください。過去の会話履歴をすべて一度に振り返ったりまとめたりせず、目の前の会話のキャッチボールを意識してください。\n" +
-          "2. 太字（**）やイタリック（*）、箇条書きなどのマークダウン装飾は【絶対に】使用しないでください。必ず完全なプレーンテキストで出力してください。";
+        "\n\n# Response Format Rules (CRITICAL — MUST FOLLOW EXACTLY)\n" +
+        "You MUST always respond with BOTH a Japanese block AND an English block in this exact format:\n" +
+        "[ja][emotion]日本語の返答[en][emotion]English reply\n\n" +
+        "Rules:\n" +
+        "- [ja] block: Write in Japanese. Casual tone. Endings like 「～だよ」「～だね」「～よ」. No formal language.\n" +
+        "- [en] block: Write in English. Casual, warm, friendly tone.\n" +
+        "- Emotion tag: Must be one of [happy], [neutral], [sad], [angry], [relaxed]. Place it immediately after [ja] or [en].\n" +
+        "- Both blocks must be concise: 2-3 sentences max, under 120 characters each.\n" +
+        "- NEVER use markdown formatting (**, *, bullet lists). Plain text only.\n" +
+        "- NEVER summarize or recap past conversation history. Focus on natural back-and-forth.\n\n" +
+        "Example output:\n" +
+        "[ja][happy]元気いっぱいだよ！そっちはどう？[en][happy]I'm doing great! How about you?";
 
       const messages: Message[] = [
         { role: "system", content: systemPrompt + langDirective },
@@ -479,18 +470,17 @@ function MainHome() {
         })();
       }
 
-      // テキスト表示後、発話準備スピナー → 発話（音声合成は日本語のみで有効化する）
-      if (lang === "ja") {
-        const jaRawText = parseLanguageContent(fullText, "ja");
-        const speakText = stripEmotionTags(jaRawText);
-        if (speakText) {
-          setIsWaitingForVoice(true);
-          safeSpeak(
-            speakText,
-            () => { setIsWaitingForVoice(false); setIsSpeaking(true); },
-            () => setIsSpeaking(false),
-          );
-        }
+      // テキスト表示後、発話準備スピナー → 発話
+      // 表示言語に関係なく、常に日本語ブロック（[ja]）を抽出してVoiceVoxで発話する
+      const jaRawText = parseLanguageContent(fullText, "ja");
+      const speakText = stripEmotionTags(jaRawText);
+      if (speakText) {
+        setIsWaitingForVoice(true);
+        safeSpeak(
+          speakText,
+          () => { setIsWaitingForVoice(false); setIsSpeaking(true); },
+          () => setIsSpeaking(false),
+        );
       }
     },
     [systemPrompt, chatLog, userName, lang, safeSpeak]
@@ -528,7 +518,7 @@ function MainHome() {
       : `${BASE_URL}/ogp.png`;
 
   return (
-    <div className="relative w-full h-screen overflow-hidden font-M_PLUS_2">
+    <div className="relative w-full h-[100dvh] overflow-hidden font-M_PLUS_2">
       <Head>
         <title>{t("meta.title")}</title>
         <meta name="description" content={t("meta.description")} />
@@ -546,7 +536,7 @@ function MainHome() {
       <VrmViewer />
 
       {/* トップバー（言語スイッチャー + 名前 + サインアウト）— 常時表示 */}
-      <div className="absolute z-30 flex items-center animate-fadeIn" style={{ top: "1.5rem", right: "1.5rem", gap: "14px" }}>
+      <div className="absolute z-30 flex items-center animate-fadeIn" style={{ top: "calc(max(1.5rem, env(safe-area-inset-top)))", right: "1.5rem", gap: "14px" }}>
         {/* ポリシーボタン */}
         <button
           onClick={() => setShowPolicy(true)}
@@ -639,7 +629,7 @@ function MainHome() {
 
       {/* ===== LANDING ===== */}
       {phase === "landing" && !isAuthChecking && !quotaExceeded && (
-        <div className="absolute z-20 flex justify-center" style={{ left: "1.5rem", right: "1.5rem", bottom: "1.5rem", top: 'auto' }}>
+        <div className="absolute z-20 flex justify-center" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)))", top: 'auto' }}>
           <div 
             className="w-full max-w-xl shadow-2xl relative overflow-hidden transition-all duration-300"
             style={{
@@ -711,7 +701,7 @@ function MainHome() {
 
       {/* ===== QUESTIONS ===== */}
       {phase === "questions" && !quotaExceeded && (
-        <div className="absolute z-20 flex justify-center" style={{ left: "1.5rem", right: "1.5rem", bottom: "1.5rem", top: 'auto' }}>
+        <div className="absolute z-20 flex justify-center" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)))", top: 'auto' }}>
           <div 
             className="w-full max-w-xl shadow-2xl relative overflow-hidden transition-all duration-300"
             style={{
@@ -777,7 +767,7 @@ function MainHome() {
 
       {/* ===== FORTUNE ===== */}
       {phase === "fortune" && fortune && !quotaExceeded && (
-        <div className="absolute z-20 flex justify-center pointer-events-none" style={{ left: "1.5rem", right: "1.5rem", bottom: "1.5rem", top: 'auto' }}>
+        <div className="absolute z-20 flex justify-center pointer-events-none" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)))", top: 'auto' }}>
           <div 
             className="w-full max-w-xl shadow-2xl max-h-[72vh] overflow-y-auto pointer-events-auto scrollbar-thin"
             style={{
@@ -1025,7 +1015,7 @@ export default function Home() {
   }, []);
 
   if (!isAuthorized) {
-    return <div style={{ background: "#000", width: "100vw", height: "100vh" }} />;
+    return <div style={{ background: "#000", width: "100dvw", height: "100dvh" }} />;
   }
 
   return <MainHome />;
