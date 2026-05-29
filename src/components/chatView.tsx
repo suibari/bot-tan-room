@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { parseLanguageContent, stripEmotionTags } from "@/utils/languageParser";
 
 type Props = {
   lang: "ja" | "en";
@@ -74,7 +75,8 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend }: P
     if (!isChatProcessing) setUserMessage("");
   }, [isChatProcessing]);
 
-  const cleanMessage = assistantMessage.replace(/\[([a-zA-Z]*?)\]/g, "");
+  const localizedRaw = parseLanguageContent(assistantMessage, lang);
+  const cleanMessage = stripEmotionTags(localizedRaw);
 
   return (
     <>

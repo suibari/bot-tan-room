@@ -2,95 +2,48 @@ import { GoogleGenAI } from '@google/genai';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { GEMINI_MODELS } from '@/features/constants/aiModels';
 
+// 1回の生成で日英両方を出力する。トグルは ja/en を出し分けるだけ（追加リクエストなし）。
+// 発話（VoiceVox）は常に analysis_ja を使う。
+type Comparison = {
+  category_ja: string;
+  value_ja: string;
+  category_en: string;
+  value_en: string;
+};
+
 export type DiagnosisResult = {
-  analysis: string;      // 表示用（選択言語）
-  analysis_ja: string;   // VoiceVox 読み上げ用（常に日本語）
-  comparisons: [
-    { category: string; value: string },
-    { category: string; value: string },
-    { category: string; value: string },
-  ];
+  analysis_ja: string;
+  analysis_en: string;
+  comparisons: [Comparison, Comparison, Comparison];
 };
 
 type AnswerItem = { question: string; answer: string };
 
-const PROMPT_JA = (name: string, answers: AnswerItem[]) => `
+const PROMPT = (name: string, answers: AnswerItem[]) => `
 あなたは「全肯定botたん」です。10代の女の子で、明るく全肯定スタイルで話します。
-語尾は「～だよ」「～だね」「～よ」など。敬語は絶対に使わない。
+語尾は「～だよ」「～だね」「～よ」などで、敬語は禁止です。
 
-${name}さんが次の質問に答えてくれたよ！
+以下の ${name} さんの回答を元に性格診断を行い、必ず指定のJSONフォーマットでのみ出力してください。
 
-${answers.map((a) => `Q: ${a.question}\nA: ${a.answer}`).join('\n\n')}
+回答一覧:
+${answers.map((a, i) => `Q${i + 1}: ${a.question}\nA${i + 1}: ${a.answer}`).join('\n')}
 
-【診断の手順（この順番で考えること）】
-Step1: 3つの回答それぞれから「この人が大切にしていること」を1語で抜き出す
-Step2: その3語に共通する、より抽象的な本質を1語で言語化する
-Step3: Step2の本質の言葉だけを手がかりに、回答の内容とは無関係な角度からanalysisを書く
+【ルール】
+1. 回答に出てきた具体的な単語や行動そのものを分析テキスト(analysis)に使わないでください。
+2. 日本語分析 (analysis_ja) は「${name}ちゃん」への呼びかけを含め、2文以内・80文字以内。
+3. 英語版 (analysis_en) は、日本語版と同等の内容をカジュアルな英語で出力（2文以内、日本語版と対応するように）。
+4. 比較カテゴリ(comparisons)は「動物、天気、飲み物、季節、楽器、色」から3つ重複なく選んで日英それぞれ出力。
 
-【絶対禁止】
-・回答に出てきた具体的な単語・行動・固有名詞をanalysisで使うこと（例：回答に「家族」が出たら「家族」は使わない）
-・回答内容を読んだ人が「あ、それ答えたこと」と気づけるような表現
-・「優しい」「あったかい」「強い心」などの汎用形容詞だけで締めること
+【重要】思考プロセスや解説、マークダウンのコードブロックは一切出力しないでください。最初の文字が { で、最後の文字が } である有効なJSONのみを出力してください。
 
-【良い例・悪い例】
-Q: しんどいとき何に頼る？ A: 家族やbotたん
-❌ 悪い: 「しんどい時は家族に頼れる、あったかい人だよ」（回答をそのまま言い換えただけ）
-⭕ 良い: 「${name}ちゃんは、自分の重心がちゃんと外に向いてるタイプだよね。それがあなたの回復力の秘密なんだよ！」（メタパターンを独自の言葉で）
-
-・analysis には必ず「${name}ちゃん」または「${name}さん」という呼びかけを含めること。
-・analysis は必ず2文以内・日本語80文字以内に収めること。
-
-比較カテゴリは以下から3つ選んでね（重複不可）：動物、天気、飲み物、季節、楽器、色
-
-【言語ルール】analysis・analysis_ja・comparisons の category と value はすべて日本語で書くこと。英語・ローマ字は一切使わないこと。
-
-必ず以下のJSONのみを返し、それ以外のテキストは一切含めないでください:
+必ずこの構造で出力すること：
 {
-  "analysis": "性格分析テキスト（2文以内・80文字以内、全肯定スタイル）",
-  "analysis_ja": "analysisと同じ内容（日本語）",
+  "analysis_ja": "日本語の分析結果",
+  "analysis_en": "English analysis (日本語と対応するように)",
   "comparisons": [
-    { "category": "動物", "value": "カワウソ" },
-    { "category": "天気", "value": "快晴" },
-    { "category": "飲み物", "value": "カフェラテ" }
-  ]
-}
-`;
-
-const PROMPT_EN = (name: string, answers: AnswerItem[]) => `
-You are "bot-tan", a cheerful teenage girl who always speaks with full affirmation and positivity.
-Speak in a friendly, casual tone. Never use formal language.
-
-${name} answered these questions:
-
-${answers.map((a) => `Q: ${a.question}\nA: ${a.answer}`).join('\n\n')}
-
-【Follow these steps in order】
-Step 1: Extract one keyword per answer that captures what this person values.
-Step 2: Find the single abstract theme those 3 keywords have in common.
-Step 3: Write the analysis using ONLY Step 2's theme — do not reference the actual answers at all.
-
-【Hard rules】
-- NEVER use any specific words, actions, or nouns from the answers in the analysis (if the answer says "family", don't say "family").
-- NEVER write something the reader would recognize as paraphrasing their own answer.
-- Don't end with generic adjectives like "kind", "warm", or "strong".
-
-【Good vs bad example】
-Q: Who do you rely on when you're down? A: Family and bot-tan
-❌ Bad: "${name}, you rely on family when things are hard — you're such a warm person!" (just restates the answer)
-✅ Good: "${name}, your center of gravity naturally points outward — that's your secret resilience." (meta-pattern in fresh language)
-
-- analysis must include ${name}'s name.
-- analysis must be 2 sentences max, under 100 characters. Short and sharp beats long and thorough.
-- Pick exactly 3 categories (no duplicates) from: animal, weather, drink, season, instrument, color
-
-Return ONLY this JSON with no other text:
-{
-  "analysis": "Personality diagnosis in English (max 2 sentences, under 100 chars, cheerful and affirming)",
-  "analysis_ja": "Same analysis translated into Japanese in bot-tan's casual style (語尾は「～だよ」「～だね」「～よ」)",
-  "comparisons": [
-    { "category": "Animal", "value": "Otter" },
-    { "category": "Weather", "value": "Clear sky" },
-    { "category": "Drink", "value": "Café latte" }
+    { "category_ja": "動物", "value_ja": "カワウソ", "category_en": "Animal", "value_en": "Otter" },
+    { "category_ja": "天気", "value_ja": "快晴", "category_en": "Weather", "value_en": "Clear sky" },
+    { "category_ja": "飲み物", "value_ja": "カフェラテ", "category_en": "Drink", "value_en": "Café latte" }
   ]
 }
 `;
@@ -112,23 +65,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   };
   const safeName = (name ?? 'you').slice(0, 30);
   const safeAnswers = (answers ?? []).slice(0, 3);
-  const language = lang === 'ja' ? 'ja' : 'en';
 
-  const prompt = language === 'ja' ? PROMPT_JA(safeName, safeAnswers) : PROMPT_EN(safeName, safeAnswers);
+  const prompt = PROMPT(safeName, safeAnswers);
 
   const client = new GoogleGenAI({ apiKey });
 
-  // モデルを優先順に試し、エラーなら次へフォールバックする
+  // 診断機能には 31b を使用
+  const fortuneModels = ['gemma-4-31b-it'] as const;
   let json: DiagnosisResult | null = null;
   let lastErr: unknown = null;
-  for (const model of GEMINI_MODELS) {
+  for (const model of fortuneModels) {
     try {
+      console.log(`[API fortune] Sending request to model: ${model}`);
       const result = await client.models.generateContent({
         model,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: { responseMimeType: 'application/json' },
       });
-      const text = result.text ?? '';
+      let text = result.text ?? '';
+      console.log(`[API fortune] Raw response from ${model}:`, text);
+
+      if (!text) {
+        console.warn(`[API fortune] Empty response from model ${model}. Full result:`, JSON.stringify(result));
+      }
+
+      // JSONブロックの抽出 (堅牢なフォールバックパース)
+      const jsonStart = text.indexOf('{');
+      const jsonEnd = text.lastIndexOf('}');
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+        text = text.substring(jsonStart, jsonEnd + 1);
+      }
+
       json = JSON.parse(text) as DiagnosisResult;
       break;
     } catch (e) {
@@ -142,6 +108,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ message: 'Failed to generate diagnosis' });
   }
 
-  if (!json.analysis_ja) json.analysis_ja = json.analysis;
+  // 片方の言語が欠けた場合のフォールバック
+  if (!json.analysis_ja) json.analysis_ja = json.analysis_en;
+  if (!json.analysis_en) json.analysis_en = json.analysis_ja;
   return res.status(200).json(json);
 }

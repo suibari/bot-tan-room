@@ -19,7 +19,7 @@ export default async function handler(
     return;
   }
 
-  const { messages } = req.body;
+  const { messages, lang } = req.body;
 
   if (!messages || !Array.isArray(messages)) {
     res.status(400).json({ message: "Invalid messages format" });
@@ -52,8 +52,9 @@ export default async function handler(
   let streamStarted = false; // 最初のチャンク出力後は true（以降フォールバック不可）
   let lastErr: unknown = null;
 
-  // モデルを優先順に試す。最初のチャンクを書き込むまでにエラーが起きたら次のモデルへ。
-  for (const model of GEMINI_MODELS) {
+  // 会話機能には 26b を使用
+  const chatModels = ['gemma-4-26b-a4b-it'] as const;
+  for (const model of chatModels) {
     try {
       const streamResult = await client.models.generateContentStream({
         model,
@@ -74,10 +75,15 @@ export default async function handler(
             res.writeHead(200, {
               'Content-Type': 'text/plain; charset=utf-8',
               'Transfer-Encoding': 'chunked',
+              'Cache-Control': 'no-cache, no-transform',
+              'X-Accel-Buffering': 'no', // プロキシのバッファリングを無効化
             });
+            res.flushHeaders?.();
             streamStarted = true;
           }
           res.write(chunkText);
+          // 圧縮ミドルウェア等が挟まる場合に備えて即時フラッシュ
+          (res as unknown as { flush?: () => void }).flush?.();
           fullResponse += chunkText;
         }
       }

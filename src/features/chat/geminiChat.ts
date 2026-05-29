@@ -1,13 +1,13 @@
 import { Message } from "../messages/messages";
 
-export async function getGeminiResponseStream(messages: Message[], userName?: string) {
+export async function getGeminiResponseStream(messages: Message[], userName?: string, lang?: 'ja' | 'en') {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
   const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/api/chat`, {
     headers: headers,
     method: "POST",
-    body: JSON.stringify({ messages, userName }),
+    body: JSON.stringify({ messages, userName, lang }),
   });
 
   if (!res.ok || !res.body) {

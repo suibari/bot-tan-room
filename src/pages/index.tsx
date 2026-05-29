@@ -21,6 +21,7 @@ import { DiagnosisForm } from "@/components/DiagnosisForm";
 import { BlueskyPrompt } from "@/components/blueskyPrompt";
 import type { DiagnosisResult } from "@/pages/api/fortune";
 import { fetchAudio } from "@/features/messages/speakCharacter";
+import { parseLanguageContent, stripEmotionTags } from "@/utils/languageParser";
 
 type AnswerItem = { question: string; answer: string };
 type Phase = "landing" | "questions" | "loading" | "fortune" | "chat";
@@ -193,7 +194,7 @@ export default function Home() {
       setFortune(data);
       setPhase("fortune");
 
-      const voiceText = data.analysis_ja ?? data.analysis;
+      const voiceText = data.analysis_ja;
       safeSpeak(
         voiceText,
         () => { setIsWaitingForVoice(false); setIsSpeaking(true); },
@@ -250,12 +251,32 @@ export default function Home() {
       ];
       setChatLog(messageLog);
 
+      // システムプロンプトに日英両方を出力する指示を注入（ユーザーのアクティブ言語を優先）
+      const langDirective =
+        lang === "en"
+          ? "\n\n# Response Format Rules (CRITICAL)\n" +
+            "You MUST respond with BOTH a Japanese version and an English version of your reply.\n" +
+            "Because the user's active language is English, you MUST output the English response first, followed by the Japanese response.\n" +
+            "Format your reply exactly like this:\n" +
+            "[en][emotion]EnglishText[ja][emotion]JapaneseText\n\n" +
+            "Example:\n" +
+            "[en][happy]I'm doing great! How about you?[ja][happy]元気いっぱいだよ！そっちはどう？\n\n" +
+            "Note: The Japanese version must be in bot-tan's characteristic 10-year-old casual girl style (語尾: ～だよ, ～だね). Never use polite language in Japanese. The English version should also be cheerful, friendly, and casual."
+          : "\n\n# 返答のフォーマットルール（最重要）\n" +
+            "必ず日本語の返答と英語の返答の両方を出力してください。\n" +
+            "ユーザーの現在の言語は日本語なので、必ず日本語の返答を最初に出力し、その後に英語の返答を出力してください。\n" +
+            "フォーマットは必ず以下を厳守してください：\n" +
+            "[ja][感情タグ]日本語の返答[en][感情タグ]英語の返答\n\n" +
+            "例：\n" +
+            "[ja][happy]元気いっぱいだよ！そっちはどう？[en][happy]I'm doing great! How about you?\n\n" +
+            "注意：日本語の返答は、botたんの特徴（10代の女の子、カジュアルな口調、語尾は「～だよ」「～だね」、敬語禁止）を厳守してください。英語の返答も同様に明るくフレンドリーでカジュアルなトーンにしてください。";
+
       const messages: Message[] = [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: systemPrompt + langDirective },
         ...messageLog,
       ];
 
-      const stream = await getGeminiResponseStream(messages, userName).catch(
+      const stream = await getGeminiResponseStream(messages, userName, lang).catch(
         (e) => { console.error(e); return null; }
       );
       if (!stream) { setChatProcessing(false); return; }
@@ -267,8 +288,7 @@ export default function Home() {
           const { done, value } = await reader.read();
           if (done) break;
           fullText += value;
-          // 感情タグを除いた表示用テキストを逐次更新（待たせない）
-          setAssistantMessage(fullText.replace(/\[([a-zA-Z]*?)\]/g, ""));
+          setAssistantMessage(fullText);
         }
       } catch (e) {
         console.error(e);
@@ -279,8 +299,10 @@ export default function Home() {
       setChatLog([...messageLog, { role: "assistant", content: fullText }]);
       setChatProcessing(false);
 
-      // テキスト表示後、発話準備スピナー → 発話
-      const speakText = fullText.replace(/\[([a-zA-Z]*?)\]/g, "").trim();
+      // テキスト表示後、発話準備スピナー → 発話（発話は常に日本語）
+      // 1回のリクエストに含まれている日本語テキストを抽出し、感情タグを除去して直接発話させる（翻訳API不要！）
+      const jaRawText = parseLanguageContent(fullText, "ja");
+      const speakText = stripEmotionTags(jaRawText);
       if (speakText) {
         setIsWaitingForVoice(true);
         safeSpeak(
@@ -290,7 +312,7 @@ export default function Home() {
         );
       }
     },
-    [systemPrompt, chatLog, userName, safeSpeak]
+    [systemPrompt, chatLog, userName, lang, safeSpeak]
   );
 
   // --- labels ---
@@ -316,10 +338,10 @@ export default function Home() {
     phase === "fortune" && fortune
       ? `${BASE_URL}/api/og?${new URLSearchParams({
           name: userName,
-          analysis: fortune.analysis,
-          c1: `${fortune.comparisons[0].category}／${fortune.comparisons[0].value}`,
-          c2: `${fortune.comparisons[1].category}／${fortune.comparisons[1].value}`,
-          c3: `${fortune.comparisons[2].category}／${fortune.comparisons[2].value}`,
+          analysis: lang === "ja" ? fortune.analysis_ja : fortune.analysis_en,
+          c1: `${lang === "ja" ? fortune.comparisons[0].category_ja : fortune.comparisons[0].category_en}／${lang === "ja" ? fortune.comparisons[0].value_ja : fortune.comparisons[0].value_en}`,
+          c2: `${lang === "ja" ? fortune.comparisons[1].category_ja : fortune.comparisons[1].category_en}／${lang === "ja" ? fortune.comparisons[1].value_ja : fortune.comparisons[1].value_en}`,
+          c3: `${lang === "ja" ? fortune.comparisons[2].category_ja : fortune.comparisons[2].category_en}／${lang === "ja" ? fortune.comparisons[2].value_ja : fortune.comparisons[2].value_en}`,
           lang,
         }).toString()}`
       : `${BASE_URL}/ogp.png`;

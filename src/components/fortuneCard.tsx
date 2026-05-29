@@ -24,21 +24,27 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) 
   const l = LABELS[lang];
   const BASE = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://guestbook.suibari.com';
 
+  const analysis = lang === 'ja' ? fortune.analysis_ja : fortune.analysis_en;
+  const comparisons = fortune.comparisons.map((c) => ({
+    category: lang === 'ja' ? c.category_ja : c.category_en,
+    value: lang === 'ja' ? c.value_ja : c.value_en,
+  }));
+
   const shareParams = new URLSearchParams({
     name,
-    analysis: fortune.analysis,
-    c1: `${fortune.comparisons[0].category}／${fortune.comparisons[0].value}`,
-    c2: `${fortune.comparisons[1].category}／${fortune.comparisons[1].value}`,
-    c3: `${fortune.comparisons[2].category}／${fortune.comparisons[2].value}`,
+    analysis,
+    c1: `${comparisons[0].category}／${comparisons[0].value}`,
+    c2: `${comparisons[1].category}／${comparisons[1].value}`,
+    c3: `${comparisons[2].category}／${comparisons[2].value}`,
     lang,
   });
   // /share?... は SSR で OGP タグを返す → SNS がシェアカードを生成する
   const shareUrl = `${BASE}/share?${shareParams.toString()}`;
-  const compSummary = fortune.comparisons.map((c) => `${c.category}: ${c.value}`).join(' / ');
+  const compSummary = comparisons.map((c) => `${c.category}: ${c.value}`).join(' / ');
   const shareText =
     lang === 'ja'
-      ? `${name}の全肯定診断 🔮\n${fortune.analysis}\n\n${compSummary}\n\nbotたんに診断してもらおう👉 ${shareUrl}`
-      : `${name}'s personality diagnosis 🔮\n${fortune.analysis}\n\n${compSummary}\n\nGet diagnosed by bot-tan 👉 ${shareUrl}`;
+      ? `${name}の全肯定診断 🔮\n${analysis}\n\n${compSummary}\n\nbotたんに診断してもらおう👉 ${shareUrl}`
+      : `${name}'s personality diagnosis 🔮\n${analysis}\n\n${compSummary}\n\nGet diagnosed by bot-tan 👉 ${shareUrl}`;
 
   const xShareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
   const bskyShareUrl = `https://bsky.app/intent/compose?text=${encodeURIComponent(shareText)}`;
@@ -63,7 +69,7 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) 
           className="text-white text-sm sm:text-base leading-relaxed"
           style={{ borderLeft: '3px solid rgba(150,180,255,0.6)', paddingLeft: '12px' }}
         >
-          {fortune.analysis}
+          {analysis}
         </p>
 
         {/* speaking indicator */}
@@ -92,7 +98,7 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) 
 
         {/* comparisons pills */}
         <div className="flex flex-wrap pt-1" style={{ gap: '10px' }}>
-          {fortune.comparisons.map(({ category, value }) => (
+          {comparisons.map(({ category, value }) => (
             <span
               key={category}
               className="text-xs px-3 py-1 rounded-full"
