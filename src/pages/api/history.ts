@@ -40,9 +40,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const follower = records[0];
+      const conv_history = follower.conv_history ?? [];
+
       return res.status(200).json({
         isFollower: true,
-        conv_history: follower.conv_history ?? [],
+        conv_history,
       });
     } catch (e) {
       console.error('[API history GET error]:', e);
@@ -102,19 +104,19 @@ function truncateHistory(history: any[], maxLength: number = 100): any[] {
   if (history.length <= maxLength) {
     return history;
   }
-  
+
   // 100を超えているので、古いもの（配列の先頭）から削除する
   let sliced = history.slice(-maxLength);
-  
+
   // 先頭が 'user' で始まることを保証する
   while (sliced.length > 0 && sliced[0].role !== 'user') {
     sliced.shift(); // 先頭の model などを取り除く
   }
-  
+
   // 末尾が 'model' で終わることを保証する（Geminiの会話ペア完結の担保）
   while (sliced.length > 0 && sliced[sliced.length - 1].role !== 'model') {
     sliced.pop(); // 末尾の不完全な user を取り除く
   }
-  
+
   return sliced;
 }

@@ -136,8 +136,9 @@ export default function Home() {
                     .map((a: AnswerItem, i: number) => `質問${i + 1}: ${a.question}\n回答${i + 1}: ${a.answer}`)
                     .join('\n\n');
 
-                  // ローカルストレージの言語に応じた診断結果テキスト
-                  const modelText = pendingLangStr === 'en' ? pendingResult.analysis_en : pendingResult.analysis_ja;
+                  // ローカルストレージの言語に応じた診断結果テキストにプレフィックスを付与して保存
+                  const baseModelText = pendingLangStr === 'en' ? pendingResult.analysis_en : pendingResult.analysis_ja;
+                  const modelText = pendingLangStr === 'en' ? `Diagnosis Result: ${baseModelText}` : `診断結果：${baseModelText}`;
 
                   const newPairs = [
                     {
@@ -176,6 +177,12 @@ export default function Home() {
                   content: msg.parts?.[0]?.text || '',
                 }));
                 setChatLog(mappedLog);
+
+                // デバッグ用に最新10件の会話履歴をブラウザコンソールに出力
+                console.log(`[History Log] Latest 10 messages from DB for ${did}:`);
+                currentHistory.slice(-10).forEach((msg: any, idx: number) => {
+                  console.log(`  [${idx + 1}] [${msg.role === 'model' ? 'botたん' : 'ユーザー'}] ${msg.parts?.[0]?.text}`);
+                });
               }
             } catch (err) {
               console.error('[History synchronization error]:', err);
