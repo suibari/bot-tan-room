@@ -97,7 +97,7 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false }: Props) 
         )}
 
         {/* comparisons pills */}
-        <div className="flex flex-wrap pt-1" style={{ gap: '10px' }}>
+        <div className="flex flex-wrap pt-1" style={{ gap: '4px' }}>
           {comparisons.map(({ category, value }) => (
             <span
               key={category}
