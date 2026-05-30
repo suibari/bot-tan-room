@@ -116,13 +116,13 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false, flat = fa
         flat
           ? { background: 'transparent', border: 'none', boxShadow: 'none' }
           : {
-              background: 'rgba(255, 255, 255, 0.65)',
-              backdropFilter: 'blur(20px)',
-              border: '1.5px solid rgba(255, 255, 255, 0.55)',
-              boxShadow: '0 10px 30px rgba(15, 32, 67, 0.05)',
-              borderRadius: '1.8rem',
-              overflow: 'hidden',
-            }
+            background: 'rgba(255, 255, 255, 0.65)',
+            backdropFilter: 'blur(20px)',
+            border: '1.5px solid rgba(255, 255, 255, 0.55)',
+            boxShadow: '0 10px 30px rgba(15, 32, 67, 0.05)',
+            borderRadius: '1.8rem',
+            overflow: 'hidden',
+          }
       }
     >
       <div style={{ padding: flat ? '0' : '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
@@ -138,30 +138,6 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false, flat = fa
         >
           {analysis}
         </p>
-
-        {/* speaking indicator */}
-        {isSpeaking && (
-          <div className="flex items-center gap-2 py-1">
-            <span className="flex gap-0.5">
-              {[0, 1, 2].map((i) => (
-                <span
-                  key={i}
-                  className="block w-1.5 h-4 rounded-full bg-sky-500"
-                  style={{ animation: `bar-bounce 0.9s ease-in-out ${i * 0.15}s infinite` }}
-                />
-              ))}
-            </span>
-            <span className="text-sky-600 font-extrabold text-xs">
-              {lang === 'ja' ? '読み上げ中...' : 'Speaking...'}
-            </span>
-            <style jsx>{`
-              @keyframes bar-bounce {
-                0%, 100% { transform: scaleY(0.4); opacity: 0.5; }
-                50%       { transform: scaleY(1);   opacity: 1;   }
-              }
-            `}</style>
-          </div>
-        )}
 
         {/* comparisons pills */}
         <div className="flex flex-wrap pt-1" style={{ gap: '6px' }}>
