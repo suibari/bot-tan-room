@@ -37,11 +37,12 @@ export function DiagnosisForm({ lang, onSubmit, onQuestionShow }: Props) {
   const [answers, setAnswers] = useState(['', '', '']);
 
   useEffect(() => {
-    const text = lang === 'ja' ? selectedQuestions[currentIndex].ja : selectedQuestions[currentIndex].en;
+    // 選択されたUI言語に関わらず、発話は常に日本語のテキストを使用する
+    const text = selectedQuestions[currentIndex].ja;
     onQuestionShow?.(text);
-  // selectedQuestions は useMemo で固定。currentIndex・lang の変化のみ追跡
+  // selectedQuestions は useMemo で固定。currentIndex の変化のみ追跡
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex, lang]);
+  }, [currentIndex]);
 
   const currentAnswer = answers[currentIndex];
   const canProceed = currentAnswer.trim().length > 0;
