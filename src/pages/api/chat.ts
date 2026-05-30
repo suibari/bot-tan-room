@@ -53,6 +53,19 @@ export default async function handler(
     return;
   }
 
+  // 過去履歴の件数を直近10件（5往復分）に制限して入力トークン（課金）を節約
+  const MAX_HISTORY_LENGTH = 10;
+  if (history.length > MAX_HISTORY_LENGTH) {
+    history = history.slice(-MAX_HISTORY_LENGTH);
+  }
+
+  // Gemini APIは会話履歴の開始が 'user' であることを期待するため、
+  // 切り詰めた結果先頭が 'model' (assistant) で始まっている場合は、
+  // 安全のためそれを削って 'user' から始まるように調整する
+  while (history.length > 0 && history[0].role === 'model') {
+    history.shift();
+  }
+
   // 最後のユーザー発言の末尾に、強力なフォーマット制約をインジェクションして出力崩れと長文化を完全に防ぐ
   if (lastMessage.parts && lastMessage.parts[0] && typeof lastMessage.parts[0].text === 'string') {
     const rawText = lastMessage.parts[0].text;

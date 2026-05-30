@@ -19,9 +19,28 @@ export type DiagnosisResult = {
 
 type AnswerItem = { question: string; answer: string };
 
+type CategoryDef = {
+  ja: string;
+  en: string;
+  example_ja: string;
+  example_en: string;
+};
+
+const COMPARISON_CATEGORIES: CategoryDef[] = [
+  { ja: '動物', en: 'Animal', example_ja: '気まぐれな黒猫', example_en: 'A cat who pretends not to care' },
+  { ja: '天気', en: 'Weather', example_ja: '夜明け前の静けさ', example_en: 'The sky just before sunrise' },
+  { ja: '飲み物', en: 'Drink', example_ja: '夜中のホットミルク', example_en: 'Warm milk at midnight' },
+  { ja: '季節', en: 'Season', example_ja: '始まりを予感させる春の風', example_en: 'A spring breeze full of new beginnings' },
+  { ja: '楽器', en: 'Instrument', example_ja: '優しく響くアコースティックギター', example_en: 'A softly resonating acoustic guitar' },
+  { ja: '色', en: 'Color', example_ja: '深みのある穏やかな琥珀色', example_en: 'A deep, gentle amber' },
+  { ja: '花', en: 'Flower', example_ja: 'ひだまりに咲くタンポポ', example_en: 'A dandelion blooming in a sunny spot' },
+  { ja: '場所', en: 'Place', example_ja: '木漏れ日の差し込む静かな図書館', example_en: 'A quiet library with sunlight filtering through trees' },
+  { ja: '食べ物', en: 'Food', example_ja: '焼き立ての温かいアップルパイ', example_en: 'A freshly baked warm apple pie' }
+];
+
 // 統合プロンプト: 常に日本語・英語の両方を1回のリクエストで生成する
 // VoiceVox発話には analysis_ja のみ使用。表示は lang に応じて切り替え。
-const INTEGRATED_PROMPT = (name: string, answers: AnswerItem[]) => `
+const INTEGRATED_PROMPT = (name: string, answers: AnswerItem[], categories: CategoryDef[]) => `
 You are "bot-tan" (botたん). You are a warm, cheerful teenage girl who fully embraces and validates everything the user shares.
 Japanese style: casual, endings like 「～だよ」「～だね」「～よ」, no formal language, call the user「${name}ちゃん」.
 English style: casual, warm, always call the user "${name}".
@@ -45,24 +64,23 @@ Write 3 sentences, ~120 chars each, in this order:
 【Rules】
 1. Do NOT reuse exact words or actions from the answers verbatim
 2. Always prioritize empathy, warmth, and affirmation over analysis
-3. For comparisons, pick 3 distinct categories from: Animal, Weather, Drink, Season, Instrument, Color
-   - Output BOTH Japanese (category_ja, value_ja) AND English (category_en, value_en) for each comparison
-   - value_ja example: 「気まぐれな黒猫」「夜明け前の静けさ」「夜中のホットミルク」
-   - value_en example: "A cat who pretends not to care", "The sky just before sunrise", "Warm milk at midnight"
+3. For comparisons, you MUST use exactly these 3 pre-selected categories (order does not matter, but all 3 must be present):
+${categories.map((c, i) => `   - Category ${i + 1}: "${c.en}" (Japanese: "${c.ja}")
+     Example Japanese: "${c.example_ja}", Example English: "${c.example_en}"`).join('\n')}
 
 【CRITICAL OUTPUT RULES】
 - Do NOT output any thinking process, explanations, or markdown code blocks.
 - Output ONLY valid JSON starting with { and ending with }.
 - You MUST always output BOTH analysis_ja (Japanese) AND analysis_en (English).
 
-Output in EXACTLY this structure:
+Output in EXACTLY this structure (do NOT use placeholders, output actual generated values for the comparisons):
 {
   "analysis_ja": "日本語の全肯定メッセージ（120文字程度・3文以内）",
   "analysis_en": "English affirmation message (around 120 chars, 3 sentences)",
   "comparisons": [
-    { "category_ja": "動物", "value_ja": "...", "category_en": "Animal", "value_en": "..." },
-    { "category_ja": "天気", "value_ja": "...", "category_en": "Weather", "value_en": "..." },
-    { "category_ja": "飲み物", "value_ja": "...", "category_en": "Drink", "value_en": "..." }
+    { "category_ja": "${categories[0].ja}", "value_ja": "...", "category_en": "${categories[0].en}", "value_en": "..." },
+    { "category_ja": "${categories[1].ja}", "value_ja": "...", "category_en": "${categories[1].en}", "value_en": "..." },
+    { "category_ja": "${categories[2].ja}", "value_ja": "...", "category_en": "${categories[2].en}", "value_en": "..." }
   ]
 }
 `;
@@ -85,8 +103,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const safeName = (name ?? 'you').slice(0, 30);
   const safeAnswers = (answers ?? []).slice(0, 3);
 
+  // ランダムに3つのカテゴリを選択する
+  const shuffled = [...COMPARISON_CATEGORIES].sort(() => 0.5 - Math.random());
+  const selectedCategories = shuffled.slice(0, 3);
+
   // 統合プロンプト: 言語選択に関係なく常に日英両方を生成
-  const prompt = INTEGRATED_PROMPT(safeName, safeAnswers);
+  const prompt = INTEGRATED_PROMPT(safeName, safeAnswers, selectedCategories);
 
   const client = new GoogleGenAI({ apiKey });
 
