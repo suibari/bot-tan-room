@@ -6,6 +6,7 @@ type Props = {
   assistantMessage: string;
   isChatProcessing: boolean;
   onSend: (text: string) => void;
+  quotaExceeded?: boolean;
 };
 
 const LABELS = {
@@ -17,7 +18,7 @@ const LABELS = {
  * 性格診断 UI と統一したグラス調のチャット画面。
  * 上部に botたんの発言バブル、下部にテキスト＋音声入力バーを表示する。
  */
-export function ChatView({ lang, assistantMessage, isChatProcessing, onSend }: Props) {
+export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quotaExceeded = false }: Props) {
   const l = LABELS[lang];
   const [userMessage, setUserMessage] = useState("");
   const [speechRecognition, setSpeechRecognition] = useState<SpeechRecognition>();
@@ -118,68 +119,94 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend }: P
             </div>
           )}
 
-          {/* 入力バー */}
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            {/* テキスト入力 */}
-            <input
-              type="text"
-              value={userMessage}
-              onChange={(e) => setUserMessage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.nativeEvent.isComposing && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              placeholder={l.placeholder}
-              disabled={isChatProcessing}
-              className="flex-1 text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
+          {/* 入力バー もしくは リミット到達メッセージ */}
+          {quotaExceeded ? (
+            <div 
+              className="flex flex-col items-center gap-2 py-3 text-center animate-fadeIn"
               style={{
-                height: "48px",
-                background: "rgba(255, 255, 255, 0.55)",
-                border: "1.5px solid rgba(58, 155, 213, 0.25)",
-                borderRadius: "9999px",
-                padding: "0 20px",
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = 'var(--theme-blue)';
-                e.currentTarget.style.boxShadow = '0 0 0 4px rgba(58, 155, 213, 0.15)';
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(58, 155, 213, 0.25)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            />
-
-            {/* 送信 */}
-            <button
-              onClick={handleSend}
-              disabled={isChatProcessing || !userMessage.trim()}
-              aria-label="send"
-              className="shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed bg-theme-gradient shadow-md"
-              style={{
-                width: "48px",
-                height: "48px",
-                borderRadius: "9999px",
+                background: "rgba(254, 242, 242, 0.4)",
+                border: "1.5px dashed rgba(239, 68, 68, 0.3)",
+                borderRadius: "1.5rem",
+                padding: "1rem",
               }}
             >
-              {isChatProcessing ? (
-                <span
-                  className="block w-4 h-4"
-                  style={{
-                    border: "2px solid rgba(255,255,255,0.3)",
-                    borderTopColor: "#fff",
-                    animation: "chat-spin 0.75s linear infinite",
-                    borderRadius: "50%",
-                  }}
-                />
-              ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
-                  <path d="M2 21l21-9L2 3v7l15 2-15 2z" />
+              <div className="flex items-center gap-2 text-red-500 font-black justify-center">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-              )}
-            </button>
-          </div>
+                <span className="text-sm">
+                  {lang === "ja" ? "お部屋が満員になりました" : "Room is full"}
+                </span>
+              </div>
+              <p className="text-xs font-semibold text-slate-500 leading-relaxed" style={{ margin: 0 }}>
+                {lang === "ja" ? "今日はbotたんのお部屋は満員になっちゃった！　また明日ね！" : "The room is full today! See you tomorrow!"}
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              {/* テキスト入力 */}
+              <input
+                type="text"
+                value={userMessage}
+                onChange={(e) => setUserMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder={l.placeholder}
+                disabled={isChatProcessing}
+                className="flex-1 text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
+                style={{
+                  height: "48px",
+                  background: "rgba(255, 255, 255, 0.55)",
+                  border: "1.5px solid rgba(58, 155, 213, 0.25)",
+                  borderRadius: "9999px",
+                  padding: "0 20px",
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = 'var(--theme-blue)';
+                  e.currentTarget.style.boxShadow = '0 0 0 4px rgba(58, 155, 213, 0.15)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(58, 155, 213, 0.25)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              />
+
+              {/* 送信 */}
+              <button
+                onClick={handleSend}
+                disabled={isChatProcessing || !userMessage.trim()}
+                aria-label="send"
+                className="shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed bg-theme-gradient shadow-md"
+                style={{
+                  width: "48px",
+                  height: "48px",
+                  borderRadius: "9999px",
+                }}
+              >
+                {isChatProcessing ? (
+                  <span
+                    className="block w-4 h-4"
+                    style={{
+                      border: "2px solid rgba(255,255,255,0.3)",
+                      borderTopColor: "#fff",
+                      animation: "chat-spin 0.75s linear infinite",
+                      borderRadius: "50%",
+                    }}
+                  />
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
+                    <path d="M2 21l21-9L2 3v7l15 2-15 2z" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          )}
           <style jsx global>{`
             @keyframes chat-spin { to { transform: rotate(360deg); } }
           `}</style>

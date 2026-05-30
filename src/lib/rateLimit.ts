@@ -55,3 +55,25 @@ export async function checkAndIncrementDailyLimit(): Promise<RateLimitResult> {
     return { allowed: true, count: 0, limit };
   }
 }
+
+/**
+ * Checks the daily request status in Vercel KV WITHOUT incrementing it.
+ * If KV errors or is unreachable, it fails open (returns allowed: true).
+ */
+export async function getDailyLimitStatus(): Promise<RateLimitResult> {
+  const limitStr = process.env.DAILY_GEMINI_REQUEST_LIMIT || '500';
+  const limit = parseInt(limitStr, 10);
+
+  const jstDate = getJstDateString();
+  const key = `gemini_req_count:${jstDate}`;
+
+  try {
+    const countVal = await kv.get<number>(key);
+    const count = countVal || 0;
+    const allowed = count < limit;
+    return { allowed, count, limit };
+  } catch (error) {
+    console.error('[RateLimit] Vercel KV connection error, failing open:', error);
+    return { allowed: true, count: 0, limit };
+  }
+}

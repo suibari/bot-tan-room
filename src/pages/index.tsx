@@ -77,6 +77,24 @@ function MainHome() {
     routerRef.current = router;
   }, [router]);
 
+  // Check rate limit status on page load (without incrementing)
+  useEffect(() => {
+    fetch("/api/quota")
+      .then((res) => {
+        if (!res.ok) throw new Error("API failed");
+        return res.json();
+      })
+      .then((data) => {
+        if (data && !data.allowed) {
+          console.warn(`[Page Load] Quota limit already reached: ${data.count}/${data.limit}`);
+          setQuotaExceeded(true);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to check quota on load:", err);
+      });
+  }, []);
+
   // Restore persisted settings + OAuth client pre-load
   useEffect(() => {
     const storedName = window.localStorage.getItem("chatVRM_userName");
@@ -879,12 +897,13 @@ function MainHome() {
       )}
 
       {/* ===== CHAT ===== */}
-      {phase === "chat" && !quotaExceeded && (
+      {phase === "chat" && (
         <ChatView
           lang={lang}
           assistantMessage={assistantMessage}
           isChatProcessing={chatProcessing}
           onSend={handleSendChat}
+          quotaExceeded={quotaExceeded}
         />
       )}
 
@@ -1014,11 +1033,11 @@ function MainHome() {
         </div>
       )}
 
-      {/* ===== QUOTA EXCEEDED (INOPERABLE STATE) ===== */}
-      {quotaExceeded && (
-        <div className="absolute inset-0 z-45 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md">
+      {/* ===== QUOTA EXCEEDED (IN-CARD BOTTOM STATE) ===== */}
+      {quotaExceeded && phase !== "chat" && (
+        <div className="absolute z-20 flex justify-center animate-fadeIn" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)))", top: 'auto' }}>
           <div 
-            className="w-full max-w-xl shadow-2xl text-center animate-fadeIn"
+            className="w-full max-w-xl shadow-2xl text-center"
             style={{
               padding: "1.5rem 2.25rem",
               background: "rgba(255, 255, 255, 0.72)",
@@ -1042,7 +1061,7 @@ function MainHome() {
             <h2 className="text-slate-800 text-xl font-black tracking-wide" style={{ textShadow: '0 2px 10px rgba(239, 68, 68, 0.12)', color: "#0f172a", margin: 0 }}>
               {t("quota.title")}
             </h2>
-            <p className="text-base leading-relaxed font-semibold" style={{ color: "#1e293b", margin: 0 }}>
+            <p className="text-base leading-relaxed font-semibold animate-pulse" style={{ color: "#1e293b", margin: 0 }}>
               {t("quota.message")}
             </p>
           </div>
