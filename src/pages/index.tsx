@@ -32,7 +32,7 @@ type Phase = "landing" | "questions" | "loading" | "fortune" | "chat";
 type BskyOAuthClient = import('@atproto/oauth-client-browser').BrowserOAuthClient;
 type BskySession = NonNullable<Awaited<ReturnType<BskyOAuthClient['init']>>>['session'];
 
-function MainHome() {
+export default function MainHome() {
 
   const { viewer } = useContext(ViewerContext);
   const { t } = useTranslation();
@@ -1240,43 +1240,4 @@ export const getStaticProps: GetStaticProps = async ({ locale }) => ({
   },
 });
 
-// ==========================================
-// [TEMPORARY PASSWORD GATE]
-// ==========================================
-export default function Home() {
-  const [isAuthorized, setIsAuthorized] = useState(false);
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedAuth = window.sessionStorage.getItem("temp_auth");
-      if (savedAuth === "botlove") {
-        setIsAuthorized(true);
-        return;
-      }
-      
-      let pass = "";
-      while (pass !== "botlove") {
-        const input = window.prompt("Please enter the password to test:");
-        if (input === null) {
-          continue;
-        }
-        pass = input.trim();
-        if (pass === "botlove") {
-          window.sessionStorage.setItem("temp_auth", "botlove");
-          setIsAuthorized(true);
-          break;
-        } else {
-          alert("Incorrect password");
-        }
-      }
-    }
-  }, []);
 
-  if (!isAuthorized) {
-    return <div style={{ background: "#000", width: "100dvw", height: "100dvh" }} />;
-  }
-
-  return <MainHome />;
-}
-// ==========================================
-// [END OF TEMPORARY PASSWORD GATE]
-// ==========================================
