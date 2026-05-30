@@ -14,7 +14,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ message: 'Server Configuration Error' });
   }
 
-  const clientKey = req.headers['x-secret-key'];
+  const authHeader = req.headers['authorization'];
+  // 'Bearer ' から始まる場合のみ、その後のトークン文字列（7文字目以降）を抽出
+  const clientKey = authHeader && authHeader.startsWith('Bearer ')
+    ? authHeader.substring(7)
+    : null;
+
   if (clientKey !== secretKey) {
     console.warn('[API invite-message] Rejected unauthorized access attempt');
     return res.status(401).json({ message: 'Unauthorized' });
