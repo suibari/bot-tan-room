@@ -24,7 +24,8 @@ export const MessageInputContainer = ({
   // 音声認識の結果を処理する
   const handleRecognitionResult = useCallback(
     (event: SpeechRecognitionEvent) => {
-      const text = event.results[0][0].transcript;
+      const rawText = event.results[0][0].transcript;
+      const text = rawText.length > 100 ? rawText.slice(0, 100) : rawText;
       setUserMessage(text);
 
       // 発言の終了時

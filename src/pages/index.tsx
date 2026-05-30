@@ -549,7 +549,7 @@ function MainHome() {
         "- [ja] block: Write in Japanese. Casual tone. Endings like 「～だよ」「～だね」「～よ」. No formal language.\n" +
         "- [en] block: Write in English. Casual, warm, friendly tone.\n" +
         "- Emotion tag: Must be one of [happy], [neutral], [sad], [angry], [relaxed]. Place it immediately after [ja] or [en].\n" +
-        "- Both blocks must be concise: 2-3 sentences max, under 120 characters each.\n" +
+        "- Both blocks must be concise: 2-3 sentences max, under 200 characters each.\n" +
         "- NEVER use markdown formatting (**, *, bullet lists). Plain text only.\n" +
         "- NEVER summarize or recap past conversation history. Focus on natural back-and-forth.\n\n" +
         "Example output:\n" +

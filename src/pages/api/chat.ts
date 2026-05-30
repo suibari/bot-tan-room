@@ -45,9 +45,9 @@ export default async function handler(
     // 確実に出力を抑制するための最重要指示を末尾に追加
     systemInstruction +=
       "\n\n[最重要：出力の制限ルール]\n" +
-      "1. あなたの返答は、絶対に1〜2文（60〜100文字程度）の超簡潔なプレーンテキストにしてください。長文や要約、解説は禁止です。\n" +
+      "1. あなたの返答は、絶対に2〜3文（120〜200文字程度）の簡潔なプレーンテキストにしてください。長文や要約、解説は禁止です。\n" +
       "2. 太字（**）や箇条書き（*）、リンクなどのマークダウン装飾は【絶対に】使用しないでください。必ず平文のみで答えてください。\n" +
-      "3. 過去の会話をまとめたり、要約して振り返ったりしないでください。現在の最後のメッセージに対して直接、自然に1言で返答してください。";
+      "3. 過去の会話をまとめたり、要約して振り返ったりしないでください。現在の最後のメッセージに対して直接、自然に返答してください。";
   }
 
   let history = messages
@@ -64,8 +64,17 @@ export default async function handler(
     return;
   }
 
-  // 過去履歴の件数を直近10件（5往復分）に制限して入力トークン（課金）を節約
-  const MAX_HISTORY_LENGTH = 10;
+  // ユーザーメッセージの文字数制限（100文字）バリデーション
+  if (lastMessage.parts && lastMessage.parts[0] && typeof lastMessage.parts[0].text === 'string') {
+    const userMsgText = lastMessage.parts[0].text;
+    if (userMsgText.length > 100) {
+      res.status(400).json({ message: "メッセージは100文字以内で入力してください。" });
+      return;
+    }
+  }
+
+  // 過去履歴の件数を直近100件に制限して入力トークンを節約（DB保存上限に合わせる）
+  const MAX_HISTORY_LENGTH = 100;
   if (history.length > MAX_HISTORY_LENGTH) {
     history = history.slice(-MAX_HISTORY_LENGTH);
   }
@@ -83,7 +92,7 @@ export default async function handler(
     
     // システムの返答ルールをモデルに強制的に意識させるための割り込み命令
     const constraintSuffix = 
-      "\n\n(※システムルール遵守：絶対に太字(**)やイタリック(*)、箇条書きなどのマークダウン装飾を使用せず、1〜2文(最大100文字)の超簡潔なプレーンテキストで、改行を使わずに1段落で返答してください。過去の会話全体の要約や振り返りは絶対に禁止です。)";
+      "\n\n(※システムルール遵守：絶対に太字(**)やイタリック(*)、箇条書きなどのマークダウン装飾を使用せず、2〜3文(最大200文字)の簡潔なプレーンテキストで、改行を使わずに1段落で返答してください。過去の会話全体の要約や振り返りは絶対に禁止です。)";
     
     lastMessage.parts[0].text = rawText + constraintSuffix;
   }
