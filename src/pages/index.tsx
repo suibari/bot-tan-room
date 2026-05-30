@@ -63,7 +63,8 @@ export default function MainHome() {
   const [isAuthChecking, setIsAuthChecking] = useState(true); // OAuth init 解決まで true
   const [isWaitingForVoice, setIsWaitingForVoice] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [pendingInvite, setPendingInvite] = useState<{ textJa: string; textEn: string; audioBase64: string | null } | null>(null);
+  const [pendingInvite, setPendingInvite] = useState<{ textJa: string; textEn: string } | null>(null);
+  const pendingAudioRef = useRef<Promise<ArrayBuffer | null>>(Promise.resolve(null));
   const nameInputRef = useRef<HTMLInputElement>(null);
   const questionAbortRef = useRef<AbortController | null>(null);
   // OAuth クライアントをマウント時に事前ロードして signInRedirect がすぐ呼べるようにする
@@ -135,6 +136,15 @@ export default function MainHome() {
     // viewer オブジェクトは参照が安定しているので phase の変化のみ監視
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
+
+  // pendingInvite がセットされた瞬間にチャットと同じパイプラインで音声を先読み
+  useEffect(() => {
+    if (!pendingInvite) return;
+    const talks = textsToScreenplay([`[neutral]${pendingInvite.textJa}`], koeiroParam);
+    pendingAudioRef.current = fetchAudio(talks[0].talk, koeiromapKey).catch(() => null);
+  // koeiroParam/koeiromapKey は起動時に確定するため pendingInvite のみ監視
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingInvite]);
 
   /**
    * DiagnosisFormの質問切り替え時に呼ばれる。
@@ -382,45 +392,24 @@ export default function MainHome() {
 
   const handlePlayWelcomeVoice = useCallback(async () => {
     if (!pendingInvite || !viewer.isReady) return;
-    const { audioBase64, textJa } = pendingInvite;
-
-    if (!audioBase64) {
-      setPendingInvite(null);
-      setIsInvitationMode(false);
-      return;
-    }
+    const { textJa } = pendingInvite;
 
     try {
       setIsSpeaking(true);
-      // Base64デコード
-      const binaryString = window.atob(audioBase64);
-      const len = binaryString.length;
-      const bytes = new Uint8Array(len);
-      for (let i = 0; i < len; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      const audioBuffer = bytes.buffer;
-
-      // Screenplayの構築
-      const screenplay = {
-        talk: {
-          style: "neutral",
-          speaker: "bot-tan",
-          text: textJa
-        }
-      };
-
-      // 発話の開始
+      const talks = textsToScreenplay([`[neutral]${textJa}`], koeiroParam);
+      // ダイアログ表示中に先読みしておいた音声を待つ（完了済みなら即返る）
+      const audioBuffer = await pendingAudioRef.current;
+      if (!audioBuffer) throw new Error('Audio not available');
       viewer.model?.stopSpeak();
-      await viewer.model?.speak(audioBuffer, screenplay as any);
+      await viewer.model?.speak(audioBuffer, talks[0]);
     } catch (err) {
       console.error('[Welcome audio playback error]:', err);
     } finally {
       setIsSpeaking(false);
-      setPendingInvite(null); // 音声が再生されたらモーダルを閉じる
+      setPendingInvite(null);
       setIsInvitationMode(false);
     }
-  }, [pendingInvite, viewer]);
+  }, [pendingInvite, viewer, koeiroParam]);
 
   const handleNameSubmit = useCallback(() => {
     const name = nameInput.trim();
@@ -1315,13 +1304,16 @@ export default function MainHome() {
 
             <button
               onClick={handlePlayWelcomeVoice}
-              className="w-full font-black text-white text-base shadow-md tracking-wider transition-all duration-300 hover:shadow-lg hover:brightness-105 active:scale-[0.97] bg-theme-gradient"
+              disabled={isSpeaking}
+              className="w-full font-black text-white text-base shadow-md tracking-wider transition-all duration-300 hover:shadow-lg hover:brightness-105 active:scale-[0.97] bg-theme-gradient disabled:opacity-60 disabled:cursor-not-allowed"
               style={{
                 borderRadius: "9999px",
                 padding: "15px 32px",
               }}
             >
-              {lang === "ja" ? "💌 botたんからのメッセージがあります" : "💌 Message from bot-tan"}
+              {isSpeaking
+                ? (lang === "ja" ? "🎙️ 音声を生成中..." : "🎙️ Generating audio...")
+                : (lang === "ja" ? "💌 botたんからのメッセージがあります" : "💌 Message from bot-tan")}
             </button>
           </div>
         </div>

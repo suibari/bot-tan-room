@@ -37,43 +37,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // 3. Synthesize speech using Voicevox API (with timeout fallback)
-    let audioBase64 = '';
-    try {
-      const VOICEVOX_API_KEY = process.env.VOICEVOX_API_KEY ?? '';
-      const speakerId = 8;
-      const params = new URLSearchParams({
-        speaker: String(speakerId),
-        text: textJa.trim(),
-        ...(VOICEVOX_API_KEY ? { key: VOICEVOX_API_KEY } : {}),
-      });
-      const upstreamUrl = `https://api.tts.quest/v3/voicevox/synthesis?${params.toString()}`;
+    // 3. TTS省略: テキストのみKVに保存し即座に200を返す
+    //    音声生成はフロントエンドが /api/generate-audio (Edge) で行う
 
-      console.log(`[API invite-message] Requesting Voicevox synthesis for DID: ${did}`);
-      const upstream = await fetch(upstreamUrl, { signal: AbortSignal.timeout(7000) });
-      if (!upstream.ok) {
-        throw new Error(`VoiceVox synthesis proxy failed with status ${upstream.status}`);
-      }
-
-      const data = await upstream.json();
-      if (!data.mp3StreamingUrl) {
-        throw new Error('No mp3StreamingUrl returned in Voicevox response');
-      }
-
-      // 4. Download synthesized MP3 binary data
-      const mp3Res = await fetch(data.mp3StreamingUrl, { signal: AbortSignal.timeout(7000) });
-      if (!mp3Res.ok) {
-        throw new Error(`Failed to download MP3 file from Voicevox proxy (status: ${mp3Res.status})`);
-      }
-      const mp3Buffer = await mp3Res.arrayBuffer();
-
-      // 5. Convert MP3 buffer to Base64 string
-      audioBase64 = Buffer.from(mp3Buffer).toString('base64');
-    } catch (ttsErr: any) {
-      console.warn(`[API invite-message] TTS failed (storing text-only): ${ttsErr.message}`);
-    }
-
-    // 6. Save texts and audioBase64 to Vercel KV
+    // 4. テキストのみVercel KVに保存
     const kv = createClient({
       url: process.env.VRM_BOT_KV_REST_API_URL,
       token: process.env.VRM_BOT_KV_REST_API_TOKEN,
@@ -84,7 +51,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       {
         textJa: textJa.trim(),
         textEn: textEn.trim(),
-        audioBase64,
         createdAt: new Date().toISOString(),
       }
     );
