@@ -14,10 +14,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const authHeader = req.headers.authorization;
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
-  const isVerified = await verifyAtprotoToken(token, did);
-  if (!isVerified) {
-    console.warn(`[API get-invite GET] Blocked unauthorized attempt for DID: ${did}`);
-    return res.status(401).json({ message: 'Unauthorized session' });
+  const verification = await verifyAtprotoToken(token, did);
+  if (!verification.verified) {
+    console.warn(`[API get-invite GET] Blocked unauthorized attempt for DID: ${did}. Reason: ${verification.reason}`);
+    return res.status(401).json({ message: 'Unauthorized session', reason: verification.reason });
   }
 
   try {

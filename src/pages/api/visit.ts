@@ -13,10 +13,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const authHeader = req.headers.authorization;
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
-  const isVerified = await verifyAtprotoToken(token, did);
-  if (!isVerified) {
-    console.warn(`[API visit POST] Blocked unauthorized attempt for DID: ${did}`);
-    return res.status(401).json({ message: 'Unauthorized session' });
+  const verification = await verifyAtprotoToken(token, did);
+  if (!verification.verified) {
+    console.warn(`[API visit POST] Blocked unauthorized attempt for DID: ${did}. Reason: ${verification.reason}`);
+    return res.status(401).json({ message: 'Unauthorized session', reason: verification.reason });
   }
 
   const DB_URL = process.env.DB_URL ?? 'https://db.suibari.com';
@@ -57,8 +57,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     return res.status(200).json({ success: true });
-  } catch (e) {
+  } catch (e: any) {
     console.error('[API visit POST error]:', e);
-    return res.status(500).json({ message: 'Internal Server Error' });
+    return res.status(500).json({ message: 'Internal Server Error', error: e.message || String(e) });
   }
 }

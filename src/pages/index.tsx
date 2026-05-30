@@ -82,8 +82,11 @@ export default function MainHome() {
   // Check rate limit status on page load (without incrementing)
   useEffect(() => {
     fetch("/api/quota")
-      .then((res) => {
-        if (!res.ok) throw new Error("API failed");
+      .then(async (res) => {
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          throw new Error(`API failed (Status ${res.status}): ${errBody.error || 'Unknown'}`);
+        }
         return res.json();
       })
       .then((data) => {
@@ -192,14 +195,25 @@ export default function MainHome() {
                 },
                 body: JSON.stringify({ did }),
                 keepalive: true
-              }).catch(err => console.error('[visit API error]:', err));
+              })
+                .then(async (res) => {
+                  if (!res.ok) {
+                    const errBody = await res.json().catch(() => ({}));
+                    console.error('[visit API error status]:', res.status, 'Reason:', errBody.reason || errBody.message || 'Unknown');
+                  }
+                })
+                .catch(err => console.error('[visit API error]:', err));
 
               // 2. お迎えメッセージの取得と再生
               fetch(`/api/get-invite/?did=${encodeURIComponent(did)}`, {
                 headers: token ? { 'Authorization': `Bearer ${token}` } : {}
               })
                 .then(async (inviteRes) => {
-                  if (!inviteRes.ok) return;
+                  if (!inviteRes.ok) {
+                    const errBody = await inviteRes.json().catch(() => ({}));
+                    console.error('[get-invite error status]:', inviteRes.status, 'Reason:', errBody.reason || errBody.message || 'Unknown');
+                    return;
+                  }
                   const inviteData = await inviteRes.json();
                   if (inviteData && inviteData.hasInvite) {
                     setIsInvitationMode(true);
@@ -249,7 +263,9 @@ export default function MainHome() {
                 headers: token ? { 'Authorization': `Bearer ${token}` } : {}
               });
               if (!historyRes.ok) {
-                throw new Error('Failed to fetch history API');
+                const errBody = await historyRes.json().catch(() => ({}));
+                console.error('[history API error status]:', historyRes.status, 'Reason:', errBody.reason || errBody.message || 'Unknown');
+                throw new Error(`Failed to fetch history API: ${errBody.reason || errBody.message || 'Unknown'}`);
               }
               const historyData = await historyRes.json();
 
