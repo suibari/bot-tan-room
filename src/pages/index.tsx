@@ -63,6 +63,7 @@ export default function MainHome() {
   const [isAuthChecking, setIsAuthChecking] = useState(true); // OAuth init 解決まで true
   const [isWaitingForVoice, setIsWaitingForVoice] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [pendingInvite, setPendingInvite] = useState<{ textJa: string; textEn: string; audioBase64: string } | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const questionAbortRef = useRef<AbortController | null>(null);
   // OAuth クライアントをマウント時に事前ロードして signInRedirect がすぐ呼べるようにする
@@ -189,22 +190,10 @@ export default function MainHome() {
               // 1. 来訪記録の更新 (visit API呼び出し)
               fetch('/api/visit/', {
                 method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-                },
-                body: JSON.stringify({ did }),
-                keepalive: true
-              })
-                .then(async (res) => {
-                  if (!res.ok) {
-                    const errBody = await res.json().catch(() => ({}));
-                    console.error('[visit API error status]:', res.status, 'Reason:', errBody.reason || errBody.message || 'Unknown');
-                  }
-                })
-                .catch(err => console.error('[visit API error]:', err));
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+              }).catch(err => console.error('[visit API error]:', err));
 
-              // 2. お迎えメッセージの取得と再生
+              // 2. お迎えメッセージの取得
               fetch(`/api/get-invite/?did=${encodeURIComponent(did)}`, {
                 headers: token ? { 'Authorization': `Bearer ${token}` } : {}
               })
@@ -218,47 +207,7 @@ export default function MainHome() {
                   if (inviteData && inviteData.hasInvite) {
                     setIsInvitationMode(true);
                     setAssistantMessage(inviteData.text);
-
-                    try {
-                      const binaryString = window.atob(inviteData.audioBase64);
-                      const len = binaryString.length;
-                      const bytes = new Uint8Array(len);
-                      for (let i = 0; i < len; i++) {
-                        bytes[i] = binaryString.charCodeAt(i);
-                      }
-                      const audioBuffer = bytes.buffer;
-
-                      // 準備完了するまでポーリング（最大15秒）
-                      let attempts = 0;
-                      while (!viewer.isReady && attempts < 75) {
-                        await new Promise(resolve => setTimeout(resolve, 200));
-                        attempts++;
-                      }
-
-                      if (viewer.isReady) {
-                        viewer.model?.stopSpeak();
-                        viewer.model?.emoteController?.playEmotion("excited");
-
-                        const screenplay = {
-                          expression: "excited",
-                          talk: {
-                            style: "neutral",
-                            speakerX: 3,
-                            speakerY: 3,
-                            message: inviteData.text
-                          }
-                        };
-
-                        await viewer.model?.speak(audioBuffer, screenplay as any, () => {
-                          setIsSpeaking(true);
-                        });
-                      }
-                    } catch (audioErr) {
-                      console.error('[Invitation audio playback error]:', audioErr);
-                    } finally {
-                      setIsSpeaking(false);
-                      setIsInvitationMode(false);
-                    }
+                    setPendingInvite(inviteData);
                   }
                 })
                 .catch(err => console.error('[get-invite API error]:', err));
@@ -430,6 +379,42 @@ export default function MainHome() {
       onReject?.();
     }
   }, [koeiroParam, viewer, koeiromapKey]);
+
+  const handlePlayWelcomeVoice = useCallback(async () => {
+    if (!pendingInvite || !viewer.isReady) return;
+    const { audioBase64, textJa } = pendingInvite;
+
+    try {
+      setIsSpeaking(true);
+      // Base64デコード
+      const binaryString = window.atob(audioBase64);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const audioBuffer = bytes.buffer;
+
+      // Screenplayの構築
+      const screenplay = {
+        talk: {
+          style: "neutral",
+          speaker: "bot-tan",
+          text: textJa
+        }
+      };
+
+      // 発話の開始
+      viewer.model?.stopSpeak();
+      await viewer.model?.speak(audioBuffer, screenplay as any);
+    } catch (err) {
+      console.error('[Welcome audio playback error]:', err);
+    } finally {
+      setIsSpeaking(false);
+      setPendingInvite(null); // 音声が再生されたらモーダルを閉じる
+      setIsInvitationMode(false);
+    }
+  }, [pendingInvite, viewer]);
 
   const handleNameSubmit = useCallback(() => {
     const name = nameInput.trim();
@@ -851,8 +836,8 @@ export default function MainHome() {
               key={l}
               onClick={() => switchLocale(l)}
               className={`text-[15px] font-black transition-all duration-300 rounded-full select-none ${lang === l
-                  ? "bg-theme-gradient text-white shadow-md shadow-theme-blue/15 scale-100"
-                  : "text-slate-600 hover:text-slate-800 hover:bg-white/40 active:scale-95"
+                ? "bg-theme-gradient text-white shadow-md shadow-theme-blue/15 scale-100"
+                : "text-slate-600 hover:text-slate-800 hover:bg-white/40 active:scale-95"
                 }`}
               style={{
                 borderRadius: "9999px",
@@ -1281,6 +1266,57 @@ export default function MainHome() {
                 {t("policy.close")}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== WELCOME DIALOG (User gesture bypass for autoplay block) ===== */}
+      {pendingInvite && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-fadeIn">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md rounded-[2.5rem] shadow-2xl flex flex-col items-center justify-center text-center"
+            style={{
+              padding: "2.5rem 2.25rem",
+              background: "rgba(255, 255, 255, 0.72)",
+              backdropFilter: "blur(30px) saturate(140%)",
+              border: "1.5px solid rgba(255, 255, 255, 0.55)",
+              boxShadow: "0 24px 64px -16px rgba(15, 32, 67, 0.12)",
+            }}
+          >
+            {/* アイコン風デコレーション */}
+            <div
+              className="w-20 h-20 rounded-full flex items-center justify-center mb-6"
+              style={{
+                background: "rgba(255, 255, 255, 0.8)",
+                border: "1.5px solid rgba(58, 155, 213, 0.25)",
+                boxShadow: "0 8px 24px -8px rgba(15, 32, 67, 0.08)",
+                borderRadius: "9999px",
+              }}
+            >
+              <span className="text-4xl select-none">💌</span>
+            </div>
+
+            <h2 className="text-slate-800 text-2xl font-black mb-4 tracking-wide"
+              style={{ textShadow: '0 2px 10px rgba(58, 155, 213, 0.15)', color: "#0f172a" }}>
+              {lang === "ja" ? "お部屋の準備ができました" : "Your room is ready"}
+            </h2>
+            <p className="text-sm font-semibold text-slate-600 mb-8 leading-relaxed max-w-xs" style={{ color: "#475569" }}>
+              {lang === "ja"
+                ? "botたんがあなたのためにお迎えのメッセージを準備したよ！お部屋に入って聞いてみてね。"
+                : "bot-tan prepared a welcome message just for you! Enter the room to listen."}
+            </p>
+
+            <button
+              onClick={handlePlayWelcomeVoice}
+              className="w-full font-black text-white text-base shadow-md tracking-wider transition-all duration-300 hover:shadow-lg hover:brightness-105 active:scale-[0.97] bg-theme-gradient"
+              style={{
+                borderRadius: "9999px",
+                padding: "15px 32px",
+              }}
+            >
+              {lang === "ja" ? "💌 botたんからのメッセージがあります" : "💌 Message from bot-tan"}
+            </button>
           </div>
         </div>
       )}

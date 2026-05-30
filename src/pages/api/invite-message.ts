@@ -26,21 +26,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // 2. Validate input parameters
-  const { did, text } = req.body;
+  const { did, textJa, textEn } = req.body;
   if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
     return res.status(400).json({ message: 'Invalid or missing DID' });
   }
-  if (!text || typeof text !== 'string' || text.trim().length === 0) {
-    return res.status(400).json({ message: 'Invalid or missing text' });
+  if (!textJa || typeof textJa !== 'string' || textJa.trim().length === 0) {
+    return res.status(400).json({ message: 'Invalid or missing textJa' });
+  }
+  if (!textEn || typeof textEn !== 'string' || textEn.trim().length === 0) {
+    return res.status(400).json({ message: 'Invalid or missing textEn' });
   }
 
   try {
-    // 3. Synthesize speech using Voicevox API via downstream proxy
+    // 3. Synthesize speech using Voicevox API via downstream proxy (always in Japanese)
     const VOICEVOX_API_KEY = process.env.VOICEVOX_API_KEY ?? '';
     const speakerId = 8; // Hardcoded as per specifications
     const params = new URLSearchParams({
       speaker: String(speakerId),
-      text: text.trim(),
+      text: textJa.trim(),
       ...(VOICEVOX_API_KEY ? { key: VOICEVOX_API_KEY } : {}),
     });
     const upstreamUrl = `https://api.tts.quest/v3/voicevox/synthesis?${params.toString()}`;
@@ -66,7 +69,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // 5. Convert MP3 buffer to Base64 string
     const audioBase64 = Buffer.from(mp3Buffer).toString('base64');
 
-    // 6. Save text and audioBase64 to Vercel KV
+    // 6. Save texts and audioBase64 to Vercel KV
     const kv = createClient({
       url: process.env.VRM_BOT_KV_REST_API_URL,
       token: process.env.VRM_BOT_KV_REST_API_TOKEN,
@@ -75,7 +78,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     await kv.set(
       `invite:${did}`,
       {
-        text: text.trim(),
+        textJa: textJa.trim(),
+        textEn: textEn.trim(),
         audioBase64,
         createdAt: new Date().toISOString(),
       }

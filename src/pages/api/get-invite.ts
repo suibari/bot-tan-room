@@ -27,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     const key = `invite:${did}`;
-    const invite: { text: string; audioBase64: string } | null = await kv.get(key);
+    const invite: { textJa?: string; textEn?: string; text?: string; audioBase64: string } | null = await kv.get(key);
 
     if (!invite) {
       return res.status(200).json({ hasInvite: false });
@@ -37,9 +37,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log(`[API get-invite] Found invite for DID: ${did}, deleting key from KV`);
     await kv.del(key);
 
+    // 後方互換性のために、もし textJa/textEn がなければ単一の text からフォールバックする
+    const textJa = invite.textJa || invite.text || '';
+    const textEn = invite.textEn || invite.text || '';
+
     return res.status(200).json({
       hasInvite: true,
-      text: invite.text,
+      textJa,
+      textEn,
       audioBase64: invite.audioBase64,
     });
   } catch (e) {
