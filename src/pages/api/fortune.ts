@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { GEMINI_MODELS } from '@/features/constants/aiModels';
+import { checkAndIncrementDailyLimit } from '@/lib/rateLimit';
 
 // 1回の生成で日英両方を出力する。トグルは ja/en を出し分けるだけ（追加リクエストなし）。
 // 発話（VoiceVox）は常に analysis_ja を使う。
@@ -88,6 +89,16 @@ Output in EXACTLY this structure (do NOT use placeholders, output actual generat
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method Not Allowed' });
+  }
+
+  // 1日あたりのGeminiリクエスト制限チェック
+  const rateLimit = await checkAndIncrementDailyLimit();
+  if (!rateLimit.allowed) {
+    console.warn(`[API fortune] Daily Gemini request limit reached (${rateLimit.count}/${rateLimit.limit}). Blocking request.`);
+    return res.status(429).json({
+      error: 'quota_exceeded',
+      message: '今日はbotたんのお部屋は満員になっちゃった！　また明日ね！',
+    });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;

@@ -1,6 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { GEMINI_MODELS } from "@/features/constants/aiModels";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { checkAndIncrementDailyLimit } from "@/lib/rateLimit";
 
 export default async function handler(
   req: NextApiRequest,
@@ -9,6 +10,16 @@ export default async function handler(
   if (req.method !== 'POST') {
     res.status(405).json({ message: 'Method Not Allowed' });
     return;
+  }
+
+  // 1日あたりのGeminiリクエスト制限チェック
+  const rateLimit = await checkAndIncrementDailyLimit();
+  if (!rateLimit.allowed) {
+    console.warn(`[API chat] Daily Gemini request limit reached (${rateLimit.count}/${rateLimit.limit}). Blocking request.`);
+    return res.status(429).json({
+      error: 'quota_exceeded',
+      message: '今日はbotたんのお部屋は満員になっちゃった！　また明日ね！',
+    });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
