@@ -578,7 +578,7 @@ function MainHome() {
           const { done, value } = await reader.read();
           if (done) break;
           fullText += value;
-          setAssistantMessage(fullText);
+          // 表示を遅らせるため、ここでは setAssistantMessage(fullText) を行わない
         }
       } catch (e) {
         console.error(e);
@@ -624,7 +624,6 @@ function MainHome() {
         })();
       }
 
-      // テキスト表示後、発話準備スピナー → 発話
       // 表示言語に関係なく、常に日本語ブロック（[ja]）を抽出してVoiceVoxで発話する
       const jaRawText = parseLanguageContent(fullText, "ja");
       const speakText = stripEmotionTags(jaRawText);
@@ -632,14 +631,24 @@ function MainHome() {
         setIsWaitingForVoice(true);
         safeSpeak(
           speakText,
-          () => { setIsWaitingForVoice(false); setIsSpeaking(true); },
+          () => {
+            setIsWaitingForVoice(false);
+            setIsSpeaking(true);
+            // 音声が再生された瞬間にテキストを一括で表示する！
+            setAssistantMessage(fullText);
+          },
           () => setIsSpeaking(false),
           () => {
             console.warn("[handleSendChat] VoiceVox request rejected or failed.");
             setIsWaitingForVoice(false);
             setIsSpeaking(false);
+            // 失敗した際もテキストを一括で表示する！
+            setAssistantMessage(fullText);
           }
         );
+      } else {
+        // 万が一話すテキストがない場合も表示する
+        setAssistantMessage(fullText);
       }
     },
     [systemPrompt, chatLog, userName, lang, safeSpeak]
@@ -882,7 +891,7 @@ function MainHome() {
       )}
 
       {/* ===== スピナー（ボタン押下〜VoiceVox再生開始まで常に表示） ===== */}
-      {isWaitingForVoice && (
+      {((isWaitingForVoice && phase !== "chat") || (phase === "chat" && (chatProcessing || isWaitingForVoice))) && (
         <div className="absolute inset-x-0 top-1/3 z-30 flex justify-center pointer-events-none">
           <div
             className="flex flex-col items-center gap-4 px-10 py-7 rounded-3xl"
@@ -895,7 +904,9 @@ function MainHome() {
           >
             <div className="spinner-ring" />
             <span className="text-slate-800 text-base font-bold" style={{ color: "#0f172a" }}>
-              {phase === "loading" ? LABEL.loading : LABEL.voiceLoading}
+              {phase === "chat"
+                ? (lang === "ja" ? "考え中..." : "Thinking...")
+                : (phase === "loading" ? LABEL.loading : LABEL.voiceLoading)}
             </span>
             <style jsx global>{`
               .spinner-ring {
