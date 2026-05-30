@@ -1,0 +1,64 @@
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { verifyAtprotoToken } from '@/lib/jwtVerifier';
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ message: 'Method Not Allowed' });
+  }
+
+  const { did } = req.body;
+  if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
+    return res.status(400).json({ message: 'Invalid or missing DID' });
+  }
+
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
+  const isVerified = await verifyAtprotoToken(token, did);
+  if (!isVerified) {
+    console.warn(`[API visit POST] Blocked unauthorized attempt for DID: ${did}`);
+    return res.status(401).json({ message: 'Unauthorized session' });
+  }
+
+  const DB_URL = process.env.DB_URL ?? 'https://db.suibari.com';
+  const CF_ID = process.env.CF_ACCESS_CLIENT_ID;
+  const CF_SECRET = process.env.CF_ACCESS_CLIENT_SECRET;
+
+  if (!CF_ID || !CF_SECRET) {
+    console.error('Cloudflare Access Client ID/Secret not configured');
+    return res.status(500).json({ message: 'Server Configuration Error' });
+  }
+
+  const headers: HeadersInit = {
+    'Accept-Profile': 'affirmative_bot',
+    'Content-Profile': 'affirmative_bot',
+    'cf-access-client-id': CF_ID,
+    'cf-access-client-secret': CF_SECRET,
+    'Content-Type': 'application/json',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  };
+
+  try {
+    const dbRes = await fetch(
+      `${DB_URL}/followers?did=eq.${encodeURIComponent(did)}`,
+      {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          last_room_visit_at: new Date().toISOString(),
+          room_invite_sent: 0,
+        }),
+        keepalive: true,
+      }
+    );
+
+    if (!dbRes.ok) {
+      const errText = await dbRes.text().catch(() => '');
+      throw new Error(`DB update failed with status ${dbRes.status}: ${errText}`);
+    }
+
+    return res.status(200).json({ success: true });
+  } catch (e) {
+    console.error('[API visit POST error]:', e);
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+}

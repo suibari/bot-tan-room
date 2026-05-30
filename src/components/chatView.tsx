@@ -7,18 +7,19 @@ type Props = {
   isChatProcessing: boolean;
   onSend: (text: string) => void;
   quotaExceeded?: boolean;
+  isInvitationMode?: boolean;
 };
 
 const LABELS = {
-  ja: { placeholder: "メッセージを入力...", name: "botたん" },
-  en: { placeholder: "Type a message...", name: "bot-tan" },
+  ja: { placeholder: "メッセージを入力...", name: "botたん", welcome: "✨ botたんからのお迎えメッセージ..." },
+  en: { placeholder: "Type a message...", name: "bot-tan", welcome: "✨ Special Welcome from bot-tan..." },
 };
 
 /**
  * 性格診断 UI と統一したグラス調のチャット画面。
  * 上部に botたんの発言バブル、下部にテキスト＋音声入力バーを表示する。
  */
-export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quotaExceeded = false }: Props) {
+export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quotaExceeded = false, isInvitationMode = false }: Props) {
   const l = LABELS[lang];
   const [userMessage, setUserMessage] = useState("");
   const [speechRecognition, setSpeechRecognition] = useState<SpeechRecognition>();
@@ -119,8 +120,22 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quo
             </div>
           )}
 
-          {/* 入力バー もしくは リミット到達メッセージ */}
-          {quotaExceeded ? (
+          {/* 入力バー もしくは リミット到達メッセージ もしくは お迎え演出メッセージ */}
+          {isInvitationMode ? (
+            <div 
+              className="flex items-center gap-3 py-3 px-5 text-center animate-pulse justify-center shrink-0"
+              style={{
+                background: "linear-gradient(135deg, rgba(0, 205, 172, 0.1), rgba(0, 133, 255, 0.1))",
+                border: "1.5px solid rgba(0, 205, 172, 0.3)",
+                borderRadius: "9999px",
+                height: "48px",
+              }}
+            >
+              <span className="text-[15px] font-black text-theme-blue select-none tracking-wide">
+                {l.welcome}
+              </span>
+            </div>
+          ) : quotaExceeded ? (
             <div 
               className="flex flex-col items-center gap-2 py-3 text-center animate-fadeIn"
               style={{

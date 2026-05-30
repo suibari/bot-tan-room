@@ -53,6 +53,7 @@ export default function MainHome() {
   const [assistantMessage, setAssistantMessage] = useState("");
   const [showPolicy, setShowPolicy] = useState(false);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
+  const [isInvitationMode, setIsInvitationMode] = useState(false);
 
   // --- new state ---
   const [phase, setPhase] = useState<Phase>("landing");
@@ -180,6 +181,69 @@ export default function MainHome() {
           (async () => {
             try {
               const token = result.session.tokenSet.access_token;
+
+              // 1. 来訪記録の更新 (visit API呼び出し)
+              fetch('/api/visit/', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify({ did }),
+                keepalive: true
+              }).catch(err => console.error('[visit API error]:', err));
+
+              // 2. お迎えメッセージの取得と再生
+              fetch(`/api/get-invite/?did=${encodeURIComponent(did)}`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+              })
+                .then(async (inviteRes) => {
+                  if (!inviteRes.ok) return;
+                  const inviteData = await inviteRes.json();
+                  if (inviteData && inviteData.hasInvite) {
+                    setIsInvitationMode(true);
+                    setAssistantMessage(inviteData.text);
+
+                    try {
+                      const audioRes = await fetch(inviteData.audioUrl);
+                      if (!audioRes.ok) throw new Error('Audio download failed');
+                      const audioBuffer = await audioRes.arrayBuffer();
+
+                      // 準備完了するまでポーリング（最大15秒）
+                      let attempts = 0;
+                      while (!viewer.isReady && attempts < 75) {
+                        await new Promise(resolve => setTimeout(resolve, 200));
+                        attempts++;
+                      }
+
+                      if (viewer.isReady) {
+                        viewer.model?.stopSpeak();
+                        viewer.model?.emoteController?.playEmotion("excited");
+
+                        const screenplay = {
+                          expression: "excited",
+                          talk: {
+                            style: "neutral",
+                            speakerX: 3,
+                            speakerY: 3,
+                            message: inviteData.text
+                          }
+                        };
+
+                        await viewer.model?.speak(audioBuffer, screenplay as any, () => {
+                          setIsSpeaking(true);
+                        });
+                      }
+                    } catch (audioErr) {
+                      console.error('[Invitation audio playback error]:', audioErr);
+                    } finally {
+                      setIsSpeaking(false);
+                      setIsInvitationMode(false);
+                    }
+                  }
+                })
+                .catch(err => console.error('[get-invite API error]:', err));
+
               const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`, {
                 headers: token ? { 'Authorization': `Bearer ${token}` } : {}
               });
@@ -991,6 +1055,7 @@ export default function MainHome() {
           isChatProcessing={chatProcessing}
           onSend={handleSendChat}
           quotaExceeded={quotaExceeded}
+          isInvitationMode={isInvitationMode}
         />
       )}
 
