@@ -1,7 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import { GEMINI_MODELS } from "@/features/constants/aiModels";
 import type { NextApiRequest, NextApiResponse } from "next";
-import { checkAndIncrementDailyLimit } from "@/lib/rateLimit";
+import { checkAndIncrementDailyLimit, checkRateLimit } from "@/lib/rateLimit";
 
 export default async function handler(
   req: NextApiRequest,
@@ -19,6 +19,28 @@ export default async function handler(
     return res.status(429).json({
       error: 'quota_exceeded',
       message: '今日はbotたんのお部屋は満員になっちゃった！　また明日ね！',
+    });
+  }
+
+  // IP-based Rate Limit Check
+  const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'anonymous';
+  const clientIp = ip.split(',')[0].trim();
+
+  // 10 seconds frequency limit (max 5 requests)
+  const ipSecLimit = await checkRateLimit(`ip_sec:${clientIp}`, 5, 10);
+  if (!ipSecLimit.allowed) {
+    console.warn(`[API chat] IP frequency limit hit for ${clientIp}. Blocking request.`);
+    return res.status(429).json({
+      message: 'そんなに連打しちゃうとbotたん疲れちゃう！　少し待ってね。'
+    });
+  }
+
+  // 1 hour volume limit (max 100 requests)
+  const ipHourLimit = await checkRateLimit(`ip_hour:${clientIp}`, 100, 3600);
+  if (!ipHourLimit.allowed) {
+    console.warn(`[API chat] IP hourly limit hit for ${clientIp}. Blocking request.`);
+    return res.status(429).json({
+      message: '少しお話しすぎちゃったかも！　1時間後にまたお話ししようね。'
     });
   }
 
@@ -64,11 +86,26 @@ export default async function handler(
     return;
   }
 
-  // ユーザーメッセージの文字数制限（100文字）バリデーション
+  // ユーザーメッセージの文字数制限（100文字）バリデーションとサニタイズ
   if (lastMessage.parts && lastMessage.parts[0] && typeof lastMessage.parts[0].text === 'string') {
-    const userMsgText = lastMessage.parts[0].text;
+    let userMsgText = lastMessage.parts[0].text;
+
+    // 1. 文字数制限
     if (userMsgText.length > 100) {
       res.status(400).json({ message: "メッセージは100文字以内で入力してください。" });
+      return;
+    }
+
+    // 2. サニタイズ (HTMLタグ除去)
+    userMsgText = sanitizeInput(userMsgText);
+    lastMessage.parts[0].text = userMsgText;
+
+    // 3. プロンプトインジェクション検知
+    if (detectPromptInjection(userMsgText)) {
+      console.warn(`[API chat] Prompt injection detected from IP ${clientIp}: "${userMsgText}"`);
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.write("[ja][happy]あえっ？なんだか難しいことを言ってるね！botたんはあなたと普通におしゃべりしたいなー♪[en][happy]Huh? That sounds a bit too complicated for me! I just want to have a fun and normal chat with you!♪");
+      res.end();
       return;
     }
   }
@@ -189,3 +226,21 @@ function isQuotaExceededError(err: any): boolean {
     errString.includes("budget")
   );
 }
+
+function sanitizeInput(text: string): string {
+  if (!text) return "";
+  // Strip HTML tags using regex
+  return text.replace(/<[^>]*>/g, "").trim();
+}
+
+const PROMPT_INJECTION_KEYWORDS = [
+  "指示を無視", "前の指示", "システムプロンプト", "ignore previous instructions",
+  "ignore instructions", "system prompt", "you are now a", "あなたの指示",
+  "新しい指示", "開発者の指示"
+];
+
+function detectPromptInjection(text: string): boolean {
+  const lower = text.toLowerCase();
+  return PROMPT_INJECTION_KEYWORDS.some(keyword => lower.includes(keyword));
+}
+

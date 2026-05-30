@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { verifyAtprotoToken } from '@/lib/jwtVerifier';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const DB_URL = process.env.DB_URL ?? 'https://db.suibari.com';
@@ -23,6 +24,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const { did } = req.query;
     if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
       return res.status(400).json({ message: 'Invalid or missing DID' });
+    }
+
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
+    const isVerified = await verifyAtprotoToken(token, did);
+    if (!isVerified) {
+      console.warn(`[API history GET] Blocked unauthorized attempt for DID: ${did}`);
+      return res.status(401).json({ message: 'Unauthorized session' });
     }
 
     try {
@@ -58,6 +67,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     if (!Array.isArray(conv_history)) {
       return res.status(400).json({ message: 'Invalid conv_history format' });
+    }
+
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
+    const isVerified = await verifyAtprotoToken(token, did);
+    if (!isVerified) {
+      console.warn(`[API history POST] Blocked unauthorized attempt to overwrite history for DID: ${did}`);
+      return res.status(401).json({ message: 'Unauthorized session' });
     }
 
     // Safety validation of conv_history items

@@ -77,3 +77,27 @@ export async function getDailyLimitStatus(): Promise<RateLimitResult> {
     return { allowed: true, count: 0, limit };
   }
 }
+
+/**
+ * Checks and increments a custom sliding-window rate limit key (e.g., IP or DID) in Vercel KV.
+ * Fails open in case of network/KV errors to prevent service disruption.
+ */
+export async function checkRateLimit(
+  key: string,
+  limit: number,
+  windowSeconds: number
+): Promise<RateLimitResult> {
+  const redisKey = `ratelimit:${key}`;
+  try {
+    const count = await kv.incr(redisKey);
+    if (count === 1) {
+      await kv.expire(redisKey, windowSeconds);
+    }
+    const allowed = count <= limit;
+    return { allowed, count, limit };
+  } catch (error) {
+    console.error(`[RateLimit] Error checking custom rate limit for ${key}, failing open:`, error);
+    return { allowed: true, count: 0, limit };
+  }
+}
+

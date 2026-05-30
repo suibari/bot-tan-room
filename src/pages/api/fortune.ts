@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { GEMINI_MODELS } from '@/features/constants/aiModels';
-import { checkAndIncrementDailyLimit } from '@/lib/rateLimit';
+import { checkAndIncrementDailyLimit, checkRateLimit } from '@/lib/rateLimit';
 
 // 1回の生成で日英両方を出力する。トグルは ja/en を出し分けるだけ（追加リクエストなし）。
 // 発話（VoiceVox）は常に analysis_ja を使う。
@@ -101,6 +101,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 
+  // IP-based Rate Limit Check
+  const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'anonymous';
+  const clientIp = ip.split(',')[0].trim();
+
+  // 10 seconds frequency limit (max 5 requests)
+  const ipSecLimit = await checkRateLimit(`ip_sec:${clientIp}`, 5, 10);
+  if (!ipSecLimit.allowed) {
+    console.warn(`[API fortune] IP frequency limit hit for ${clientIp}. Blocking request.`);
+    return res.status(429).json({
+      message: 'そんなに連打しちゃうとbotたん疲れちゃう！　少し待ってね。'
+    });
+  }
+
+  // 1 hour volume limit (max 100 requests)
+  const ipHourLimit = await checkRateLimit(`ip_hour:${clientIp}`, 100, 3600);
+  if (!ipHourLimit.allowed) {
+    console.warn(`[API fortune] IP hourly limit hit for ${clientIp}. Blocking request.`);
+    return res.status(429).json({
+      message: '少しお話しすぎちゃったかも！　1時間後にまたお話ししようね。'
+    });
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return res.status(500).json({ message: 'API Key not configured' });
@@ -111,8 +133,47 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     lang?: 'ja' | 'en';
     answers?: AnswerItem[];
   };
-  const safeName = (name ?? 'you').slice(0, 30);
-  const safeAnswers = (answers ?? []).slice(0, 3);
+
+  // 1. 文字数制限バリデーション
+  if (name && name.length > 30) {
+    return res.status(400).json({ message: "名前は30文字以内で入力してください。" });
+  }
+  if (Array.isArray(answers)) {
+    for (const a of answers) {
+      if (a && a.answer && a.answer.length > 500) {
+        return res.status(400).json({ message: "回答は500文字以内で入力してください。" });
+      }
+    }
+  }
+
+  // 2. サニタイズ
+  const safeName = sanitizeInput(name ?? 'you').slice(0, 30);
+  const safeAnswers = (answers ?? []).slice(0, 3).map(a => ({
+    question: sanitizeInput(a.question ?? '').slice(0, 200),
+    answer: sanitizeInput(a.answer ?? '').slice(0, 500)
+  }));
+
+  // 3. プロンプトインジェクション検知
+  let hasInjection = detectPromptInjection(safeName);
+  for (const a of safeAnswers) {
+    if (detectPromptInjection(a.answer)) {
+      hasInjection = true;
+    }
+  }
+
+  if (hasInjection) {
+    console.warn(`[API fortune] Prompt injection detected from IP ${clientIp}`);
+    const mockResult: DiagnosisResult = {
+      analysis_ja: "あえっ？なんだか難しいことを言ってるね！botたんはあなたと普通におしゃべりしたいなー♪",
+      analysis_en: "Huh? That sounds a bit too complicated for me! I just want to have a fun and normal chat with you!♪",
+      comparisons: [
+        { category_ja: "動物", value_ja: "ちょっと背伸びした子猫ちゃん", category_en: "Animal", value_en: "A kitten trying to act big" },
+        { category_ja: "天気", value_ja: "いたずらな春のそよ風", category_en: "Weather", value_en: "A playful spring breeze" },
+        { category_ja: "飲み物", value_ja: "しゅわしゅわのソーダ水", category_en: "Drink", value_en: "Sparkling soda water" }
+      ]
+    };
+    return res.status(200).json(mockResult);
+  }
 
   // ランダムに3つのカテゴリを選択する
   const shuffled = [...COMPARISON_CATEGORIES].sort(() => 0.5 - Math.random());
@@ -212,3 +273,21 @@ function isQuotaExceededError(err: any): boolean {
     errString.includes("budget")
   );
 }
+
+function sanitizeInput(text: string): string {
+  if (!text) return "";
+  // Strip HTML tags using regex
+  return text.replace(/<[^>]*>/g, "").trim();
+}
+
+const PROMPT_INJECTION_KEYWORDS = [
+  "指示を無視", "前の指示", "システムプロンプト", "ignore previous instructions",
+  "ignore instructions", "system prompt", "you are now a", "あなたの指示",
+  "新しい指示", "開発者の指示"
+];
+
+function detectPromptInjection(text: string): boolean {
+  const lower = text.toLowerCase();
+  return PROMPT_INJECTION_KEYWORDS.some(keyword => lower.includes(keyword));
+}
+

@@ -1,6 +1,6 @@
 import { BrowserOAuthClient } from '@atproto/oauth-client-browser';
 
-const SCOPE = 'atproto transition:generic';
+const SCOPE = 'atproto';
 
 let _client: BrowserOAuthClient | null = null;
 

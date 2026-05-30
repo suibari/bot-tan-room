@@ -179,7 +179,10 @@ function MainHome() {
           const did = result.session.did;
           (async () => {
             try {
-              const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`);
+              const token = result.session.tokenSet.access_token;
+              const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`, {
+                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+              });
               if (!historyRes.ok) {
                 throw new Error('Failed to fetch history API');
               }
@@ -222,7 +225,10 @@ function MainHome() {
                   // データベースの更新
                   const saveRes = await fetch('/api/history', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                      'Content-Type': 'application/json',
+                      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                    },
                     body: JSON.stringify({ did, conv_history: updatedHistory }),
                   });
 
@@ -270,10 +276,9 @@ function MainHome() {
           }
 
           // プロフィール名（displayName 優先）を非同期取得して上書き
-          result.session
-            .fetchHandler(
-              `/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(result.session.did)}`
-            )
+          fetch(
+            `https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(result.session.did)}`
+          )
             .then((r: Response) => r.json())
             .then((p: { displayName?: string; handle?: string }) => {
               const name = p.displayName?.trim() || p.handle || fallback;
@@ -471,7 +476,10 @@ function MainHome() {
           ];
 
           // データベース同期
-          const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`);
+          const token = bskySessionRef.current?.tokenSet?.access_token;
+          const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`, {
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+          });
           if (historyRes.ok) {
             const historyData = await historyRes.json();
             if (historyData.isFollower) {
@@ -480,7 +488,10 @@ function MainHome() {
 
               const saveRes = await fetch('/api/history', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
                 body: JSON.stringify({ did, conv_history: updatedHistory }),
               });
 
@@ -594,7 +605,10 @@ function MainHome() {
       if (did) {
         (async () => {
           try {
-            const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`);
+            const token = bskySessionRef.current?.tokenSet?.access_token;
+            const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`, {
+              headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
             if (historyRes.ok) {
               const historyData = await historyRes.json();
               if (historyData.isFollower) {
@@ -613,7 +627,10 @@ function MainHome() {
 
                 await fetch('/api/history', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                  },
                   body: JSON.stringify({ did, conv_history: updatedHistory }),
                 });
               }
