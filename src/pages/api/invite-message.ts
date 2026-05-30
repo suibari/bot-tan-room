@@ -1,5 +1,4 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { put } from '@vercel/blob';
 import { createClient } from '@vercel/kv';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
