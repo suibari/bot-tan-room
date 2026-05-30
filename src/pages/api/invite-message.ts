@@ -66,7 +66,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // 5. Upload MP3 to Vercel Blob with addRandomSuffix=false to overwrite (1 user 1 file)
     console.log(`[API invite-message] Uploading MP3 to Vercel Blob for DID: ${did}`);
     const blob = await put(`invitations/${did}.mp3`, Buffer.from(mp3Buffer), {
-      access: 'public',
+      access: 'private',
       contentType: 'audio/mpeg',
       addRandomSuffix: false,
     });
