@@ -917,6 +917,7 @@ export default function MainHome() {
               backdropFilter: "blur(20px)",
               border: "1.5px solid rgba(255, 255, 255, 0.55)",
               boxShadow: "0 24px 64px -16px rgba(15, 32, 67, 0.12)",
+              borderRadius: "2.5rem",
             }}
           >
             <div className="spinner-ring" />
