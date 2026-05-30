@@ -39,31 +39,38 @@ export class Viewer {
     this._clock.start();
   }
 
-  public loadVrm(url: string) {
+  public async loadVrm(url: string): Promise<void> {
     if (this.model?.vrm) {
       this.unloadVRM();
     }
 
     // gltf and vrm
     this.model = new Model(this._camera || new THREE.Object3D());
-    this.model.loadVRM(url).then(async () => {
-      if (!this.model?.vrm) return;
+    await this.model.loadVRM(url);
 
-      // Disable frustum culling
-      this.model.vrm.scene.traverse((obj) => {
-        obj.frustumCulled = false;
-      });
+    if (!this.model?.vrm) return;
 
-      this._scene.add(this.model.vrm.scene);
-
-      const vrma = await loadVRMAnimation(buildUrl("/idle_loop.vrma"));
-      if (vrma) this.model.loadAnimation(vrma);
-
-      // HACK: アニメーションの原点がずれているので再生後にカメラ位置を調整する
-      requestAnimationFrame(() => {
-        this.resetCamera();
-      });
+    // Disable frustum culling
+    this.model.vrm.scene.traverse((obj) => {
+      obj.frustumCulled = false;
     });
+
+    this._scene.add(this.model.vrm.scene);
+
+    const vrma = await loadVRMAnimation(buildUrl("/idle_loop.vrma"));
+    if (vrma) this.model.loadAnimation(vrma);
+
+    // 同期的にカメラ位置を調整する
+    this.resetCamera();
+
+    // 物理演算（SpringBone）とアニメーションをウォーミングアップして、初期のぶわっとした揺れを収束させる
+    // 0.1秒刻みで15回（計1.5秒分）シミュレーションを進める
+    for (let i = 0; i < 15; i++) {
+      this.model.update(0.1);
+    }
+
+    // アニメーションが進んだ後の正しい頭の位置に合わせて再度カメラ位置をリセット
+    this.resetCamera();
   }
 
   public unloadVRM(): void {
