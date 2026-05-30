@@ -15,7 +15,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // 安全に環境変数の読み込み状況と文字数を確認するためのログ（値自体は漏洩させない）
-  console.log(`[API posts debug]: DB_URL="${DB_URL}", CF_ID=${CF_ID ? 'Configured (length=' + CF_ID.length + ')' : 'Missing'}, CF_SECRET=${CF_SECRET ? 'Configured (length=' + CF_SECRET.length + ')' : 'Missing'}`);
+  // console.log(`[API posts debug]: DB_URL="${DB_URL}", CF_ID=${CF_ID ? 'Configured (length=' + CF_ID.length + ')' : 'Missing'}, CF_SECRET=${CF_SECRET ? 'Configured (length=' + CF_SECRET.length + ')' : 'Missing'}`);
 
   const headers: HeadersInit = {
     'Accept-Profile': 'affirmative_bot',
