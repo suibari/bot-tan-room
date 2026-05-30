@@ -133,7 +133,7 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false, flat = fa
 
         {/* analysis text */}
         <p
-          className="text-slate-800 text-base sm:text-lg leading-relaxed font-bold animate-fadeIn"
+          className="text-slate-800 fortune-analysis-text leading-relaxed font-bold animate-fadeIn"
           style={{ borderLeft: '4px solid #3a9bd5', paddingLeft: '16px', color: '#1e293b' }}
         >
           {analysis}
@@ -157,20 +157,38 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false, flat = fa
         </div>
 
         {/* share buttons — KV save happens here, on click */}
-        <div className="flex gap-3 pt-2" style={{ display: 'flex', gap: '10px' }}>
+        <div className="flex pt-2" style={{ gap: '8px' }}>
           <button
             onClick={handleShareX}
             disabled={isSharingX || isSharingBsky}
-            className="flex-1 text-center text-sm font-extrabold rounded-full shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-wait"
-            style={{ background: '#0f172a', color: '#fff', padding: '10px 16px', borderRadius: '9999px' }}
+            className="flex-1 min-w-0 text-center font-extrabold rounded-full shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-wait"
+            style={{
+              background: '#0f172a',
+              color: '#fff',
+              padding: '10px 12px',
+              borderRadius: '9999px',
+              fontSize: 'clamp(11px, 3vw, 14px)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
           >
             {isSharingX ? l.sharing : l.shareX}
           </button>
           <button
             onClick={handleShareBsky}
             disabled={isSharingX || isSharingBsky}
-            className="flex-1 text-center text-sm font-extrabold rounded-full shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-wait"
-            style={{ background: '#0085ff', color: '#fff', padding: '10px 16px', borderRadius: '9999px' }}
+            className="flex-1 min-w-0 text-center font-extrabold rounded-full shadow-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-wait"
+            style={{
+              background: '#0085ff',
+              color: '#fff',
+              padding: '10px 12px',
+              borderRadius: '9999px',
+              fontSize: 'clamp(11px, 3vw, 14px)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
           >
             {isSharingBsky ? l.sharing : l.shareBsky}
           </button>

@@ -850,7 +850,7 @@ function MainHome() {
               backdropFilter: "blur(30px) saturate(140%)",
               border: "1.5px solid rgba(255, 255, 255, 0.55)",
               borderRadius: "2.5rem",
-              padding: "1.5rem 2.25rem",
+              padding: "1.5rem clamp(1rem, 4vw, 2.25rem)",
               display: "flex",
               flexDirection: "column",
               gap: "1.15rem",

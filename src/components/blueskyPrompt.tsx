@@ -106,6 +106,7 @@ export function BlueskyPrompt({ lang, isSignedIn, onSignIn }: Props) {
               border: '1.5px solid rgba(58, 155, 213, 0.25)',
               borderRadius: '9999px',
               padding: '10px 18px',
+              minWidth: '0',
             }}
             onFocus={(e) => {
               e.currentTarget.style.borderColor = 'var(--theme-blue)';
