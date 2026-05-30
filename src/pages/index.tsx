@@ -256,19 +256,22 @@ function MainHome() {
   }, [koeiroParam, koeiromapKey, viewer]);
 
 
-  const safeSpeak = useCallback((text: string, onStart?: () => void, onComplete?: () => void) => {
+  const safeSpeak = useCallback((
+    text: string,
+    onStart?: () => void,
+    onComplete?: () => void,
+    onReject?: () => void
+  ) => {
     try {
       const talks = textsToScreenplay([`[neutral]${text}`], koeiroParam);
-      const p = speakCharacter(talks[0], viewer, koeiromapKey, onStart, onComplete);
+      const p = speakCharacter(talks[0], viewer, koeiromapKey, onStart, onComplete, onReject);
       Promise.resolve(p).catch((e) => {
         console.error('VoiceVox error:', e);
-        // onStart はエラー前に呼ばれているが onComplete は呼ばれていないので補完
-        onComplete?.();
+        onReject?.();
       });
     } catch (e) {
       console.error('VoiceVox error:', e);
-      onStart?.();
-      onComplete?.();
+      onReject?.();
     }
   }, [koeiroParam, viewer, koeiromapKey]);
 
@@ -319,11 +322,11 @@ function MainHome() {
       };
 
       // VoiceVox API + MP3ダウンロード + デコードが全て完了するまで待つため
-      // タイムアウトを30秒に延長（長文テキストでも余裕を持たせる）
+      // タイムアウトを20秒に設定
       const timeoutId = setTimeout(() => {
         console.log("[handleDiagnose] Safety timeout reached, opening fortune card");
         openResult();
-      }, 30000);
+      }, 20000);
 
       safeSpeak(
         data.analysis_ja,
@@ -333,6 +336,12 @@ function MainHome() {
           openResult(); // 音声の再生開始と同時に結果画面を表示
         },
         () => setIsSpeaking(false),
+        () => {
+          console.warn("[handleDiagnose] VoiceVox request rejected or failed. Opening card immediately.");
+          clearTimeout(timeoutId);
+          setIsSpeaking(false);
+          openResult(); // 即座に診断結果を表示して、voicevoxはあきらめる
+        }
       );
     } catch (e) {
       console.error(e);
@@ -551,6 +560,11 @@ function MainHome() {
           speakText,
           () => { setIsWaitingForVoice(false); setIsSpeaking(true); },
           () => setIsSpeaking(false),
+          () => {
+            console.warn("[handleSendChat] VoiceVox request rejected or failed.");
+            setIsWaitingForVoice(false);
+            setIsSpeaking(false);
+          }
         );
       }
     },

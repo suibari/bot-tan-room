@@ -14,7 +14,8 @@ const createSpeakCharacter = () => {
     viewer: Viewer,
     koeiroApiKey: string,
     onStart?: () => void,
-    onComplete?: () => void
+    onComplete?: () => void,
+    onReject?: () => void
   ) => {
     const fetchPromise = prevFetchPromise.then(async () => {
       const now = Date.now();
@@ -42,20 +43,31 @@ const createSpeakCharacter = () => {
     });
 
     prevFetchPromise = fetchPromise;
+    let isRejected = false;
+
     prevSpeakPromise = Promise.all([fetchPromise, prevSpeakPromise]).then(
       ([audioBuffer]) => {
         if (!audioBuffer) {
-          onStart?.();
+          isRejected = true;
+          onReject?.();
           return;
         }
         // ArrayBuffer 受け取り版 speak を使う。
         // onStart は playFromArrayBuffer 内の bufferSource.start() 直前に発火する。
         return viewer.model?.speak(audioBuffer as ArrayBuffer, screenplay, onStart);
       }
-    );
+    ).catch((e) => {
+      console.error("[speakCharacter] prevSpeakPromise error:", e);
+      isRejected = true;
+      onReject?.();
+      return null;
+    });
+
     prevSpeakPromise.then(() => {
-      viewer.model?.emoteController?.playEmotion("neutral");
-      onComplete?.();
+      if (!isRejected) {
+        viewer.model?.emoteController?.playEmotion("neutral");
+        onComplete?.();
+      }
     });
 
     return prevSpeakPromise;
