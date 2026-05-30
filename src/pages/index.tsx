@@ -146,6 +146,12 @@ export default function MainHome() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingInvite]);
 
+  // lang 切替時に assistantMessage をリアクティブ更新（発話は常に textJa）
+  useEffect(() => {
+    if (!pendingInvite) return;
+    setAssistantMessage(lang === "ja" ? pendingInvite.textJa : pendingInvite.textEn);
+  }, [lang, pendingInvite]);
+
   /**
    * DiagnosisFormの質問切り替え時に呼ばれる。
    * 引数の expressionKey をそのまま playEmotion に渡す。
@@ -220,7 +226,6 @@ export default function MainHome() {
                   const inviteData = await inviteRes.json();
                   if (inviteData && inviteData.hasInvite) {
                     setIsInvitationMode(true);
-                    setAssistantMessage(lang === "ja" ? inviteData.textJa : inviteData.textEn);
                     setPendingInvite(inviteData);
                   }
                 })
@@ -398,6 +403,11 @@ export default function MainHome() {
     if (!pendingInvite || !viewer.isReady) return;
     const { textJa } = pendingInvite;
 
+    const closeDialog = () => {
+      setPendingInvite(null);
+      setIsInvitationMode(false);
+    };
+
     try {
       setIsSpeaking(true);
       const talks = textsToScreenplay([`[neutral]${textJa}`], koeiroParam);
@@ -405,13 +415,13 @@ export default function MainHome() {
       const audioBuffer = await pendingAudioRef.current;
       if (!audioBuffer) throw new Error('Audio not available');
       viewer.model?.stopSpeak();
-      await viewer.model?.speak(audioBuffer, talks[0]);
+      // onStart: 再生開始と同時にダイアログを閉じる
+      await viewer.model?.speak(audioBuffer, talks[0], closeDialog);
     } catch (err) {
       console.error('[Welcome audio playback error]:', err);
+      closeDialog();
     } finally {
       setIsSpeaking(false);
-      setPendingInvite(null);
-      setIsInvitationMode(false);
     }
   }, [pendingInvite, viewer, koeiroParam]);
 
@@ -1316,7 +1326,7 @@ export default function MainHome() {
               }}
             >
               {isSpeaking
-                ? (lang === "ja" ? "🎙️ 音声を生成中..." : "🎙️ Generating audio...")
+                ? (lang === "ja" ? "🎙️ 準備中..." : "🎙️ Preparing...")
                 : (lang === "ja" ? "💌 botたんからのメッセージがあります" : "💌 Message from bot-tan")}
             </button>
           </div>
