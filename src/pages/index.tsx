@@ -106,7 +106,7 @@ export default function MainHome() {
    */
   const getTimeBasedExpression = useCallback((): AnyExpressionKey => {
     const hour = new Date().getHours();
-    if (hour >= 5 && hour < 11)  return 'morningFace';
+    if (hour >= 5 && hour < 11) return 'morningFace';
     if (hour >= 11 && hour < 17) return 'afternoonFace';
     if (hour >= 17 && hour < 21) return 'eveningFace';
     return 'nightFace';
@@ -128,8 +128,8 @@ export default function MainHome() {
       }
     }, 200);
     return () => clearInterval(interval);
-  // viewer オブジェクトは参照が安定しているので phase の変化のみ監視
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // viewer オブジェクトは参照が安定しているので phase の変化のみ監視
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
   /**
@@ -180,7 +180,7 @@ export default function MainHome() {
           const did = result.session.did;
           (async () => {
             try {
-              const token = result.session.tokenSet.access_token;
+              const token = result.session.tokenSet?.access_token;
 
               // 1. 来訪記録の更新 (visit API呼び出し)
               fetch('/api/visit/', {
@@ -827,11 +827,10 @@ export default function MainHome() {
             <button
               key={l}
               onClick={() => switchLocale(l)}
-              className={`text-[15px] font-black transition-all duration-300 rounded-full select-none ${
-                lang === l
+              className={`text-[15px] font-black transition-all duration-300 rounded-full select-none ${lang === l
                   ? "bg-theme-gradient text-white shadow-md shadow-theme-blue/15 scale-100"
                   : "text-slate-600 hover:text-slate-800 hover:bg-white/40 active:scale-95"
-              }`}
+                }`}
               style={{
                 borderRadius: "9999px",
                 padding: "10px 24px",
@@ -869,7 +868,7 @@ export default function MainHome() {
       {/* ===== LANDING ===== */}
       {phase === "landing" && !isAuthChecking && !quotaExceeded && (
         <div className="absolute z-20 flex justify-center" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)))", top: 'auto' }}>
-          <div 
+          <div
             className="w-full max-w-xl shadow-2xl relative overflow-hidden transition-all duration-300"
             style={{
               background: "rgba(255, 255, 255, 0.72)",
@@ -941,7 +940,7 @@ export default function MainHome() {
       {/* ===== QUESTIONS ===== */}
       {phase === "questions" && !quotaExceeded && (
         <div className="absolute z-20 flex justify-center" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)))", top: 'auto' }}>
-          <div 
+          <div
             className="w-full max-w-xl shadow-2xl relative overflow-hidden transition-all duration-300"
             style={{
               background: "rgba(255, 255, 255, 0.72)",
@@ -1012,7 +1011,7 @@ export default function MainHome() {
       {/* ===== FORTUNE ===== */}
       {phase === "fortune" && fortune && !quotaExceeded && (
         <div className="absolute z-20 flex justify-center pointer-events-none" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)))", top: 'auto' }}>
-          <div 
+          <div
             className="w-full max-w-xl shadow-2xl max-h-[72vh] overflow-y-auto pointer-events-auto scrollbar-thin"
             style={{
               background: "rgba(255, 255, 255, 0.72)",
@@ -1061,11 +1060,11 @@ export default function MainHome() {
 
       {/* ===== POLICY MODAL ===== */}
       {showPolicy && (
-        <div 
+        <div
           onClick={() => setShowPolicy(false)}
           className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md cursor-pointer"
         >
-          <div 
+          <div
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-xl rounded-[2.5rem] shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-fadeIn cursor-default"
             style={{
@@ -1266,7 +1265,7 @@ export default function MainHome() {
       {/* ===== QUOTA EXCEEDED (IN-CARD BOTTOM STATE) ===== */}
       {quotaExceeded && phase !== "chat" && (
         <div className="absolute z-20 flex justify-center animate-fadeIn" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)))", top: 'auto' }}>
-          <div 
+          <div
             className="w-full max-w-xl shadow-2xl text-center"
             style={{
               padding: "1.5rem 2.25rem",
