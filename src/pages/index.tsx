@@ -200,7 +200,11 @@ export default function MainHome() {
               // 1. 来訪記録の更新 (visit API呼び出し)
               fetch('/api/visit/', {
                 method: 'POST',
-                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({ did }),
               }).catch(err => console.error('[visit API error]:', err));
 
               // 2. お迎えメッセージの取得
