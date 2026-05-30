@@ -64,6 +64,7 @@ export default function MainHome() {
   const [isWaitingForVoice, setIsWaitingForVoice] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [pendingInvite, setPendingInvite] = useState<{ textJa: string; textEn: string } | null>(null);
+  const [inviteTexts, setInviteTexts] = useState<{ textJa: string; textEn: string } | null>(null);
   const pendingAudioRef = useRef<Promise<ArrayBuffer | null>>(Promise.resolve(null));
   const nameInputRef = useRef<HTMLInputElement>(null);
   const questionAbortRef = useRef<AbortController | null>(null);
@@ -146,11 +147,11 @@ export default function MainHome() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingInvite]);
 
-  // lang 切替時に assistantMessage をリアクティブ更新（発話は常に textJa）
+  // inviteTexts + lang が変わるたびにチャットバブルを更新（ダイアログ外でも反映）
   useEffect(() => {
-    if (!pendingInvite) return;
-    setAssistantMessage(lang === "ja" ? pendingInvite.textJa : pendingInvite.textEn);
-  }, [lang, pendingInvite]);
+    if (!inviteTexts) return;
+    setAssistantMessage(lang === "ja" ? inviteTexts.textJa : inviteTexts.textEn);
+  }, [lang, inviteTexts]);
 
   /**
    * DiagnosisFormの質問切り替え時に呼ばれる。
@@ -226,6 +227,7 @@ export default function MainHome() {
                   const inviteData = await inviteRes.json();
                   if (inviteData && inviteData.hasInvite) {
                     setIsInvitationMode(true);
+                    setInviteTexts({ textJa: inviteData.textJa, textEn: inviteData.textEn });
                     setPendingInvite(inviteData);
                   }
                 })
@@ -625,6 +627,7 @@ export default function MainHome() {
       if (!text) return;
       setChatProcessing(true);
       setAssistantMessage("");
+      setInviteTexts(null); // チャット開始時に招待テキストの追従を解除
       const messageLog: Message[] = [
         ...chatLog,
         { role: "user", content: text, userName },
