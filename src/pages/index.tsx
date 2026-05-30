@@ -6,6 +6,7 @@ import {
   Message,
   textsToScreenplay,
 } from "@/features/messages/messages";
+import type { AnyExpressionKey } from "@/features/emoteController/expressionController";
 import { speakCharacter } from "@/features/messages/speakCharacter";
 import { SYSTEM_PROMPT } from "@/features/constants/systemPromptConstants";
 import { KoeiroParam, DEFAULT_PARAM } from "@/features/constants/koeiroParam";
@@ -94,6 +95,53 @@ function MainHome() {
         console.error("Failed to check quota on load:", err);
       });
   }, []);
+
+  /**
+   * 現在時刻から時間帯別の表情キーを返すヸルパー関数。
+   * 05:00【10:59 → morningFace（朗か落ち着いた朝）
+   * 11:00【16:59 → afternoonFace（元気な昼）
+   * 17:00【20:59 → eveningFace（リラックスした夕方）
+   * 21:00【04:59 → nightFace（眠そうな夜）
+   */
+  const getTimeBasedExpression = useCallback((): AnyExpressionKey => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 11)  return 'morningFace';
+    if (hour >= 11 && hour < 17) return 'afternoonFace';
+    if (hour >= 17 && hour < 21) return 'eveningFace';
+    return 'nightFace';
+  }, []);
+
+  /**
+   * VRM Viewerの準備完了（isReady）を検知して、
+   * landing フェーズの時間帯別表情を適用する。
+   * Viewerの初期化には数秒かかるため、ポーリングで待機する。
+   */
+  useEffect(() => {
+    if (phase !== 'landing' && phase !== 'questions') return;
+    const interval = setInterval(() => {
+      if (viewer.isReady) {
+        clearInterval(interval);
+        const expr = getTimeBasedExpression();
+        console.log(`[TimeExpression] Applying ${expr} (hour: ${new Date().getHours()})`);
+        viewer.model?.emoteController?.playEmotion(expr);
+      }
+    }, 200);
+    return () => clearInterval(interval);
+  // viewer オブジェクトは参照が安定しているので phase の変化のみ監視
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  /**
+   * DiagnosisFormの質問切り替え時に呼ばれる。
+   * 引数の expressionKey をそのまま playEmotion に渡す。
+   */
+  const handleQuestionExpression = useCallback((expressionKey: string) => {
+    if (viewer.isReady) {
+      console.log(`[QuestionExpression] Applying ${expressionKey}`);
+      viewer.model?.emoteController?.playEmotion(expressionKey as AnyExpressionKey);
+    }
+  }, [viewer]);
+
 
   // Restore persisted settings + OAuth client pre-load
   useEffect(() => {
@@ -337,6 +385,8 @@ function MainHome() {
         setIsWaitingForVoice(false);
         setFortune(data);
         setPhase("fortune");
+        // 診断結果表示時に表情を excited (驚き＋喜び) に切り替える
+        viewer.model?.emoteController?.playEmotion("excited");
       };
 
       // VoiceVox API + MP3ダウンロード + デコードが全て完了するまで待つため
@@ -353,12 +403,18 @@ function MainHome() {
           setIsSpeaking(true);
           openResult(); // 音声の再生開始と同時に結果画面を表示
         },
-        () => setIsSpeaking(false),
+        () => {
+          setIsSpeaking(false);
+          // 診断結果の読み上げ完了時に表情を gentle (穏やか) に切り替える
+          viewer.model?.emoteController?.playEmotion("gentle");
+        },
         () => {
           console.warn("[handleDiagnose] VoiceVox request rejected or failed. Opening card immediately.");
           clearTimeout(timeoutId);
           setIsSpeaking(false);
           openResult(); // 即座に診断結果を表示して、voicevoxはあきらめる
+          // 音声再生に失敗した際も表情を gentle (穏やか) に切り替える
+          viewer.model?.emoteController?.playEmotion("gentle");
         }
       );
     } catch (e) {
@@ -819,6 +875,7 @@ function MainHome() {
               lang={lang}
               onSubmit={handleDiagnose}
               onQuestionShow={speakQuestion}
+              onExpressionChange={handleQuestionExpression}
             />
           </div>
         </div>

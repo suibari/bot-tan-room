@@ -7,6 +7,8 @@ type Props = {
   lang: 'ja' | 'en';
   onSubmit: (answers: AnswerItem[]) => void;
   onQuestionShow?: (text: string) => void;
+  /** 質問が切り替わるたびに発火。引数は表情キー文字列 */
+  onExpressionChange?: (expressionKey: string) => void;
 };
 
 const LABELS = {
@@ -24,7 +26,13 @@ const LABELS = {
   },
 };
 
-export function DiagnosisForm({ lang, onSubmit, onQuestionShow }: Props) {
+/**
+ * 質問回答中にランダムで切り替える表情キーの候補リスト。
+ * 喜んだり、考えたり、リラックスしたりする表情を含めます。
+ */
+const QUESTION_EXPRESSIONS = ['thinking', 'halfHappy', 'gentle', 'relaxed'] as const;
+
+export function DiagnosisForm({ lang, onSubmit, onQuestionShow, onExpressionChange }: Props) {
   const l = LABELS[lang];
 
   const selectedQuestions = useMemo(() => {
@@ -40,6 +48,9 @@ export function DiagnosisForm({ lang, onSubmit, onQuestionShow }: Props) {
     // 選択されたUI言語に関わらず、発話は常に日本語のテキストを使用する
     const text = selectedQuestions[currentIndex].ja;
     onQuestionShow?.(text);
+    // 質問ごとに候補リストからランダムで表情を切り替える
+    const randomExpr = QUESTION_EXPRESSIONS[Math.floor(Math.random() * QUESTION_EXPRESSIONS.length)];
+    onExpressionChange?.(randomExpr);
   // selectedQuestions は useMemo で固定。currentIndex の変化のみ追跡
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIndex]);

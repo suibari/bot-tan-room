@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { VRM, VRMExpressionPresetName } from "@pixiv/three-vrm";
-import { ExpressionController } from "./expressionController";
+import { ExpressionController, AnyExpressionKey } from "./expressionController";
 
 /**
  * 感情表現としてExpressionとMotionを操作する為のクラス
@@ -13,7 +13,8 @@ export class EmoteController {
     this._expressionController = new ExpressionController(vrm, camera);
   }
 
-  public playEmotion(preset: VRMExpressionPresetName) {
+  /** VRMプリセット名または合成表情キーを受け付ける */
+  public playEmotion(preset: AnyExpressionKey) {
     this._expressionController.playEmotion(preset);
   }
 

@@ -29,7 +29,7 @@ export function parseLanguageContent(text: string, lang: 'ja' | 'en'): string {
  * from the text, while keeping other content.
  */
 export function stripEmotionTags(text: string): string {
-  return text.replace(/\[(neutral|happy|angry|sad|relaxed)\]/g, '').trim();
+  return text.replace(/\[(neutral|happy|angry|sad|relaxed|surprised|halfHappy|thinking|excited|gentle|morningFace|afternoonFace|eveningFace|nightFace)\]/g, '').trim();
 }
 
 /**
@@ -37,6 +37,6 @@ export function stripEmotionTags(text: string): string {
  * Returns the first emotion tag found, or 'neutral' if none is found.
  */
 export function extractEmotion(text: string): string {
-  const match = text.match(/\[(neutral|happy|angry|sad|relaxed)\]/);
+  const match = text.match(/\[(neutral|happy|angry|sad|relaxed|surprised|halfHappy|thinking|excited|gentle|morningFace|afternoonFace|eveningFace|nightFace)\]/);
   return match ? match[1] : 'neutral';
 }
