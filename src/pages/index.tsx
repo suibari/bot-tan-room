@@ -61,7 +61,6 @@ function MainHome() {
   const [isAuthChecking, setIsAuthChecking] = useState(true); // OAuth init 解決まで true
   const [isWaitingForVoice, setIsWaitingForVoice] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isLangLocked, setIsLangLocked] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const questionAbortRef = useRef<AbortController | null>(null);
   // OAuth クライアントをマウント時に事前ロードして signInRedirect がすぐ呼べるようにする
@@ -173,8 +172,8 @@ function MainHome() {
                 }
 
                 // チャット履歴（chatLog）にロードして画面に表示
-                const mappedLog = currentHistory.map((msg: any) => ({
-                  role: msg.role === 'model' ? 'assistant' : 'user',
+                const mappedLog: Message[] = currentHistory.map((msg: any) => ({
+                  role: (msg.role === 'model' ? 'assistant' : 'user') as "user" | "assistant",
                   content: msg.parts?.[0]?.text || '',
                 }));
                 setChatLog(mappedLog);
@@ -279,7 +278,6 @@ function MainHome() {
   const handleDiagnose = useCallback(async (answers: AnswerItem[]) => {
     setIsWaitingForVoice(true);
     setPhase("loading");
-    setIsLangLocked(true); // 診断開始時に言語をロック
 
     try {
       const res = await fetch("/api/fortune", {
@@ -289,7 +287,6 @@ function MainHome() {
       });
       if (res.status === 429) {
         setIsWaitingForVoice(false);
-        setIsLangLocked(false);
         setQuotaExceeded(true);
         return;
       }
@@ -330,7 +327,6 @@ function MainHome() {
     } catch (e) {
       console.error(e);
       setIsWaitingForVoice(false);
-      setIsLangLocked(false); // 失敗時はロック解除
       setPhase("questions");
     }
   }, [userName, lang, safeSpeak]);
@@ -345,9 +341,77 @@ function MainHome() {
     await client.signInRedirect(handle, { state: handle });
   }, [lang]);
 
-  const handleStartChat = useCallback(() => {
+  const handleStartChat = useCallback(async () => {
     setPhase("chat");
-  }, []);
+
+    const did = bskySessionRef.current?.did;
+    if (isSignedIn && did) {
+      try {
+        const pendingAnswersStr = window.localStorage.getItem('pending_diagnosis_answers');
+        const pendingResultStr = window.localStorage.getItem('pending_diagnosis_result');
+        const pendingLangStr = window.localStorage.getItem('pending_diagnosis_lang') || 'ja';
+
+        if (pendingAnswersStr && pendingResultStr) {
+          const pendingAnswers = JSON.parse(pendingAnswersStr);
+          const pendingResult = JSON.parse(pendingResultStr);
+
+          // 3つの回答を綺麗に1つに整形
+          const userText = pendingAnswers
+            .map((a: AnswerItem, i: number) => `質問${i + 1}: ${a.question}\n回答${i + 1}: ${a.answer}`)
+            .join('\n\n');
+
+          // ローカルストレージの言語に応じた診断結果テキストにプレフィックスを付与して保存
+          const baseModelText = pendingLangStr === 'en' ? pendingResult.analysis_en : pendingResult.analysis_ja;
+          const modelText = pendingLangStr === 'en' ? `Diagnosis Result: ${baseModelText}` : `診断結果：${baseModelText}`;
+
+          const newPairs = [
+            {
+              role: 'user',
+              parts: [{ text: userText }]
+            },
+            {
+              role: 'model',
+              parts: [{ text: modelText }]
+            }
+          ];
+
+          // データベース同期
+          const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`);
+          if (historyRes.ok) {
+            const historyData = await historyRes.json();
+            if (historyData.isFollower) {
+              const currentHistory = historyData.conv_history || [];
+              const updatedHistory = [...currentHistory, ...newPairs];
+
+              const saveRes = await fetch('/api/history', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ did, conv_history: updatedHistory }),
+              });
+
+              if (saveRes.ok) {
+                // 保存に成功したらチャットログを更新
+                const mappedNewPairs: Message[] = newPairs.map((msg: any) => ({
+                  role: (msg.role === 'model' ? 'assistant' : 'user') as "user" | "assistant",
+                  content: msg.parts?.[0]?.text || '',
+                }));
+                setChatLog((prev) => [...prev, ...mappedNewPairs]);
+
+                // ローカルストレージの一時データをクリア
+                window.localStorage.removeItem('pending_diagnosis_answers');
+                window.localStorage.removeItem('pending_diagnosis_result');
+                window.localStorage.removeItem('pending_diagnosis_lang');
+              } else {
+                console.error('Failed to save updated history to DB in handleStartChat');
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[Sync diagnosis in handleStartChat error]:', err);
+      }
+    }
+  }, [isSignedIn]);
 
   const handleSignOut = useCallback(async () => {
     try {
@@ -362,7 +426,6 @@ function MainHome() {
     setUserName('');
     setNameInput('');
     setChatLog([]);
-    setIsLangLocked(false); // サインアウト時にロック解除
     setPhase('landing');
   }, []);
 
@@ -381,10 +444,6 @@ function MainHome() {
         { role: "user", content: text, userName },
       ];
       setChatLog(messageLog);
-
-      // 初回送信時に言語ロックを確実に行う
-      setIsLangLocked(true);
-
       // 統合型システム指示: 常に [ja]日本語 [en]英語 の両方を同時に出力させる。
       // 表示は lang で切り替え、発話は常に [ja] ブロックを使う。
       const langDirective =
@@ -568,27 +627,17 @@ function MainHome() {
             background: "rgba(255, 255, 255, 0.65)",
             backdropFilter: "blur(20px)",
             border: "1px solid rgba(255, 255, 255, 0.45)",
-            opacity: isLangLocked ? 0.6 : 1,
             boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
             borderRadius: "9999px",
             display: "flex",
             alignItems: "center",
           }}
         >
-          {isLangLocked && (
-            <div className="flex items-center pl-3 pr-1 text-slate-400 select-none">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-              </svg>
-            </div>
-          )}
           {(["en", "ja"] as const).map((l) => (
             <button
               key={l}
-              disabled={isLangLocked}
               onClick={() => switchLocale(l)}
-              className={`text-[15px] font-black transition-all duration-300 rounded-full disabled:cursor-not-allowed select-none ${
+              className={`text-[15px] font-black transition-all duration-300 rounded-full select-none ${
                 lang === l
                   ? "bg-theme-gradient text-white shadow-md shadow-theme-blue/15 scale-100"
                   : "text-slate-600 hover:text-slate-800 hover:bg-white/40 active:scale-95"
