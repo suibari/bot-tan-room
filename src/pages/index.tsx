@@ -1020,10 +1020,88 @@ function MainHome() {
             <div className="flex-1 overflow-y-auto py-4 pr-1 text-slate-700 space-y-4 scrollbar-thin text-sm leading-relaxed font-medium">
               <div className="space-y-1">
                 <h3 className="font-extrabold text-base flex items-center gap-1.5" style={{ color: "#0085ff" }}>
+                  {t("policy.aboutTitle")}
+                </h3>
+                <p className="text-slate-600 text-xs pl-0">
+                  {lang === "ja" ? (
+                    <>
+                      <span>
+                        これはBlueskyのbot、全肯定botたん（Blueskyプロフィール:{" "}
+                        <a
+                          href="https://bsky.app/profile/bot-tan.suibari.com"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:underline font-extrabold"
+                          style={{ color: "#0085ff" }}
+                        >
+                          bot-tan.suibari.com
+                        </a>
+                        ）とお話できるアプリです。
+                      </span>
+                      <br />
+                      <span className="block mt-1">
+                        全肯定botたんは、開発者がデザインしたみんなを励ますのが好きな女の子です。詳しくは
+                        <a
+                          href="https://suibari.com/character"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:underline font-extrabold"
+                          style={{ color: "#0085ff" }}
+                        >
+                          紹介ページ
+                        </a>
+                        をご覧ください。
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span>
+                        This app allows you to talk to the Bluesky bot, Zenkoitei Bot-tan (Bluesky Profile:{" "}
+                        <a
+                          href="https://bsky.app/profile/bot-tan.suibari.com"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:underline font-extrabold"
+                          style={{ color: "#0085ff" }}
+                        >
+                          bot-tan.suibari.com
+                        </a>
+                        ).
+                      </span>
+                      <br />
+                      <span className="block mt-1">
+                        Zenkoitei Bot-tan is a girl who loves to encourage everyone, designed by the developer. For more details, please visit her{" "}
+                        <a
+                          href="https://suibari.com/character"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:underline font-extrabold"
+                          style={{ color: "#0085ff" }}
+                        >
+                          character page
+                        </a>
+                        .
+                      </span>
+                    </>
+                  )}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="font-extrabold text-base flex items-center gap-1.5" style={{ color: "#0085ff" }}>
                   {t("policy.aiTitle")}
                 </h3>
                 <p className="text-slate-600 text-xs pl-0">
                   {t("policy.aiText")}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="font-extrabold text-base flex items-center gap-1.5" style={{ color: "#0085ff" }}>
+                  {t("policy.historyTitle")}
+                </h3>
+                <p className="text-slate-600 text-xs pl-0">
+                  {t("policy.historyText")}
                 </p>
               </div>
 
