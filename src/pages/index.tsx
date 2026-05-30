@@ -180,7 +180,8 @@ export default function MainHome() {
           const did = result.session.did;
           (async () => {
             try {
-              const token = result.session.tokenSet?.access_token;
+              const tokenSet = await (result.session as any).getTokenSet();
+              const token = tokenSet?.access_token;
 
               // 1. 来訪記録の更新 (visit API呼び出し)
               fetch('/api/visit/', {
@@ -540,7 +541,8 @@ export default function MainHome() {
           ];
 
           // データベース同期
-          const token = bskySessionRef.current?.tokenSet?.access_token;
+          const tokenSet = await (bskySessionRef.current as any)?.getTokenSet();
+          const token = tokenSet?.access_token;
           const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`, {
             headers: token ? { 'Authorization': `Bearer ${token}` } : {}
           });
@@ -669,7 +671,8 @@ export default function MainHome() {
       if (did) {
         (async () => {
           try {
-            const token = bskySessionRef.current?.tokenSet?.access_token;
+            const tokenSet = await (bskySessionRef.current as any)?.getTokenSet();
+            const token = tokenSet?.access_token;
             const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`, {
               headers: token ? { 'Authorization': `Bearer ${token}` } : {}
             });
