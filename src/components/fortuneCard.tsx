@@ -86,8 +86,8 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false, flat = fa
       const shareUrl = await buildShareUrl();
       const shareText =
         lang === 'ja'
-          ? `${name}の全肯定診断 🌸\n${analysis}\n\n${compSummary}\n\nBotたんのお部屋で診断してもらった👉 ${shareUrl}`
-          : `${name}'s diagnosis from Bot-tan's Room 🌸\n${analysis}\n\n${compSummary}\n\nVisit Bot-tan's Room 👉 ${shareUrl}`;
+          ? `${name}さんとお部屋で話したよ 🌸\n${analysis}\n\n${compSummary}\n\nBotたんのお部屋 👉 ${shareUrl}\n\n#botたんのお部屋`
+          : `${name} talked in Bot-tan's Room 🌸\n${analysis}\n\n${compSummary}\n\nVisit Bot-tan's Room 👉 ${shareUrl}\n\n#BottanRoom`;
       window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`, '_blank');
     } finally {
       setIsSharingX(false);
@@ -101,8 +101,8 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false, flat = fa
       const shareUrl = await buildShareUrl();
       const shareText =
         lang === 'ja'
-          ? `${name}の全肯定診断 🌸\n${analysis}\n\n${compSummary}\n\nBotたんのお部屋で診断してもらった👉 ${shareUrl}`
-          : `${name}'s diagnosis from Bot-tan's Room 🌸\n${analysis}\n\n${compSummary}\n\nVisit Bot-tan's Room 👉 ${shareUrl}`;
+          ? `${name}さんとお部屋で話したよ 🌸\n${analysis}\n\n${compSummary}\n\nBotたんのお部屋 👉 ${shareUrl}\n\n#botたんのお部屋`
+          : `${name} talked in Bot-tan's Room 🌸\n${analysis}\n\n${compSummary}\n\nVisit Bot-tan's Room 👉 ${shareUrl}\n\n#BottanRoom`;
       window.open(`https://bsky.app/intent/compose?text=${encodeURIComponent(shareText)}`, '_blank');
     } finally {
       setIsSharingBsky(false);

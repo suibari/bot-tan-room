@@ -6,14 +6,17 @@ export const config = { runtime: 'edge' };
 export default async function handler(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const name = (searchParams.get('name') ?? 'you').slice(0, 30);
-  const analysis = (searchParams.get('analysis') ?? '').slice(0, 100);
+
+  const rawAnalysis = searchParams.get('analysis') ?? '';
+  const analysis = rawAnalysis.length > 130 ? rawAnalysis.slice(0, 127) + '...' : rawAnalysis;
+
   const c1 = searchParams.get('c1') ?? '';
   const c2 = searchParams.get('c2') ?? '';
   const c3 = searchParams.get('c3') ?? '';
   const lang = searchParams.get('lang') === 'ja' ? 'ja' : 'en';
 
-  const title = lang === 'ja' ? '全肯定診断' : 'Personality Diagnosis';
-  const footer = 'bot-tan on Bluesky @bot-tan.bsky.social';
+  const title = lang === 'ja' ? 'botたんのお部屋' : "Bot-tan's Room";
+  const footer = '全肯定botたん on Bluesky @bot-tan.suibari.com';
 
   const comparisons = [c1, c2, c3].filter(Boolean);
 
@@ -69,9 +72,9 @@ export default async function handler(req: NextRequest) {
         <div
           style={{
             color: 'rgba(255,255,255,0.92)',
-            fontSize: 26,
-            lineHeight: 1.7,
-            marginTop: 24,
+            fontSize: 24,
+            lineHeight: 1.6,
+            marginTop: 20,
             borderLeft: '4px solid rgba(160,180,255,0.8)',
             paddingLeft: 24,
             maxWidth: 960,

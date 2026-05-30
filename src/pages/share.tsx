@@ -71,7 +71,8 @@ export const getServerSideProps: GetServerSideProps = async ({ query }) => {
       if (data && typeof data === 'object') {
         name = String(data.name ?? 'you').slice(0, 30);
         lang = data.lang === 'en' ? 'en' : 'ja';
-        analysis = String(lang === 'ja' ? (data.analysis_ja ?? '') : (data.analysis_en ?? '')).slice(0, 100);
+        const rawAnalysis = String(lang === 'ja' ? (data.analysis_ja ?? '') : (data.analysis_en ?? ''));
+        analysis = rawAnalysis.length > 130 ? rawAnalysis.slice(0, 127) + '...' : rawAnalysis;
 
         if (Array.isArray(data.comparisons) && data.comparisons.length >= 3) {
           const comps = data.comparisons;
@@ -99,7 +100,8 @@ export const getServerSideProps: GetServerSideProps = async ({ query }) => {
   // 後方互換性のために従来のクエリパラメータを使用する
   if (!hasLoadedFromKV) {
     name = String(query.name ?? 'you').slice(0, 30);
-    analysis = String(query.analysis ?? '').slice(0, 100);
+    const rawAnalysis = String(query.analysis ?? '');
+    analysis = rawAnalysis.length > 130 ? rawAnalysis.slice(0, 127) + '...' : rawAnalysis;
     c1 = String(query.c1 ?? '');
     c2 = String(query.c2 ?? '');
     c3 = String(query.c3 ?? '');
@@ -108,7 +110,7 @@ export const getServerSideProps: GetServerSideProps = async ({ query }) => {
 
   const ogImageUrl = `${BASE}/api/og?${new URLSearchParams({ name, analysis, c1, c2, c3, lang })}`;
   const title =
-    lang === 'ja' ? `${name}の全肯定診断結果 — bot-tan` : `${name}'s Personality Diagnosis — bot-tan`;
+    lang === 'ja' ? `${name}さんとお部屋で話したよ — bot-tan` : `${name} talked in Bot-tan's Room`;
   const description = analysis;
 
   return { props: { ogImageUrl, title, description } };
