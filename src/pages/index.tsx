@@ -70,7 +70,7 @@ function MainHome() {
 
   // OGP base URL
   const BASE_URL =
-    process.env.NEXT_PUBLIC_BASE_URL ?? "https://guestbook.suibari.com";
+    process.env.NEXT_PUBLIC_BASE_URL ?? "https://room-bot-tan.suibari.com";
 
   const routerRef = useRef(router);
   useEffect(() => {

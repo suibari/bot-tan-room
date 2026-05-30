@@ -41,7 +41,7 @@ export default function SharePage({ ogImageUrl, title, description }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps = async ({ query }) => {
-  const BASE = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://guestbook.suibari.com';
+  const BASE = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://room-bot-tan.suibari.com';
   const id = query.id ? String(query.id) : null;
 
   let name = 'you';

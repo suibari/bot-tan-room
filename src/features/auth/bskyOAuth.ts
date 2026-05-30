@@ -5,7 +5,7 @@ const SCOPE = 'atproto transition:generic';
 let _client: BrowserOAuthClient | null = null;
 
 function createClient(): BrowserOAuthClient {
-  const base = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://guestbook.suibari.com';
+  const base = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://room-bot-tan.suibari.com';
   const hostname = window.location.hostname;
   const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
 
@@ -23,7 +23,7 @@ function createClient(): BrowserOAuthClient {
       allowHttp: true,
       clientMetadata: {
         client_id: clientId,
-        client_name: 'bot-tan Guestbook (dev)',
+        client_name: 'bot-tanのお部屋 (dev)',
         client_uri: origin,
         redirect_uris: [redirectUri],
         grant_types: ['authorization_code', 'refresh_token'],
@@ -41,7 +41,7 @@ function createClient(): BrowserOAuthClient {
     handleResolver: 'https://bsky.social',
     clientMetadata: {
       client_id: `${base}/client-metadata.json`,
-      client_name: 'bot-tan Guestbook',
+      client_name: 'bot-tanのお部屋',
       client_uri: base,
       redirect_uris: [redirectUri],
       grant_types: ['authorization_code', 'refresh_token'],

@@ -1,12 +1,12 @@
 {
-  "client_id": "https://guestbook.suibari.com/client-metadata.json",
-  "client_name": "bot-tan Guestbook",
-  "client_uri": "https://guestbook.suibari.com",
+  "client_id": "https://room-bot-tan.suibari.com/client-metadata.json",
+  "client_name": "bot-tanのお部屋",
+  "client_uri": "https://room-bot-tan.suibari.com",
   "application_type": "web",
   "grant_types": ["authorization_code", "refresh_token"],
   "response_types": ["code"],
   "token_endpoint_auth_method": "none",
   "dpop_bound_access_tokens": true,
   "scope": "atproto transition:generic",
-  "redirect_uris": ["https://guestbook.suibari.com/"]
+  "redirect_uris": ["https://room-bot-tan.suibari.com/"]
 }
