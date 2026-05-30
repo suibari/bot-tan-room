@@ -45,7 +45,7 @@ export class LipSync {
     }
   }
 
-  public async playFromArrayBuffer(buffer: ArrayBuffer, onEnded?: () => void) {
+  public async playFromArrayBuffer(buffer: ArrayBuffer, onEnded?: () => void, onPlayStart?: () => void) {
     this.stop();
     if (this.audio.state === "suspended") {
       await this.audio.resume();
@@ -59,6 +59,10 @@ export class LipSync {
     // analyser を destination の前段に接続（リップシンク + 音声出力）
     bufferSource.connect(this.analyser);
     this.analyser.connect(this.audio.destination);
+    
+    // 再生が開始される直前にコールバックを実行
+    onPlayStart?.();
+    
     bufferSource.start();
     bufferSource.addEventListener("ended", () => {
       if (this._currentSource === bufferSource) this._currentSource = null;
@@ -66,10 +70,16 @@ export class LipSync {
     });
   }
 
-  public async playFromURL(url: string, onEnded?: () => void) {
-    const res = await fetch(url);
-    const buffer = await res.arrayBuffer();
-    await this.playFromArrayBuffer(buffer, onEnded);
+  public async playFromURL(url: string, onEnded?: () => void, onPlayStart?: () => void) {
+    try {
+      const res = await fetch(url);
+      const buffer = await res.arrayBuffer();
+      await this.playFromArrayBuffer(buffer, onEnded, onPlayStart);
+    } catch (e) {
+      console.error("[LipSync] playFromURL error:", e);
+      onPlayStart?.();
+      onEnded?.();
+    }
   }
 
   /**
@@ -77,17 +87,19 @@ export class LipSync {
    * VoiceVox の mp3StreamingUrl は真のストリームではないため、
    * 先に全取得してからデコードすることで再生途切れを防ぐ。
    */
-  public async playFromStream(url: string, onEnded?: () => void) {
+  public async playFromStream(url: string, onEnded?: () => void, onPlayStart?: () => void) {
     if (typeof window === "undefined") {
+      onPlayStart?.();
       onEnded?.();
       return;
     }
     try {
       const res = await fetch(url);
       const buffer = await res.arrayBuffer();
-      await this.playFromArrayBuffer(buffer, onEnded);
+      await this.playFromArrayBuffer(buffer, onEnded, onPlayStart);
     } catch (e) {
       console.error("[LipSync] playFromStream fetch error:", e);
+      onPlayStart?.();
       onEnded?.();
     }
   }

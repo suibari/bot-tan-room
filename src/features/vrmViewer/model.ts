@@ -73,21 +73,21 @@ export class Model {
     this._lipSync?.stop();
   }
 
-  public async speak(buffer: ArrayBuffer, screenplay: Screenplay) {
+  public async speak(buffer: ArrayBuffer, screenplay: Screenplay, onPlayStart?: () => void) {
     this.emoteController?.playEmotion(screenplay.expression);
     await new Promise((resolve) => {
       this._lipSync?.playFromArrayBuffer(buffer, () => {
         resolve(true);
-      });
+      }, onPlayStart);
     });
   }
 
-  public async speakStream(url: string, screenplay: Screenplay) {
+  public async speakStream(url: string, screenplay: Screenplay, onPlayStart?: () => void) {
     this.emoteController?.playEmotion(screenplay.expression);
     await new Promise((resolve) => {
       this._lipSync?.playFromStream(url, () => {
         resolve(true);
-      });
+      }, onPlayStart);
     });
   }
 

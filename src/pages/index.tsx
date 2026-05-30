@@ -241,12 +241,20 @@ function MainHome() {
       const talks = textsToScreenplay([`[neutral]${text}`], koeiroParam);
       const url = await fetchAudioUrl(talks[0].talk, koeiromapKey).catch(() => null);
       if (controller.signal.aborted || !url) return;
+
+      // MP3をダウンロード → バッファで渡す
+      const res = await fetch(url);
+      if (controller.signal.aborted) return;
+      const buffer = await res.arrayBuffer();
+      if (controller.signal.aborted) return;
+
       viewer.model?.stopSpeak();
-      await viewer.model?.speakStream(url, talks[0]);
+      await viewer.model?.speak(buffer, talks[0]);
     } catch (e) {
       if (!controller.signal.aborted) console.error('Question VoiceVox error:', e);
     }
   }, [koeiroParam, koeiromapKey, viewer]);
+
 
   const safeSpeak = useCallback((text: string, onStart?: () => void, onComplete?: () => void) => {
     try {
@@ -298,29 +306,31 @@ function MainHome() {
       window.localStorage.setItem('pending_diagnosis_lang', lang);
       window.localStorage.setItem('pending_diagnosis_result', JSON.stringify(data));
 
-      const voiceText = data.analysis_ja;
-
       let hasOpened = false;
+      // openResult は必ず isWaitingForVoice=false も行う。
+      // これにより、タイムアウト経由でも onStart 経由でも
+      // カードが開いた瞬間に「声を準備してるよ...」スピナーが絶対に消える。
       const openResult = () => {
         if (hasOpened) return;
         hasOpened = true;
+        setIsWaitingForVoice(false);
         setFortune(data);
         setPhase("fortune");
       };
 
-      // 音声の準備が遅れた場合のセーフティ用タイムアウト（最大5.5秒で強制表示）
+      // VoiceVox API + MP3ダウンロード + デコードが全て完了するまで待つため
+      // タイムアウトを30秒に延長（長文テキストでも余裕を持たせる）
       const timeoutId = setTimeout(() => {
         console.log("[handleDiagnose] Safety timeout reached, opening fortune card");
         openResult();
-      }, 5500);
+      }, 30000);
 
       safeSpeak(
-        voiceText,
+        data.analysis_ja,
         () => {
           clearTimeout(timeoutId);
-          setIsWaitingForVoice(false);
           setIsSpeaking(true);
-          openResult(); // 音声の再生開始と同時に結果画面を表示！
+          openResult(); // 音声の再生開始と同時に結果画面を表示
         },
         () => setIsSpeaking(false),
       );
@@ -330,6 +340,8 @@ function MainHome() {
       setPhase("questions");
     }
   }, [userName, lang, safeSpeak]);
+
+
 
   const handleSignIn = useCallback(async (handle: string) => {
     // サインイン前の言語を退避

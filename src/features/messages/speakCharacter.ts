@@ -26,17 +26,31 @@ const createSpeakCharacter = () => {
         () => null
       );
       lastTime = Date.now();
-      return url;
+      if (!url) return null;
+
+      // MP3のダウンロードもここで先行実施して ArrayBuffer として返す。
+      // これにより prevSpeakPromise 内で残るのは「デコード→再生」だけになり、
+      // onStart (= 画面表示切り替え) と発話開始のタイムラグが最小化される。
+      try {
+        const res = await fetch(url);
+        const buffer = await res.arrayBuffer();
+        return buffer;
+      } catch (e) {
+        console.error("[speakCharacter] MP3 download error:", e);
+        return null;
+      }
     });
 
     prevFetchPromise = fetchPromise;
     prevSpeakPromise = Promise.all([fetchPromise, prevSpeakPromise]).then(
-      ([audioUrl]) => {
-        onStart?.();
-        if (!audioUrl) {
+      ([audioBuffer]) => {
+        if (!audioBuffer) {
+          onStart?.();
           return;
         }
-        return viewer.model?.speakStream(audioUrl, screenplay);
+        // ArrayBuffer 受け取り版 speak を使う。
+        // onStart は playFromArrayBuffer 内の bufferSource.start() 直前に発火する。
+        return viewer.model?.speak(audioBuffer as ArrayBuffer, screenplay, onStart);
       }
     );
     prevSpeakPromise.then(() => {
