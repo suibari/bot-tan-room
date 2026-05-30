@@ -37,36 +37,41 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // 3. Synthesize speech using Voicevox API via downstream proxy (always in Japanese)
-    const VOICEVOX_API_KEY = process.env.VOICEVOX_API_KEY ?? '';
-    const speakerId = 8; // Hardcoded as per specifications
-    const params = new URLSearchParams({
-      speaker: String(speakerId),
-      text: textJa.trim(),
-      ...(VOICEVOX_API_KEY ? { key: VOICEVOX_API_KEY } : {}),
-    });
-    const upstreamUrl = `https://api.tts.quest/v3/voicevox/synthesis?${params.toString()}`;
+    // 3. Synthesize speech using Voicevox API (with timeout fallback)
+    let audioBase64 = '';
+    try {
+      const VOICEVOX_API_KEY = process.env.VOICEVOX_API_KEY ?? '';
+      const speakerId = 8;
+      const params = new URLSearchParams({
+        speaker: String(speakerId),
+        text: textJa.trim(),
+        ...(VOICEVOX_API_KEY ? { key: VOICEVOX_API_KEY } : {}),
+      });
+      const upstreamUrl = `https://api.tts.quest/v3/voicevox/synthesis?${params.toString()}`;
 
-    console.log(`[API invite-message] Requesting Voicevox synthesis for DID: ${did}`);
-    const upstream = await fetch(upstreamUrl);
-    if (!upstream.ok) {
-      throw new Error(`VoiceVox synthesis proxy failed with status ${upstream.status}`);
+      console.log(`[API invite-message] Requesting Voicevox synthesis for DID: ${did}`);
+      const upstream = await fetch(upstreamUrl, { signal: AbortSignal.timeout(7000) });
+      if (!upstream.ok) {
+        throw new Error(`VoiceVox synthesis proxy failed with status ${upstream.status}`);
+      }
+
+      const data = await upstream.json();
+      if (!data.mp3StreamingUrl) {
+        throw new Error('No mp3StreamingUrl returned in Voicevox response');
+      }
+
+      // 4. Download synthesized MP3 binary data
+      const mp3Res = await fetch(data.mp3StreamingUrl, { signal: AbortSignal.timeout(7000) });
+      if (!mp3Res.ok) {
+        throw new Error(`Failed to download MP3 file from Voicevox proxy (status: ${mp3Res.status})`);
+      }
+      const mp3Buffer = await mp3Res.arrayBuffer();
+
+      // 5. Convert MP3 buffer to Base64 string
+      audioBase64 = Buffer.from(mp3Buffer).toString('base64');
+    } catch (ttsErr: any) {
+      console.warn(`[API invite-message] TTS failed (storing text-only): ${ttsErr.message}`);
     }
-
-    const data = await upstream.json();
-    if (!data.mp3StreamingUrl) {
-      throw new Error('No mp3StreamingUrl returned in Voicevox response');
-    }
-
-    // 4. Download synthesized MP3 binary data
-    const mp3Res = await fetch(data.mp3StreamingUrl);
-    if (!mp3Res.ok) {
-      throw new Error(`Failed to download MP3 file from Voicevox proxy (status: ${mp3Res.status})`);
-    }
-    const mp3Buffer = await mp3Res.arrayBuffer();
-
-    // 5. Convert MP3 buffer to Base64 string
-    const audioBase64 = Buffer.from(mp3Buffer).toString('base64');
 
     // 6. Save texts and audioBase64 to Vercel KV
     const kv = createClient({

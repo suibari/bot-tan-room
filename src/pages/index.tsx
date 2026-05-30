@@ -63,7 +63,7 @@ export default function MainHome() {
   const [isAuthChecking, setIsAuthChecking] = useState(true); // OAuth init 解決まで true
   const [isWaitingForVoice, setIsWaitingForVoice] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [pendingInvite, setPendingInvite] = useState<{ textJa: string; textEn: string; audioBase64: string } | null>(null);
+  const [pendingInvite, setPendingInvite] = useState<{ textJa: string; textEn: string; audioBase64: string | null } | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const questionAbortRef = useRef<AbortController | null>(null);
   // OAuth クライアントをマウント時に事前ロードして signInRedirect がすぐ呼べるようにする
@@ -206,7 +206,7 @@ export default function MainHome() {
                   const inviteData = await inviteRes.json();
                   if (inviteData && inviteData.hasInvite) {
                     setIsInvitationMode(true);
-                    setAssistantMessage(inviteData.text);
+                    setAssistantMessage(lang === "ja" ? inviteData.textJa : inviteData.textEn);
                     setPendingInvite(inviteData);
                   }
                 })
@@ -383,6 +383,12 @@ export default function MainHome() {
   const handlePlayWelcomeVoice = useCallback(async () => {
     if (!pendingInvite || !viewer.isReady) return;
     const { audioBase64, textJa } = pendingInvite;
+
+    if (!audioBase64) {
+      setPendingInvite(null);
+      setIsInvitationMode(false);
+      return;
+    }
 
     try {
       setIsSpeaking(true);
