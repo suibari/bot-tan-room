@@ -15,6 +15,7 @@ export default function Document() {
           href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap"
           rel="stylesheet"
         />
+        <link rel="icon" href={buildUrl("/favicon.png")} type="image/png" />
       </Head>
       <body style={{ backgroundImage: `url(${buildUrl("/bg-c.png")})` }}>
         <Main />
