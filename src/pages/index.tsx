@@ -220,9 +220,13 @@ export default function MainHome() {
                     setAssistantMessage(inviteData.text);
 
                     try {
-                      const audioRes = await fetch(inviteData.audioUrl);
-                      if (!audioRes.ok) throw new Error('Audio download failed');
-                      const audioBuffer = await audioRes.arrayBuffer();
+                      const binaryString = window.atob(inviteData.audioBase64);
+                      const len = binaryString.length;
+                      const bytes = new Uint8Array(len);
+                      for (let i = 0; i < len; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                      }
+                      const audioBuffer = bytes.buffer;
 
                       // 準備完了するまでポーリング（最大15秒）
                       let attempts = 0;

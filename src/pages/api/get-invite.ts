@@ -27,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     const key = `invite:${did}`;
-    const invite: { text: string; audioUrl: string } | null = await kv.get(key);
+    const invite: { text: string; audioBase64: string } | null = await kv.get(key);
 
     if (!invite) {
       return res.status(200).json({ hasInvite: false });
@@ -40,7 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({
       hasInvite: true,
       text: invite.text,
-      audioUrl: invite.audioUrl,
+      audioBase64: invite.audioBase64,
     });
   } catch (e) {
     console.error('[API get-invite error]:', e);

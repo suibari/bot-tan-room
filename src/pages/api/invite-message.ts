@@ -63,16 +63,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     const mp3Buffer = await mp3Res.arrayBuffer();
 
-    // 5. Upload MP3 to Vercel Blob with addRandomSuffix=false to overwrite (1 user 1 file)
-    console.log(`[API invite-message] Uploading MP3 to Vercel Blob for DID: ${did}`);
-    const blob = await put(`invitations/${did}.mp3`, Buffer.from(mp3Buffer), {
-      access: 'private',
-      contentType: 'audio/mpeg',
-      addRandomSuffix: false,
-    });
+    // 5. Convert MP3 buffer to Base64 string
+    const audioBase64 = Buffer.from(mp3Buffer).toString('base64');
 
-    // 6. Save text and audioUrl to Vercel KV
-    console.log(`[API invite-message] Saving metadata to Vercel KV for DID: ${did}`);
+    // 6. Save text and audioBase64 to Vercel KV
     const kv = createClient({
       url: process.env.VRM_BOT_KV_REST_API_URL,
       token: process.env.VRM_BOT_KV_REST_API_TOKEN,
@@ -82,12 +76,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       `invite:${did}`,
       {
         text: text.trim(),
-        audioUrl: blob.url,
+        audioBase64,
         createdAt: new Date().toISOString(),
       }
     );
 
-    return res.status(200).json({ success: true, audioUrl: blob.url });
+    return res.status(200).json({ success: true });
   } catch (e) {
     console.error('[API invite-message error]:', e);
     return res.status(500).json({ message: 'Internal Server Error' });
