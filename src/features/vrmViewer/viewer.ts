@@ -98,8 +98,10 @@ export class Viewer {
     this._renderer.setPixelRatio(window.devicePixelRatio);
 
     // camera
+    const isMobile = width < 768;
+    const cameraZ = isMobile ? 2.2 : 1.5;
     this._camera = new THREE.PerspectiveCamera(20.0, width / height, 0.1, 20.0);
-    this._camera.position.set(0, 1.3, 1.5);
+    this._camera.position.set(0, 1.3, cameraZ);
     this._cameraControls?.target.set(0, 1.3, 0);
     this._cameraControls?.update();
     // camera controls
@@ -126,16 +128,21 @@ export class Viewer {
     const parentElement = this._renderer.domElement.parentElement;
     if (!parentElement) return;
 
+    const width = parentElement.clientWidth;
+    const height = parentElement.clientHeight;
+
     this._renderer.setPixelRatio(window.devicePixelRatio);
-    this._renderer.setSize(
-      parentElement.clientWidth,
-      parentElement.clientHeight
-    );
+    this._renderer.setSize(width, height);
 
     if (!this._camera) return;
-    this._camera.aspect =
-      parentElement.clientWidth / parentElement.clientHeight;
+    this._camera.aspect = width / height;
     this._camera.updateProjectionMatrix();
+
+    // デバイス回転時などのリサイズでカメラ距離をスマホサイズに合わせて再調整する
+    const isMobile = width < 768;
+    const cameraZ = isMobile ? 2.2 : 1.5;
+    this._camera.position.z = cameraZ;
+    this.resetCamera();
   }
 
   /**
