@@ -121,7 +121,8 @@ export const textsToScreenplay = (
 
     let expression: AnyExpressionKey = prevExpression;
     if ((ALL_EMOTIONS as readonly string[]).includes(tag)) {
-      expression = tag as AnyExpressionKey;
+      // happy(100%) は顔崩れするため halfHappy に自動リマップ
+      expression = (tag === "happy" ? "halfHappy" : tag) as AnyExpressionKey;
       prevExpression = expression;
     }
 

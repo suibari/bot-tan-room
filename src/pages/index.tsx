@@ -417,7 +417,7 @@ export default function MainHome() {
     onReject?: () => void
   ) => {
     try {
-      const talks = textsToScreenplay([`[neutral]${text}`], koeiroParam);
+      const talks = textsToScreenplay([text], koeiroParam);
       const p = speakCharacter(talks[0], viewer, koeiromapKey, onStart, onComplete, onReject);
       Promise.resolve(p).catch((e) => {
         console.error('VoiceVox error:', e);
@@ -684,7 +684,7 @@ export default function MainHome() {
     const { mood: moodText, status: statusText } = prefetchedMood;
 
     // 状態（status）に合わせて表情を設定（moodは日本語のみのため言語タグなし）
-    let emotionTag = "[happy]";
+    let emotionTag = "[halfHappy]";
 
     if (statusText === "Sleeping" || statusText === "GoodNight") {
       emotionTag = "[relaxed]";
@@ -696,7 +696,7 @@ export default function MainHome() {
 
     try {
       setIsSpeaking(true);
-      const talks = textsToScreenplay([`[neutral]${moodText}`], koeiroParam);
+      const talks = textsToScreenplay([`${emotionTag}${moodText}`], koeiroParam);
       
       // 先読みしておいた音声バッファの取得を待つ（すでに完了していれば即座に返る）
       const audioBuffer = await prefetchedMoodAudioRef.current;
@@ -744,12 +744,12 @@ export default function MainHome() {
         "Rules:\n" +
         "- [ja] block: Write in Japanese. Casual tone. Endings like 「～だよ」「～だね」「～よ」. No formal language.\n" +
         "- [en] block: Write in English. Casual, warm, friendly tone.\n" +
-        "- Emotion tag: Must be one of [happy], [neutral], [sad], [angry], [relaxed]. Place it immediately after [ja] or [en].\n" +
+        "- Emotion tag: Must be one of [halfHappy], [neutral], [sad], [angry], [relaxed]. Place it immediately after [ja] or [en].\n" +
         "- Both blocks must be concise: 2-3 sentences max, under 200 characters each.\n" +
         "- NEVER use markdown formatting (**, *, bullet lists). Plain text only.\n" +
         "- NEVER summarize or recap past conversation history. Focus on natural back-and-forth.\n\n" +
         "Example output:\n" +
-        "[ja][happy]元気いっぱいだよ！そっちはどう？[en][happy]I'm doing great! How about you?";
+        "[ja][halfHappy]元気いっぱいだよ！そっちはどう？[en][halfHappy]I'm doing great! How about you?";
 
       const messages: Message[] = [
         { role: "system", content: systemPrompt + langDirective },
@@ -833,7 +833,7 @@ export default function MainHome() {
       if (speakText) {
         setIsWaitingForVoice(true);
         safeSpeak(
-          speakText,
+          jaRawText,
           () => {
             setIsWaitingForVoice(false);
             setIsSpeaking(true);
