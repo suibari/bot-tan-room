@@ -17,12 +17,14 @@ const LABELS = {
     submit: '診断する ✨',
     placeholder: '30文字以内で答えてね',
     progress: (current: number, total: number) => `${current} / ${total}`,
+    disclaimer: '※回答内容は一切データベースに保存されず、AIの学習にも使用されません。',
   },
   en: {
     next: 'Next →',
     submit: 'Diagnose ✨',
     placeholder: 'Answer in 30 chars or less',
     progress: (current: number, total: number) => `${current} / ${total}`,
+    disclaimer: '*Your answers are never saved in the database or used for AI training.',
   },
 };
 
@@ -148,6 +150,10 @@ export function DiagnosisForm({ lang, onSubmit, onQuestionShow, onExpressionChan
       >
         {isLast ? l.submit : l.next}
       </button>
+
+      <p className="text-[11px] font-bold text-slate-400 text-center leading-normal max-w-sm mx-auto">
+        {l.disclaimer}
+      </p>
     </div>
   );
 }

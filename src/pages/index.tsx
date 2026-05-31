@@ -945,6 +945,9 @@ export default function MainHome() {
             >
               {LABEL.button}
             </button>
+            <p className="text-[11px] font-bold text-slate-400 text-center leading-normal max-w-sm mx-auto">
+              {t("introduction.disclaimer")}
+            </p>
             <div className="text-center">
               <button
                 onClick={() => setShowPolicy(true)}
