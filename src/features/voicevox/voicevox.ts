@@ -39,14 +39,12 @@ export async function voicevoxTts(
     try {
       res = await fetch(`/api/voicevox?${params.toString()}`);
     } catch (e) {
-      // Apply cooldown on network/fetch exceptions
       cooldownUntil = Date.now() + COOLDOWN_MS;
       console.error("VoiceVox fetch exception. Entering cooldown:", e);
       throw new Error("Failed to contact VoiceVox proxy.");
     }
 
     if (!res.ok) {
-      // Apply cooldown on any non-200 responses (e.g. 429, 500, 502)
       cooldownUntil = Date.now() + COOLDOWN_MS;
       console.error(`VoiceVox proxy returned error (${res.status}). Entering cooldown.`);
       if (res.status === 429) {
@@ -55,26 +53,19 @@ export async function voicevoxTts(
       throw new Error(`VoiceVox proxy error: ${res.status}`);
     }
 
-    let data: { mp3StreamingUrl?: string };
+    // API always returns binary audio — create a BlobURL for playback
+    let blob: Blob;
     try {
-      data = await res.json();
+      blob = await res.blob();
     } catch (e) {
-      // Apply cooldown if json parsing fails
       cooldownUntil = Date.now() + COOLDOWN_MS;
-      console.error("Failed to parse VoiceVox response JSON. Entering cooldown.");
-      throw new Error("Invalid response from VoiceVox proxy.");
+      console.error("VoiceVox: Failed to read audio blob. Entering cooldown.", e);
+      throw new Error("Failed to read audio from VoiceVox proxy.");
     }
 
-    if (!data.mp3StreamingUrl) {
-      // Apply cooldown if streaming URL is missing
-      cooldownUntil = Date.now() + COOLDOWN_MS;
-      console.error("No mp3StreamingUrl in VoiceVox response. Entering cooldown.");
-      throw new Error("Failed to generate audio from VoiceVox.");
-    }
-
-    return { audio: data.mp3StreamingUrl };
+    const audioUrl = URL.createObjectURL(blob);
+    return { audio: audioUrl };
   } finally {
     isFetching = false;
   }
 }
-

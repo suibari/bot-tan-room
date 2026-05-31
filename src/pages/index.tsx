@@ -1328,7 +1328,7 @@ export default function MainHome() {
                       </a>
                       :{" "}
                       <a
-                        href="https://voicevox.hiroshiba.jp/product/tsumugi/"
+                        href="https://tsumugi-official.studio.site/"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="hover:underline font-extrabold"
@@ -1352,7 +1352,7 @@ export default function MainHome() {
                       </a>
                       :{" "}
                       <a
-                        href="https://voicevox.hiroshiba.jp/product/tsumugi/"
+                        href="https://tsumugi-official.studio.site/"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="hover:underline font-extrabold"
