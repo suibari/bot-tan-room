@@ -12,6 +12,7 @@ import { SYSTEM_PROMPT } from "@/features/constants/systemPromptConstants";
 import { KoeiroParam, DEFAULT_PARAM } from "@/features/constants/koeiroParam";
 import { getGeminiResponseStream } from "@/features/chat/geminiChat";
 import { ChatView } from "@/components/chatView";
+import { AssistantBubble } from "@/components/assistantBubble";
 import { GetStaticProps } from "next";
 import { useRouter } from "next/router";
 import { serverSideTranslations } from "next-i18next/serverSideTranslations";
@@ -65,6 +66,9 @@ export default function MainHome() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [pendingInvite, setPendingInvite] = useState<{ textJa: string; textEn: string } | null>(null);
   const [inviteTexts, setInviteTexts] = useState<{ textJa: string; textEn: string } | null>(null);
+  const [isFetchingMood, setIsFetchingMood] = useState(false);
+  const [prefetchedMood, setPrefetchedMood] = useState<{ mood: string; status: string } | null>(null);
+  const prefetchedMoodAudioRef = useRef<Promise<ArrayBuffer | null>>(Promise.resolve(null));
   const pendingAudioRef = useRef<Promise<ArrayBuffer | null>>(Promise.resolve(null));
   const nameInputRef = useRef<HTMLInputElement>(null);
   const questionAbortRef = useRef<AbortController | null>(null);
@@ -147,6 +151,15 @@ export default function MainHome() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingInvite]);
 
+  // prefetchedMood がセットされた瞬間に音声を先読み
+  useEffect(() => {
+    if (!prefetchedMood) return;
+    const talks = textsToScreenplay([`[neutral]${prefetchedMood.mood}`], koeiroParam);
+    prefetchedMoodAudioRef.current = fetchAudio(talks[0].talk, koeiromapKey).catch(() => null);
+  // koeiroParam/koeiromapKey は起動時に確定するため prefetchedMood のみ監視
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefetchedMood]);
+
   // inviteTexts + lang が変わるたびにチャットバブルを更新（ダイアログ外でも反映）
   useEffect(() => {
     if (!inviteTexts) return;
@@ -164,9 +177,24 @@ export default function MainHome() {
     }
   }, [viewer]);
 
+  // DBから気分を取得してプリフェッチ状態を更新する関数
+  const triggerMoodPrefetch = useCallback(async () => {
+    try {
+      const res = await fetch("/api/mood");
+      if (res.ok) {
+        const data = await res.json();
+        setPrefetchedMood({ mood: data.mood, status: data.status });
+      }
+    } catch (e) {
+      console.error("[Mood Prefetch Error]:", e);
+    }
+  }, []);
 
   // Restore persisted settings + OAuth client pre-load
   useEffect(() => {
+    // 初期の気分プリフェッチを実行
+    triggerMoodPrefetch();
+
     const storedName = window.localStorage.getItem("chatVRM_userName");
     if (storedName) setUserName(storedName);
 
@@ -436,6 +464,7 @@ export default function MainHome() {
     setUserName(name);
     window.localStorage.setItem("chatVRM_userName", name);
     setPhase("questions");
+    setAssistantMessage("");
   }, [nameInput]);
 
   const handleDiagnose = useCallback(async (answers: AnswerItem[]) => {
@@ -524,6 +553,7 @@ export default function MainHome() {
 
   const handleStartChat = useCallback(async () => {
     setPhase("chat");
+    setAssistantMessage("");
 
     const did = bskySessionRef.current?.did;
     if (isSignedIn && did) {
@@ -615,7 +645,79 @@ export default function MainHome() {
     setNameInput('');
     setChatLog([]);
     setPhase('landing');
+    setAssistantMessage("");
   }, []);
+
+  /**
+   * キャラクター（botたん）がクリックされた時の処理
+   * 事前に裏で取得（プリフェッチ）しておいた今の気分（mood）と音声バッファを使用し、
+   * 待ち時間ゼロ（遅延なし）で吹き出しの表示とVoiceVoxでの発話を開始します。
+   */
+  const handleCharacterClick = useCallback(async () => {
+    // landing または chat フェーズ以外、および他の発話・通信処理中は動作させない（連打防止）
+    if (
+      (phase !== "chat" && phase !== "landing") ||
+      isSpeaking ||
+      chatProcessing ||
+      isWaitingForVoice ||
+      isFetchingMood
+    ) {
+      return;
+    }
+
+    // プリフェッチ済みのデータがない場合は、フォールバックとして通常取得を試みる（通常はマウント時に完了しているはず）
+    if (!prefetchedMood) {
+      setIsFetchingMood(true);
+      try {
+        const res = await fetch("/api/mood");
+        if (!res.ok) throw new Error("Failed to fetch mood");
+        const data = await res.json();
+        setPrefetchedMood({ mood: data.mood, status: data.status });
+      } catch (err) {
+        console.error("[Mood Fallback Error]:", err);
+      } finally {
+        setIsFetchingMood(false);
+      }
+      return;
+    }
+
+    const { mood: moodText, status: statusText } = prefetchedMood;
+
+    // 状態（status）に合わせて表情を設定（moodは日本語のみのため言語タグなし）
+    let emotionTag = "[happy]";
+
+    if (statusText === "Sleeping" || statusText === "GoodNight") {
+      emotionTag = "[relaxed]";
+    } else if (statusText === "Working" || statusText === "Busy") {
+      emotionTag = "[neutral]";
+    }
+
+    const fullMessage = `${emotionTag}${moodText}`;
+
+    try {
+      setIsSpeaking(true);
+      const talks = textsToScreenplay([`[neutral]${moodText}`], koeiroParam);
+      
+      // 先読みしておいた音声バッファの取得を待つ（すでに完了していれば即座に返る）
+      const audioBuffer = await prefetchedMoodAudioRef.current;
+      if (!audioBuffer) throw new Error("Audio buffer not available in prefetch");
+
+      viewer.model?.stopSpeak();
+      
+      // 再生開始と同時に吹き出しを表示する
+      await viewer.model?.speak(audioBuffer, talks[0], () => {
+        setAssistantMessage(fullMessage);
+      });
+    } catch (err) {
+      console.error("[Mood playback error]:", err);
+      // エラー時でも吹き出しテキストは表示してあげる
+      setAssistantMessage(fullMessage);
+    } finally {
+      setIsSpeaking(false);
+      // 次のクリックに備えて、裏で新しい気分と音声の再プリフェッチを開始しておく
+      triggerMoodPrefetch();
+    }
+  }, [phase, isSpeaking, chatProcessing, isWaitingForVoice, prefetchedMood, koeiroParam, viewer, triggerMoodPrefetch]);
 
   // --- chat logic ---
   // ユーザーを待たせない方針:
@@ -802,7 +904,7 @@ export default function MainHome() {
       <BackgroundPosts />
 
       {/* VRM viewer — always rendered */}
-      <VrmViewer />
+      <VrmViewer onClickCharacter={handleCharacterClick} />
 
       {/* トップバー（言語スイッチャー + 名前 + サインアウト）— 常時表示 */}
       <div className="absolute z-30 flex items-center animate-fadeIn" style={{ top: "calc(max(1.5rem, env(safe-area-inset-top)))", right: "1.5rem", gap: "14px" }}>
@@ -887,9 +989,13 @@ export default function MainHome() {
 
       {/* ===== LANDING ===== */}
       {phase === "landing" && !isAuthChecking && !quotaExceeded && (
-        <div className="absolute z-20 flex justify-center" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)))", top: 'auto' }}>
+        <div className="absolute z-20 flex flex-col justify-end" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)))", top: 'auto', gap: "0.75rem" }}>
+          {/* botたんのメッセージはカードの外・上に表示 */}
+          <div className="w-full max-w-xl self-center">
+            <AssistantBubble message={assistantMessage} lang={lang} />
+          </div>
           <div
-            className="w-full max-w-xl shadow-2xl relative overflow-hidden transition-all duration-300"
+            className="w-full max-w-xl self-center shadow-2xl relative overflow-hidden transition-all duration-300"
             style={{
               background: "rgba(255, 255, 255, 0.72)",
               backdropFilter: "blur(30px) saturate(140%)",
@@ -902,6 +1008,7 @@ export default function MainHome() {
               boxShadow: "0 24px 64px -16px rgba(15, 32, 67, 0.12)",
             }}
           >
+
             <h1 className="text-slate-800 text-2xl font-black text-center tracking-wide"
               style={{ textShadow: '0 2px 10px rgba(58, 155, 213, 0.15)' }}>
               {lang === "ja" ? "Botたんのお部屋へようこそ" : "Welcome to Bot-tan's Room"}

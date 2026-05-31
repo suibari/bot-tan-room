@@ -3,8 +3,8 @@ import { verifyAtprotoToken } from '@/lib/jwtVerifier';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const DB_URL = process.env.DB_URL ?? 'https://db.suibari.com';
-  const CF_ID = process.env.CF_ACCESS_CLIENT_ID;
-  const CF_SECRET = process.env.CF_ACCESS_CLIENT_SECRET;
+  const CF_ID = process.env.CF_ACCESS_CLIENT_ID_DB;
+  const CF_SECRET = process.env.CF_ACCESS_CLIENT_SECRET_DB;
 
   if (!CF_ID || !CF_SECRET) {
     console.error('Cloudflare Access Client ID/Secret not configured');

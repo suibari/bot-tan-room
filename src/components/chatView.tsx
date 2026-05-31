@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { parseLanguageContent, stripEmotionTags } from "@/utils/languageParser";
+import { AssistantBubble } from "./assistantBubble";
 
 type Props = {
   lang: "ja" | "en";
@@ -77,15 +77,16 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quo
     if (!isChatProcessing) setUserMessage("");
   }, [isChatProcessing]);
 
-  const localizedRaw = parseLanguageContent(assistantMessage, lang);
-  const cleanMessage = stripEmotionTags(localizedRaw);
-
   return (
     <>
-      {/* 下部パネル: 回答 + 入力バーを1つにまとめる（診断結果と同じ位置） */}
-      <div className="absolute z-20 flex justify-center" style={{ left: '1.5rem', right: '1.5rem', bottom: 'calc(max(1.5rem, env(safe-area-inset-bottom)))', top: 'auto' }}>
-        <div 
-          className="w-full max-w-xl shadow-2xl relative overflow-hidden transition-all duration-300"
+      {/* 下部パネル: botたんメッセージはカードの外・上に、入力バーはカード内 */}
+      <div className="absolute z-20 flex flex-col justify-end" style={{ left: '1.5rem', right: '1.5rem', bottom: 'calc(max(1.5rem, env(safe-area-inset-bottom)))', top: 'auto', gap: '0.75rem' }}>
+        {/* アシスタント発言: カードの外・上 */}
+        <div className="w-full max-w-xl self-center">
+          <AssistantBubble message={assistantMessage} lang={lang} />
+        </div>
+        <div
+          className="w-full max-w-xl self-center shadow-2xl relative overflow-hidden transition-all duration-300"
           style={{
             background: "rgba(255, 255, 255, 0.72)",
             backdropFilter: "blur(30px) saturate(140%)",
@@ -98,27 +99,6 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quo
             boxShadow: "0 24px 64px -16px rgba(15, 32, 67, 0.12)",
           }}
         >
-          {/* アシスタント発言 */}
-          {cleanMessage && (
-            <div className="w-full flex flex-col" style={{ gap: '0.5rem' }}>
-              <div className="text-[13px] font-black tracking-widest px-1" style={{ color: 'rgba(15, 32, 67, 0.6)' }}>
-                💬 {l.name}
-              </div>
-              <div 
-                className="w-full max-h-[28vh] overflow-y-auto scrollbar-thin"
-                style={{
-                  background: "rgba(255, 255, 255, 0.55)",
-                  border: "1.5px solid rgba(58, 155, 213, 0.25)",
-                  borderRadius: "1.5rem",
-                  padding: "1rem 1.25rem",
-                }}
-              >
-                <p className="text-slate-800 text-base leading-relaxed font-semibold" style={{ color: '#1e293b' }}>
-                  {cleanMessage}
-                </p>
-              </div>
-            </div>
-          )}
 
           {/* 入力バー もしくは リミット到達メッセージ もしくは お迎え演出メッセージ */}
           {isInvitationMode ? (

@@ -163,6 +163,31 @@ export class Viewer {
     }
   }
 
+  /**
+   * 指定されたクライアント座標（clientX, clientY）において、
+   * VRMモデルがクリックされたかどうかを判定します。
+   */
+  public handleRaycast(clientX: number, clientY: number): boolean {
+    if (!this._renderer || !this._camera || !this.model?.vrm) return false;
+
+    // Canvas要素の矩形情報を取得
+    const rect = this._renderer.domElement.getBoundingClientRect();
+    
+    // 正規化デバイス座標（NDC）を算出 (-1 から +1)
+    const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    const y = -((clientY - rect.top) / rect.height) * 2 + 1;
+
+    // Raycasterを設定
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(new THREE.Vector2(x, y), this._camera);
+
+    // モデルの全メッシュを対象に交差判定を行う
+    const intersects = raycaster.intersectObject(this.model.vrm.scene, true);
+
+    // 交差しているオブジェクトが1つ以上あればクリック成功
+    return intersects.length > 0;
+  }
+
   public update = () => {
     requestAnimationFrame(this.update);
     const delta = this._clock.getDelta();
