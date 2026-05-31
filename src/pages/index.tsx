@@ -1204,6 +1204,63 @@ export default function MainHome() {
 
               <div className="space-y-1">
                 <h3 className="font-extrabold text-base flex items-center gap-1.5" style={{ color: "#0085ff" }}>
+                  {t("policy.voiceTitle")}
+                </h3>
+                <p className="text-slate-600 text-xs pl-0">
+                  {lang === "ja" ? (
+                    <>
+                      本アプリの音声合成には{" "}
+                      <a
+                        href="https://voicevox.hiroshiba.jp/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:underline font-extrabold"
+                        style={{ color: "#0085ff" }}
+                      >
+                        VOICEVOX
+                      </a>
+                      :{" "}
+                      <a
+                        href="https://voicevox.hiroshiba.jp/product/tsumugi/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:underline font-extrabold"
+                        style={{ color: "#0085ff" }}
+                      >
+                        春日部つむぎ
+                      </a>
+                      {" "}を使用しています。
+                    </>
+                  ) : (
+                    <>
+                      This app uses{" "}
+                      <a
+                        href="https://voicevox.hiroshiba.jp/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:underline font-extrabold"
+                        style={{ color: "#0085ff" }}
+                      >
+                        VOICEVOX
+                      </a>
+                      :{" "}
+                      <a
+                        href="https://voicevox.hiroshiba.jp/product/tsumugi/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:underline font-extrabold"
+                        style={{ color: "#0085ff" }}
+                      >
+                        Kasukabe Tsumugi
+                      </a>
+                      {" "}for voice synthesis.
+                    </>
+                  )}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <h3 className="font-extrabold text-base flex items-center gap-1.5" style={{ color: "#0085ff" }}>
                   {t("policy.historyTitle")}
                 </h3>
                 <p className="text-slate-600 text-xs pl-0">

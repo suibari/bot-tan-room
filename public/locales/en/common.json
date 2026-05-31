@@ -39,6 +39,8 @@
     "aboutText2": "Zenkoitei Bot-tan is a girl who loves to encourage everyone, designed by the developer. For more details, please visit her character page.",
     "aiTitle": "Use of AI",
     "aiText": "This app uses generative AI (Gemini API). However, your input data and diagnosis answers are NOT used for AI training.",
+    "voiceTitle": "Voice Synthesis",
+    "voiceText": "This app uses VOICEVOX: Kasukabe Tsumugi for voice synthesis.",
     "historyTitle": "Sign-in and Data Preservation",
     "historyText": "Bluesky sign-in is performed securely via OAuth; your password is never transmitted to or stored on our servers. Only for followers, your chat history is saved in our database to resume chats. Please note that the diagnosis answers themselves are not saved in the database at all and are not used for AI training. This history is private, never shared with others, and not used for AI training.",
     "privacyTitle": "Personal Information",
