@@ -67,7 +67,7 @@ export default function MainHome() {
   const [pendingInvite, setPendingInvite] = useState<{ textJa: string; textEn: string } | null>(null);
   const [inviteTexts, setInviteTexts] = useState<{ textJa: string; textEn: string } | null>(null);
   const [isFetchingMood, setIsFetchingMood] = useState(false);
-  const [prefetchedMood, setPrefetchedMood] = useState<{ mood: string; status: string } | null>(null);
+  const [prefetchedMood, setPrefetchedMood] = useState<{ mood: string; mood_en: string; status: string } | null>(null);
   const prefetchedMoodAudioRef = useRef<Promise<ArrayBuffer | null>>(Promise.resolve(null));
   const pendingAudioRef = useRef<Promise<ArrayBuffer | null>>(Promise.resolve(null));
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -183,7 +183,7 @@ export default function MainHome() {
       const res = await fetch("/api/mood");
       if (res.ok) {
         const data = await res.json();
-        setPrefetchedMood({ mood: data.mood, status: data.status });
+        setPrefetchedMood({ mood: data.mood, mood_en: data.mood_en ?? '', status: data.status });
       }
     } catch (e) {
       console.error("[Mood Prefetch Error]:", e);
@@ -672,7 +672,7 @@ export default function MainHome() {
         const res = await fetch("/api/mood");
         if (!res.ok) throw new Error("Failed to fetch mood");
         const data = await res.json();
-        setPrefetchedMood({ mood: data.mood, status: data.status });
+        setPrefetchedMood({ mood: data.mood, mood_en: data.mood_en ?? '', status: data.status });
       } catch (err) {
         console.error("[Mood Fallback Error]:", err);
       } finally {
@@ -681,9 +681,9 @@ export default function MainHome() {
       return;
     }
 
-    const { mood: moodText, status: statusText } = prefetchedMood;
+    const { mood: moodText, mood_en: moodEnText, status: statusText } = prefetchedMood;
 
-    // 状態（status）に合わせて表情を設定（moodは日本語のみのため言語タグなし）
+    // 状態（status）に合わせて表情を設定
     let emotionTag = "[halfHappy]";
 
     if (statusText === "Sleeping" || statusText === "GoodNight") {
@@ -692,7 +692,9 @@ export default function MainHome() {
       emotionTag = "[neutral]";
     }
 
-    const fullMessage = `${emotionTag}${moodText}`;
+    // 表示テキストは言語に合わせて切り替え。音声は VoiceVox（日本語TTS）のため常に moodText を使用
+    const displayMoodText = lang === 'en' && moodEnText ? moodEnText : moodText;
+    const fullMessage = `${emotionTag}${displayMoodText}`;
 
     try {
       setIsSpeaking(true);
@@ -717,7 +719,7 @@ export default function MainHome() {
       // 次のクリックに備えて、裏で新しい気分と音声の再プリフェッチを開始しておく
       triggerMoodPrefetch();
     }
-  }, [phase, isSpeaking, chatProcessing, isWaitingForVoice, prefetchedMood, koeiroParam, viewer, triggerMoodPrefetch]);
+  }, [phase, isSpeaking, chatProcessing, isWaitingForVoice, prefetchedMood, koeiroParam, lang, viewer, triggerMoodPrefetch]);
 
   // --- chat logic ---
   // ユーザーを待たせない方針:

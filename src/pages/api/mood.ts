@@ -58,9 +58,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // mood（気分）、status（状態）、energy（エネルギー）などを返却
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate');
     return res.status(200).json({
-      mood: valueObj?.mood ?? 'わたしは、今日もおつかれさま！',
-      energy: valueObj?.energy ?? 100,
-      status: valueObj?.status ?? 'FreeTime',
+      mood:       valueObj?.mood    ?? 'わたしは、今日もおつかれさま！',
+      mood_en:    valueObj?.mood_en ?? '',
+      energy:     valueObj?.energy  ?? 100,
+      status:     valueObj?.status  ?? 'FreeTime',
       updated_at: data[0].updated_at,
     });
   } catch (e) {
