@@ -825,6 +825,7 @@ export default function MainHome() {
               const historyData = await historyRes.json();
               if (historyData.isFollower) {
                 const currentHistory = historyData.conv_history || [];
+                const cleanModelText = stripEmotionTags(parseLanguageContent(fullText, lang));
                 const updatedHistory = [
                   ...currentHistory,
                   {
@@ -833,7 +834,7 @@ export default function MainHome() {
                   },
                   {
                     role: 'model',
-                    parts: [{ text: fullText }]
+                    parts: [{ text: cleanModelText }]
                   }
                 ];
 
@@ -901,7 +902,7 @@ export default function MainHome() {
             'Content-Type': 'application/json',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ did, content: text, lang }),
+          body: JSON.stringify({ did, content: text, lang, userName }),
         });
 
         const data = await response.json();
@@ -914,7 +915,14 @@ export default function MainHome() {
 
         const thankYou: string = data.thankYou ?? '';
         if (thankYou) {
-          const { parseLanguageContent, stripEmotionTags } = await import('@/utils/languageParser');
+          // 会話履歴にギフトエントリを追加
+          const giftEntry = lang === 'ja' ? `🎁 プレゼント：「${text}」を渡した` : `🎁 Gift: "${text}"`;
+          setChatLog(prev => [
+            ...prev,
+            { role: "user" as const, content: giftEntry, userName },
+            { role: "assistant" as const, content: thankYou },
+          ]);
+
           const jaRawText = parseLanguageContent(thankYou, 'ja');
           viewer.playVrmaMotion(MOTION_URLS.gift);
           setIsWaitingForVoice(true);
@@ -940,7 +948,7 @@ export default function MainHome() {
         setIsGiftProcessing(false);
       }
     },
-    [lang, safeSpeak]
+    [lang, userName, safeSpeak, viewer]
   );
 
   // --- labels ---

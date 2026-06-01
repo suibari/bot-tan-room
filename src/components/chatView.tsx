@@ -156,64 +156,53 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quo
             </div>
           ) : isGiftMode ? (
             /* ギフトカード入力エリア */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                {/* チャットに戻るボタン */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {/* ヘッダー行：モードラベル + チャットに戻るボタン */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(200, 60, 100, 0.85)' }}>
+                  🎁 {lang === 'ja' ? 'プレゼント' : 'Gift'}
+                </span>
                 <button
                   onClick={onGiftModeToggle}
                   aria-label="back to chat"
-                  className="shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95"
-                  style={{
-                    width: "48px",
-                    height: "48px",
-                    borderRadius: "9999px",
-                    background: "rgba(255, 180, 200, 0.4)",
-                    border: "1.5px solid rgba(255, 150, 180, 0.5)",
-                    fontSize: "20px",
-                  }}
+                  className="transition-opacity duration-200 hover:opacity-70"
+                  style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(80, 100, 200, 0.75)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
                 >
-                  💬
+                  💬 {lang === 'ja' ? 'チャットに戻る' : 'Back to chat'}
                 </button>
-                {/* ギフト入力 */}
-                <div className="flex-1 relative">
-                  <input
-                    type="text"
-                    value={giftMessage}
-                    onChange={(e) => setGiftMessage(e.target.value.slice(0, GIFT_MAX_CHARS))}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.nativeEvent.isComposing && !e.shiftKey) {
-                        e.preventDefault();
-                        handleGiftSend();
-                      }
-                    }}
-                    placeholder={lang === "ja" ? "プレゼントをどうぞ..." : "Send a gift..."}
-                    disabled={isGiftProcessing}
-                    className="w-full text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
-                    style={{
-                      height: "48px",
-                      background: "rgba(255, 255, 255, 0.65)",
-                      border: "1.5px solid rgba(255, 150, 180, 0.5)",
-                      borderRadius: "9999px",
-                      padding: "0 52px 0 20px",
-                    }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = 'rgba(255, 100, 150, 0.7)';
-                      e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255, 150, 180, 0.2)';
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = 'rgba(255, 150, 180, 0.5)';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                  />
-                  {/* 文字数カウンター */}
-                  <span
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold pointer-events-none"
-                    style={{ color: giftMessage.length >= GIFT_MAX_CHARS ? 'rgba(220, 50, 80, 0.8)' : 'rgba(180, 100, 120, 0.6)' }}
-                  >
-                    {giftMessage.length}/{GIFT_MAX_CHARS}
-                  </span>
-                </div>
-                {/* 送信ボタン */}
+              </div>
+              {/* 入力行：チャットと同じ2要素レイアウト */}
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  value={giftMessage}
+                  onChange={(e) => setGiftMessage(e.target.value.slice(0, GIFT_MAX_CHARS))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.nativeEvent.isComposing && !e.shiftKey) {
+                      e.preventDefault();
+                      handleGiftSend();
+                    }
+                  }}
+                  placeholder={lang === "ja" ? "プレゼントをどうぞ..." : "Send a gift..."}
+                  disabled={isGiftProcessing}
+                  className="flex-1 text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
+                  style={{
+                    height: "48px",
+                    background: "rgba(255, 255, 255, 0.65)",
+                    border: "1.5px solid rgba(255, 150, 180, 0.5)",
+                    borderRadius: "9999px",
+                    padding: "0 20px",
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(255, 100, 150, 0.7)';
+                    e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255, 150, 180, 0.2)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(255, 150, 180, 0.5)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                />
+                {/* 送信ボタン（チャットと同じ送信アイコン） */}
                 <button
                   onClick={handleGiftSend}
                   disabled={isGiftProcessing || !giftMessage.trim()}
@@ -224,7 +213,6 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quo
                     height: "48px",
                     borderRadius: "9999px",
                     background: "linear-gradient(135deg, #ff8fab, #ff6b9d)",
-                    fontSize: "20px",
                   }}
                 >
                   {isGiftProcessing ? (
@@ -238,10 +226,19 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quo
                       }}
                     />
                   ) : (
-                    <span>🎁</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
+                      <path d="M2 21l21-9L2 3v7l15 2-15 2z" />
+                    </svg>
                   )}
                 </button>
               </div>
+              {/* 文字数カウンター */}
+              <span
+                className="text-right text-xs font-semibold"
+                style={{ color: giftMessage.length >= GIFT_MAX_CHARS ? 'rgba(220, 50, 80, 0.8)' : 'rgba(180, 100, 120, 0.6)' }}
+              >
+                {giftMessage.length}/{GIFT_MAX_CHARS}
+              </span>
             </div>
           ) : (
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>

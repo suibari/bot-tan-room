@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ message: 'API Key not configured' });
   }
 
-  const { did, content, lang } = req.body;
+  const { did, content, lang, userName } = req.body;
 
   if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
     return res.status(400).json({ message: 'Invalid or missing DID' });
@@ -127,8 +127,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // botたんキャラの感謝メッセージ生成
+  const callerName = typeof userName === 'string' && userName.trim() ? userName.trim() : null;
+  const nameInstruction = callerName
+    ? `相手の名前は「${callerName}」です。必ず名前を呼んで感謝してください。`
+    : `相手の名前がわからない場合は「あなた」と呼んでください。`;
+
   const systemInstruction = `あなたは以下のキャラクター設定に基づいて振る舞います。
 ${BOTTAN_CHARACTER_SETTINGS}
+${nameInstruction}
 返答は必ず以下の形式で返してください（他の文章は一切含めないこと）：
 [ja][halfHappy]〈日本語の感謝メッセージ 2〜3文〉[en][halfHappy]〈English thank-you message 2-3 sentences〉
 感情タグは[halfHappy]または[excited]のどちらかを選択してください。マークダウン装飾は使わないこと。`;
@@ -138,7 +144,7 @@ ${BOTTAN_CHARACTER_SETTINGS}
       model: GEMINI_MODEL,
       contents: [{
         role: 'user',
-        parts: [{ text: `フォロワーからプレゼントをもらいました！プレゼントの内容：「${content}」\n感謝の気持ちを伝えてください。` }]
+        parts: [{ text: `プレゼントをもらいました！プレゼントの内容：「${content}」\n感謝の気持ちを伝えてください。` }]
       }],
       config: { systemInstruction },
     });

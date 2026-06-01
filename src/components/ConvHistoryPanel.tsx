@@ -1,4 +1,5 @@
 import { Message } from "@/features/messages/messages";
+import { parseLanguageContent, stripEmotionTags } from "@/utils/languageParser";
 
 type Props = {
   chatLog: Message[];
@@ -166,6 +167,9 @@ export function ConvHistoryPanel({ chatLog, lang, onClose }: Props) {
 
 function HistoryCard({ msg, lang }: { msg: Message; lang: "ja" | "en" }) {
   const isUser = msg.role === "user";
+  const displayContent = isUser
+    ? msg.content
+    : stripEmotionTags(parseLanguageContent(msg.content, lang));
 
   return (
     <div
@@ -224,7 +228,7 @@ function HistoryCard({ msg, lang }: { msg: Message; lang: "ja" | "en" }) {
           wordBreak: "break-word",
         }}
       >
-        {msg.content}
+        {displayContent}
       </p>
     </div>
   );
