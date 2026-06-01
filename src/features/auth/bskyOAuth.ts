@@ -5,6 +5,7 @@ const SCOPE = 'atproto';
 let _client: BrowserOAuthClient | null = null;
 
 function createClient(): BrowserOAuthClient {
+  const base = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://room-bot-tan.suibari.com';
   const hostname = window.location.hostname;
   const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
 
@@ -34,15 +35,14 @@ function createClient(): BrowserOAuthClient {
     });
   }
 
-  // 本番・プレビュー共通: window.location.origin で自動検出し動的APIルートを参照
-  const origin = window.location.origin;
-  const redirectUri = `${origin}/`;
+  // 本番環境: public/client-metadata.json を参照。redirect_uri はルートを使う
+  const redirectUri = `${base}/`;
   return new BrowserOAuthClient({
     handleResolver: 'https://bsky.social',
     clientMetadata: {
-      client_id: `${origin}/api/client-metadata`,
+      client_id: `${base}/client-metadata.json`,
       client_name: 'bot-tanのお部屋',
-      client_uri: origin,
+      client_uri: base,
       redirect_uris: [redirectUri],
       grant_types: ['authorization_code', 'refresh_token'],
       response_types: ['code'],
