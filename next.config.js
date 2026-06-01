@@ -3,7 +3,7 @@ const withPWA = require('@ducanh2912/next-pwa').default;
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  i18n: { ...i18n, localeDetection: false },
+  i18n: { ...i18n, localeDetection: true },
   reactStrictMode: true,
   assetPrefix: process.env.BASE_PATH || "",
   basePath: process.env.BASE_PATH || "",
