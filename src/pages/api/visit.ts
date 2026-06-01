@@ -38,20 +38,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   };
 
   try {
-    // お誘いからの来訪かどうかを確認するため、まず現在の room_invite_sent を取得
+    // お誘いからの来訪かどうか、および前回バッジ付与からの経過時間を確認
     let wasInvited = false;
+    let badgeEligible = false;
     try {
       const getRes = await fetch(
-        `${DB_URL}/followers?did=eq.${encodeURIComponent(did)}&select=room_invite_sent`,
+        `${DB_URL}/followers?did=eq.${encodeURIComponent(did)}&select=room_invite_sent,last_regular_badge_at`,
         { method: 'GET', headers }
       );
       if (getRes.ok) {
-        const rows: Array<{ room_invite_sent: number }> = await getRes.json();
+        const rows: Array<{ room_invite_sent: number; last_regular_badge_at: string | null }> = await getRes.json();
         wasInvited = rows.length > 0 && rows[0].room_invite_sent === 1;
+        const lastBadgeAt = rows[0]?.last_regular_badge_at ? new Date(rows[0].last_regular_badge_at) : null;
+        badgeEligible = !lastBadgeAt || (Date.now() - lastBadgeAt.getTime()) > 24 * 60 * 60 * 1000;
       }
     } catch (e) {
-      console.warn('[API visit] Failed to fetch room_invite_sent, treating as non-invited visit:', e);
+      console.warn('[API visit] Failed to fetch follower state, treating as non-invited non-eligible visit:', e);
     }
+
+    const badgeGranted = wasInvited || badgeEligible;
+    const now = new Date().toISOString();
 
     const dbRes = await fetch(
       `${DB_URL}/followers?did=eq.${encodeURIComponent(did)}`,
@@ -59,9 +65,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         method: 'PATCH',
         headers,
         body: JSON.stringify({
-          last_room_visit_at: new Date().toISOString(),
+          last_room_visit_at: now,
           room_invite_sent: 0,
-          room_badge_pending: wasInvited ? 1 : 0,
+          room_badge_pending: badgeGranted ? 1 : 0,
         }),
         keepalive: true,
       }
@@ -74,6 +80,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (wasInvited) {
       console.log(`[API visit] Invited visit detected for ${did}, room_badge_pending set to 1.`);
+    } else if (badgeEligible) {
+      console.log(`[API visit] Regular visit eligible for badge for ${did}, room_badge_pending set to 1.`);
     }
 
     return res.status(200).json({ success: true });
