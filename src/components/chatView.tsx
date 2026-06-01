@@ -155,7 +155,7 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quo
                   fontSize: '11px',
                   color: 'rgba(200, 60, 100, 0.9)',
                   fontWeight: 600,
-                  maxWidth: '200px',
+                  width: '200px',
                   lineHeight: 1.6,
                   boxShadow: '0 4px 16px rgba(200, 60, 100, 0.15)',
                   zIndex: 20,
