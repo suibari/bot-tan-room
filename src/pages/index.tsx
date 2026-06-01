@@ -72,6 +72,7 @@ export default function MainHome() {
   const [isFetchingMood, setIsFetchingMood] = useState(false);
   const [prefetchedMood, setPrefetchedMood] = useState<{ mood: string; mood_en: string; status: string } | null>(null);
   const [displayedMoodContext, setDisplayedMoodContext] = useState<{ moodJa: string; moodEn: string; emotionTag: string } | null>(null);
+  const [bubbleTrigger, setBubbleTrigger] = useState(0);
   const [isGiftMode, setIsGiftMode] = useState(false);
   const [isGiftProcessing, setIsGiftProcessing] = useState(false);
   const [showSignInForm, setShowSignInForm] = useState(false);
@@ -727,12 +728,14 @@ export default function MainHome() {
       await viewer.model?.speak(audioBuffer, talks[0], () => {
         setDisplayedMoodContext({ moodJa: moodText, moodEn: moodEnText || '', emotionTag });
         setAssistantMessage(fullMessage);
+        setBubbleTrigger(t => t + 1);
       });
     } catch (err) {
       console.error("[Mood playback error]:", err);
       // エラー時でも吹き出しテキストは表示してあげる
       setDisplayedMoodContext({ moodJa: moodText, moodEn: moodEnText || '', emotionTag });
       setAssistantMessage(fullMessage);
+      setBubbleTrigger(t => t + 1);
     } finally {
       setIsSpeaking(false);
       // 次のクリックに備えて、裏で新しい気分と音声の再プリフェッチを開始しておく
@@ -1117,7 +1120,7 @@ export default function MainHome() {
         <div className="absolute z-20 flex flex-col justify-end" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(0.75rem, env(safe-area-inset-bottom)))", top: "60dvh", gap: "0.5rem" }}>
           {/* botたんのメッセージはカードの外・上に表示 */}
           <div className="w-full max-w-xl self-center">
-            <AssistantBubble message={assistantMessage} lang={lang} />
+            <AssistantBubble message={assistantMessage} lang={lang} isSpeaking={isSpeaking} showTrigger={bubbleTrigger} />
           </div>
           <div
             className="w-full max-w-xl self-center shadow-2xl relative overflow-hidden transition-all duration-300"
@@ -1189,10 +1192,11 @@ export default function MainHome() {
 
       {/* ===== QUESTIONS ===== */}
       {phase === "questions" && !quotaExceeded && (
-        <div className="absolute z-20 flex justify-center" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)))", top: 'auto' }}>
+        <div className="absolute z-20 flex justify-center" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)))", top: "60dvh" }}>
           <div
-            className="w-full max-w-xl shadow-2xl relative overflow-hidden transition-all duration-300"
+            className="w-full max-w-xl shadow-2xl relative overflow-y-auto transition-all duration-300"
             style={{
+              maxHeight: "100%",
               background: "rgba(255, 255, 255, 0.72)",
               backdropFilter: "blur(30px) saturate(140%)",
               border: "1.5px solid rgba(255, 255, 255, 0.55)",
@@ -1317,6 +1321,8 @@ export default function MainHome() {
           lang={lang}
           assistantMessage={assistantMessage}
           isChatProcessing={chatProcessing}
+          isSpeaking={isSpeaking}
+          bubbleTrigger={bubbleTrigger}
           onSend={handleSendChat}
           quotaExceeded={quotaExceeded}
           isInvitationMode={isInvitationMode}

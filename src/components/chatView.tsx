@@ -5,6 +5,8 @@ type Props = {
   lang: "ja" | "en";
   assistantMessage: string;
   isChatProcessing: boolean;
+  isSpeaking?: boolean;
+  bubbleTrigger?: number;
   onSend: (text: string) => void;
   quotaExceeded?: boolean;
   isInvitationMode?: boolean;
@@ -26,7 +28,7 @@ const LABELS = {
  */
 const GIFT_MAX_CHARS = 30;
 
-export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quotaExceeded = false, isInvitationMode = false, isSignedIn = false, isGiftMode = false, onGiftModeToggle, onGiftSend, isGiftProcessing = false }: Props) {
+export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking = false, bubbleTrigger = 0, onSend, quotaExceeded = false, isInvitationMode = false, isSignedIn = false, isGiftMode = false, onGiftModeToggle, onGiftSend, isGiftProcessing = false }: Props) {
   const l = LABELS[lang];
   const [userMessage, setUserMessage] = useState("");
   const [giftMessage, setGiftMessage] = useState("");
@@ -96,10 +98,10 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quo
   return (
     <>
       {/* 下部パネル: botたんメッセージはカードの外・上に、入力バーはカード内 */}
-      <div className="absolute z-20 flex flex-col justify-end" style={{ left: '1.5rem', right: '1.5rem', bottom: 'calc(max(1.5rem, env(safe-area-inset-bottom)))', top: 'auto', gap: '0.75rem' }}>
+      <div className="absolute z-20 flex flex-col justify-end" style={{ left: '1.5rem', right: '1.5rem', bottom: 'calc(max(1.5rem, env(safe-area-inset-bottom)))', top: '60dvh', gap: '0.75rem' }}>
         {/* アシスタント発言: カードの外・上 */}
         <div className="w-full max-w-xl self-center">
-          <AssistantBubble message={assistantMessage} lang={lang} />
+          <AssistantBubble message={assistantMessage} lang={lang} isSpeaking={isSpeaking} showTrigger={bubbleTrigger} />
         </div>
         <div
           className="w-full max-w-xl self-center shadow-2xl relative overflow-hidden transition-all duration-300"
