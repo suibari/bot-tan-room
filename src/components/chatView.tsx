@@ -30,6 +30,7 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quo
   const l = LABELS[lang];
   const [userMessage, setUserMessage] = useState("");
   const [giftMessage, setGiftMessage] = useState("");
+  const [showGiftInfo, setShowGiftInfo] = useState(false);
   const [speechRecognition, setSpeechRecognition] = useState<SpeechRecognition>();
   const [isMicRecording, setIsMicRecording] = useState(false);
 
@@ -114,6 +115,56 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quo
             boxShadow: "0 24px 64px -16px rgba(15, 32, 67, 0.12)",
           }}
         >
+
+          {/* ギフトモード インフォアイコン */}
+          {isGiftMode && (
+            <div style={{ position: 'absolute', top: '0.75rem', right: '1rem', zIndex: 10 }}>
+              <button
+                onClick={() => setShowGiftInfo(v => !v)}
+                aria-label="gift info"
+                style={{
+                  width: '22px',
+                  height: '22px',
+                  borderRadius: '9999px',
+                  background: 'rgba(255, 150, 180, 0.2)',
+                  border: '1.5px solid rgba(255, 150, 180, 0.5)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                  stroke="rgba(200, 60, 100, 0.85)" strokeWidth="2.5"
+                  strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+              </button>
+              {showGiftInfo && (
+                <div style={{
+                  position: 'absolute',
+                  top: '26px',
+                  right: 0,
+                  background: 'rgba(255, 255, 255, 0.97)',
+                  border: '1.5px solid rgba(255, 150, 180, 0.5)',
+                  borderRadius: '0.75rem',
+                  padding: '0.5rem 0.75rem',
+                  fontSize: '11px',
+                  color: 'rgba(200, 60, 100, 0.9)',
+                  fontWeight: 600,
+                  maxWidth: '200px',
+                  lineHeight: 1.6,
+                  boxShadow: '0 4px 16px rgba(200, 60, 100, 0.15)',
+                  zIndex: 20,
+                }}>
+                  botたんに1日1回プレゼントをあげよう！<br/>Blueskyで見せてくれるかも？
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 入力バー もしくは リミット到達メッセージ もしくは お迎え演出メッセージ */}
           {isInvitationMode ? (
