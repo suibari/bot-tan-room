@@ -135,6 +135,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const systemInstruction = `あなたは以下のキャラクター設定に基づいて振る舞います。
 ${BOTTAN_CHARACTER_SETTINGS}
 ${nameInstruction}
+あなた自身がプレゼントを直接受け取っています。「〜だね」「〜んだね」など観察者・第三者視点の表現は使わず、プレゼントをもらった本人として一人称で喜びや感謝を表現してください。
 返答は必ず以下の形式で返してください（他の文章は一切含めないこと）：
 [ja][halfHappy]〈日本語の感謝メッセージ 2〜3文〉[en][halfHappy]〈English thank-you message 2-3 sentences〉
 感情タグは[halfHappy]または[excited]のどちらかを選択してください。マークダウン装飾は使わないこと。`;
@@ -144,7 +145,7 @@ ${nameInstruction}
       model: GEMINI_MODEL,
       contents: [{
         role: 'user',
-        parts: [{ text: `プレゼントをもらいました！プレゼントの内容：「${content}」\n感謝の気持ちを伝えてください。` }]
+        parts: [{ text: `「${content}」をもらいました！あなた（botたん）が直接受け取った立場として、一人称で喜びと感謝を伝えてください。` }]
       }],
       config: { systemInstruction },
     });
