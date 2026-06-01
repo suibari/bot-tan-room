@@ -68,6 +68,7 @@ export default function MainHome() {
   const [inviteTexts, setInviteTexts] = useState<{ textJa: string; textEn: string } | null>(null);
   const [isFetchingMood, setIsFetchingMood] = useState(false);
   const [prefetchedMood, setPrefetchedMood] = useState<{ mood: string; mood_en: string; status: string } | null>(null);
+  const [displayedMoodContext, setDisplayedMoodContext] = useState<{ moodJa: string; moodEn: string; emotionTag: string } | null>(null);
   const prefetchedMoodAudioRef = useRef<Promise<ArrayBuffer | null>>(Promise.resolve(null));
   const pendingAudioRef = useRef<Promise<ArrayBuffer | null>>(Promise.resolve(null));
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -165,6 +166,15 @@ export default function MainHome() {
     if (!inviteTexts) return;
     setAssistantMessage(lang === "ja" ? inviteTexts.textJa : inviteTexts.textEn);
   }, [lang, inviteTexts]);
+
+  // displayedMoodContext + lang が変わるたびにムード吹き出しを更新（inviteTexts パターンと同様）
+  useEffect(() => {
+    if (!displayedMoodContext) return;
+    const text = lang === 'en' && displayedMoodContext.moodEn
+      ? displayedMoodContext.moodEn
+      : displayedMoodContext.moodJa;
+    setAssistantMessage(`${displayedMoodContext.emotionTag}${text}`);
+  }, [lang, displayedMoodContext]);
 
   /**
    * DiagnosisFormの質問切り替え時に呼ばれる。
@@ -464,6 +474,7 @@ export default function MainHome() {
     setUserName(name);
     window.localStorage.setItem("chatVRM_userName", name);
     setPhase("questions");
+    setDisplayedMoodContext(null);
     setAssistantMessage("");
   }, [nameInput]);
 
@@ -553,6 +564,7 @@ export default function MainHome() {
 
   const handleStartChat = useCallback(async () => {
     setPhase("chat");
+    setDisplayedMoodContext(null);
     setAssistantMessage("");
 
     const did = bskySessionRef.current?.did;
@@ -645,6 +657,7 @@ export default function MainHome() {
     setNameInput('');
     setChatLog([]);
     setPhase('landing');
+    setDisplayedMoodContext(null);
     setAssistantMessage("");
   }, []);
 
@@ -708,11 +721,13 @@ export default function MainHome() {
       
       // 再生開始と同時に吹き出しを表示する
       await viewer.model?.speak(audioBuffer, talks[0], () => {
+        setDisplayedMoodContext({ moodJa: moodText, moodEn: moodEnText || '', emotionTag });
         setAssistantMessage(fullMessage);
       });
     } catch (err) {
       console.error("[Mood playback error]:", err);
       // エラー時でも吹き出しテキストは表示してあげる
+      setDisplayedMoodContext({ moodJa: moodText, moodEn: moodEnText || '', emotionTag });
       setAssistantMessage(fullMessage);
     } finally {
       setIsSpeaking(false);
@@ -730,6 +745,7 @@ export default function MainHome() {
     async (text: string) => {
       if (!text) return;
       setChatProcessing(true);
+      setDisplayedMoodContext(null);
       setAssistantMessage("");
       setInviteTexts(null); // チャット開始時に招待テキストの追従を解除
       const messageLog: Message[] = [
