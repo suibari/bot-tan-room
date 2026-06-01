@@ -926,131 +926,121 @@ export default function MainHome() {
       {/* VRM viewer — always rendered */}
       <VrmViewer onClickCharacter={handleCharacterClick} />
 
-      {/* トップバー（言語スイッチャー + 名前 + サインアウト）— 常時表示 */}
-      <div className="absolute z-30 flex items-center animate-fadeIn" style={{ top: "calc(max(1.5rem, env(safe-area-inset-top)))", right: "1.5rem", gap: "14px" }}>
-        {/* ポリシーボタン */}
-        <button
-          onClick={() => setShowPolicy(true)}
-          title={t("policy.link")}
-          className="rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 shrink-0"
-          style={{
-            width: "48px",
-            height: "48px",
-            background: "rgba(255, 255, 255, 0.65)",
-            backdropFilter: "blur(20px)",
-            border: "1px solid rgba(255, 255, 255, 0.45)",
-            color: "rgba(15, 32, 67, 0.8)",
-            boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
-          }}
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="16" x2="12" y2="12" />
-            <line x1="12" y1="8" x2="12.01" y2="8" />
-          </svg>
-        </button>
-
-        {/* 言語トグル */}
-        <div
-          className="transition-all duration-300"
-          style={{
-            padding: "5px",
-            gap: "6px",
-            background: "rgba(255, 255, 255, 0.65)",
-            backdropFilter: "blur(20px)",
-            border: "1px solid rgba(255, 255, 255, 0.45)",
-            boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
-            borderRadius: "9999px",
-            display: "flex",
-            alignItems: "center",
-          }}
-        >
-          {(["en", "ja"] as const).map((l) => (
+      {/* トップバー — 常時表示。justify-between で左右グループが重ならない設計 */}
+      <div
+        className="absolute z-30 flex items-center justify-between animate-fadeIn"
+        style={{
+          top: "calc(max(1.5rem, env(safe-area-inset-top)))",
+          left: "1.5rem",
+          right: "1.5rem",
+        }}
+      >
+        {/* 左グループ: りれき（サインイン時のみ） */}
+        <div style={{ display: "flex", gap: "10px" }}>
+          {isSignedIn && (
             <button
-              key={l}
-              onClick={() => switchLocale(l)}
-              className={`text-[15px] font-black transition-all duration-300 rounded-full select-none ${lang === l
-                ? "bg-theme-gradient text-white shadow-md shadow-theme-blue/15 scale-100"
-                : "text-slate-600 hover:text-slate-800 hover:bg-white/40 active:scale-95"
-                }`}
+              onClick={() => setIsHistoryOpen(true)}
+              title={lang === "ja" ? "りれき" : "History"}
+              className="rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 shrink-0"
               style={{
-                borderRadius: "9999px",
-                padding: "10px 24px",
+                width: "48px",
+                height: "48px",
+                background: "rgba(255, 255, 255, 0.65)",
+                backdropFilter: "blur(20px)",
+                border: "1px solid rgba(255, 255, 255, 0.45)",
+                color: "var(--theme-blue)",
+                boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
               }}
             >
-              {l === "en" ? "EN" : "日本語"}
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
             </button>
-          ))}
+          )}
         </div>
 
-        {/* サインイン済み: サインアウト */}
-        {isSignedIn && (
+        {/* 右グループ: ポリシー + 言語トグル + サインアウト（サインイン時） */}
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          {/* ポリシーボタン */}
           <button
-            onClick={handleSignOut}
-            className="rounded-full font-black transition-all duration-300 hover:scale-105 active:scale-95 select-none"
+            onClick={() => setShowPolicy(true)}
+            title={t("policy.link")}
+            className="rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 shrink-0"
             style={{
+              width: "48px",
               height: "48px",
-              padding: "0 24px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
               background: "rgba(255, 255, 255, 0.65)",
               backdropFilter: "blur(20px)",
               border: "1px solid rgba(255, 255, 255, 0.45)",
-              color: "#0085ff",
+              color: "rgba(15, 32, 67, 0.8)",
               boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
-              fontSize: "15px",
             }}
           >
-            {lang === "ja" ? "サインアウト" : "Sign out"}
-          </button>
-        )}
-      </div>
-
-      {/* りれきボタン（サインイン済みのみ、左上） */}
-      {isSignedIn && (
-        <div
-          className="absolute z-30 flex items-center animate-fadeIn"
-          style={{
-            top: "calc(max(1.5rem, env(safe-area-inset-top)))",
-            left: "1.5rem",
-          }}
-        >
-          <button
-            onClick={() => setIsHistoryOpen(true)}
-            className="rounded-full font-black transition-all duration-300 hover:scale-105 active:scale-95 select-none"
-            style={{
-              height: "48px",
-              padding: "0 20px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "7px",
-              background: "rgba(255, 255, 255, 0.65)",
-              backdropFilter: "blur(20px)",
-              border: "1px solid rgba(255, 255, 255, 0.45)",
-              color: "var(--theme-blue)",
-              boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
-              fontSize: "15px",
-            }}
-          >
-            <svg
-              width="17"
-              height="17"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.25"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
             </svg>
-            {lang === "ja" ? "りれき" : "History"}
           </button>
+          {/* 言語トグル */}
+          <div
+            className="transition-all duration-300 shrink-0"
+            style={{
+              padding: "5px",
+              gap: "4px",
+              background: "rgba(255, 255, 255, 0.65)",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(255, 255, 255, 0.45)",
+              boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
+              borderRadius: "9999px",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            {(["en", "ja"] as const).map((l) => (
+              <button
+                key={l}
+                onClick={() => switchLocale(l)}
+                className={`text-[14px] font-black transition-all duration-300 rounded-full select-none ${lang === l
+                  ? "bg-theme-gradient text-white shadow-md shadow-theme-blue/15 scale-100"
+                  : "text-slate-600 hover:text-slate-800 hover:bg-white/40 active:scale-95"
+                  }`}
+                style={{
+                  borderRadius: "9999px",
+                  padding: "9px 16px",
+                }}
+              >
+                {l === "en" ? "EN" : "日本語"}
+              </button>
+            ))}
+          </div>
+
+          {/* サインアウト（アイコンのみ） */}
+          {isSignedIn && (
+            <button
+              onClick={handleSignOut}
+              title={lang === "ja" ? "サインアウト" : "Sign out"}
+              className="rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 shrink-0"
+              style={{
+                width: "48px",
+                height: "48px",
+                background: "rgba(255, 255, 255, 0.65)",
+                backdropFilter: "blur(20px)",
+                border: "1px solid rgba(255, 255, 255, 0.45)",
+                color: "var(--theme-blue)",
+                boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            </button>
+          )}
         </div>
-      )}
+      </div>
 
       {/* ===== LANDING ===== */}
       {phase === "landing" && !isAuthChecking && !quotaExceeded && (
