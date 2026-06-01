@@ -24,6 +24,7 @@ import { BlueskyPrompt } from "@/components/blueskyPrompt";
 import type { DiagnosisResult } from "@/pages/api/fortune";
 import { fetchAudio, fetchAudioUrl } from "@/features/messages/speakCharacter";
 import { parseLanguageContent, stripEmotionTags } from "@/utils/languageParser";
+import { ConvHistoryPanel } from "@/components/ConvHistoryPanel";
 
 type AnswerItem = { question: string; answer: string };
 type Phase = "landing" | "questions" | "loading" | "fortune" | "chat";
@@ -62,6 +63,7 @@ export default function MainHome() {
   const [fortune, setFortune] = useState<DiagnosisResult | null>(null);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true); // OAuth init 解決まで true
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isWaitingForVoice, setIsWaitingForVoice] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [pendingInvite, setPendingInvite] = useState<{ textJa: string; textEn: string } | null>(null);
@@ -1005,6 +1007,51 @@ export default function MainHome() {
         )}
       </div>
 
+      {/* りれきボタン（サインイン済みのみ、左上） */}
+      {isSignedIn && (
+        <div
+          className="absolute z-30 flex items-center animate-fadeIn"
+          style={{
+            top: "calc(max(1.5rem, env(safe-area-inset-top)))",
+            left: "1.5rem",
+          }}
+        >
+          <button
+            onClick={() => setIsHistoryOpen(true)}
+            className="rounded-full font-black transition-all duration-300 hover:scale-105 active:scale-95 select-none"
+            style={{
+              height: "48px",
+              padding: "0 20px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "7px",
+              background: "rgba(255, 255, 255, 0.65)",
+              backdropFilter: "blur(20px)",
+              border: "1px solid rgba(255, 255, 255, 0.45)",
+              color: "var(--theme-blue)",
+              boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
+              fontSize: "15px",
+            }}
+          >
+            <svg
+              width="17"
+              height="17"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.25"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            {lang === "ja" ? "りれき" : "History"}
+          </button>
+        </div>
+      )}
+
       {/* ===== LANDING ===== */}
       {phase === "landing" && !isAuthChecking && !quotaExceeded && (
         <div className="absolute z-20 flex flex-col justify-end" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)))", top: 'auto', gap: "0.75rem" }}>
@@ -1203,6 +1250,15 @@ export default function MainHome() {
           onSend={handleSendChat}
           quotaExceeded={quotaExceeded}
           isInvitationMode={isInvitationMode}
+        />
+      )}
+
+      {/* ===== HISTORY PANEL ===== */}
+      {isHistoryOpen && (
+        <ConvHistoryPanel
+          chatLog={chatLog}
+          lang={lang}
+          onClose={() => setIsHistoryOpen(false)}
         />
       )}
 
