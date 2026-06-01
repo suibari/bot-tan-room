@@ -167,6 +167,12 @@ export class Viewer {
    * 指定されたクライアント座標（clientX, clientY）において、
    * VRMモデルがクリックされたかどうかを判定します。
    */
+  public async playVrmaMotion(url: string): Promise<void> {
+    if (!this.model) return;
+    const vrma = await loadVRMAnimation(url);
+    if (vrma) await this.model.playMotionOnce(vrma);
+  }
+
   public handleRaycast(clientX: number, clientY: number): boolean {
     if (!this._renderer || !this._camera || !this.model?.vrm) return false;
 

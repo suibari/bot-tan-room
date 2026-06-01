@@ -25,6 +25,7 @@ import type { DiagnosisResult } from "@/pages/api/fortune";
 import { fetchAudio, fetchAudioUrl } from "@/features/messages/speakCharacter";
 import { parseLanguageContent, stripEmotionTags } from "@/utils/languageParser";
 import { ConvHistoryPanel } from "@/components/ConvHistoryPanel";
+import { MOTION_URLS, getRandomClickMotion } from "@/features/vrmViewer/motionConfig";
 
 type AnswerItem = { question: string; answer: string };
 type Phase = "landing" | "questions" | "loading" | "fortune" | "chat";
@@ -453,6 +454,7 @@ export default function MainHome() {
     };
 
     try {
+      viewer.playVrmaMotion(MOTION_URLS.invitation);
       setIsSpeaking(true);
       const talks = textsToScreenplay([`[neutral]${textJa}`], koeiroParam);
       // ダイアログ表示中に先読みしておいた音声を待つ（完了済みなら即返る）
@@ -515,7 +517,8 @@ export default function MainHome() {
         setIsWaitingForVoice(false);
         setFortune(data);
         setPhase("fortune");
-        // 診断結果表示時に表情を excited (驚き＋喜び) に切り替える
+        // 診断結果表示時に表情を excited (驚き＋喜び) に切り替え、Vサインモーションを再生
+        viewer.playVrmaMotion(MOTION_URLS.diagnosis);
         viewer.model?.emoteController?.playEmotion("excited");
       };
 
@@ -714,6 +717,7 @@ export default function MainHome() {
     const fullMessage = `${emotionTag}${displayMoodText}`;
 
     try {
+      viewer.playVrmaMotion(getRandomClickMotion());
       setIsSpeaking(true);
       const talks = textsToScreenplay([`${emotionTag}${moodText}`], koeiroParam);
       
@@ -912,6 +916,7 @@ export default function MainHome() {
         if (thankYou) {
           const { parseLanguageContent, stripEmotionTags } = await import('@/utils/languageParser');
           const jaRawText = parseLanguageContent(thankYou, 'ja');
+          viewer.playVrmaMotion(MOTION_URLS.gift);
           setIsWaitingForVoice(true);
           safeSpeak(
             jaRawText,

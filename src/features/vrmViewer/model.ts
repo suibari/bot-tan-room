@@ -17,6 +17,8 @@ export class Model {
 
   private _lookAtTargetParent: THREE.Object3D;
   private _lipSync?: LipSync;
+  private _currentIdleAction?: THREE.AnimationAction;
+  private _isPlayingMotion = false;
 
   constructor(lookAtTargetParent: THREE.Object3D) {
     this._lookAtTargetParent = lookAtTargetParent;
@@ -64,6 +66,41 @@ export class Model {
     const clip = vrmAnimation.createAnimationClip(vrm);
     const action = mixer.clipAction(clip);
     action.play();
+    this._currentIdleAction = action;
+  }
+
+  public async playMotionOnce(vrmAnimation: VRMAnimation): Promise<void> {
+    const { vrm, mixer } = this;
+    if (vrm == null || mixer == null || this._isPlayingMotion) return;
+    this._isPlayingMotion = true;
+
+    const clip = vrmAnimation.createAnimationClip(vrm);
+    const motionAction = mixer.clipAction(clip);
+    motionAction.setLoop(THREE.LoopOnce, 1);
+    motionAction.clampWhenFinished = true;
+    motionAction.reset();
+
+    if (this._currentIdleAction) {
+      motionAction.play();
+      this._currentIdleAction.crossFadeTo(motionAction, 0.3, false);
+    } else {
+      motionAction.play();
+    }
+
+    await new Promise<void>((resolve) => {
+      const onFinish = (event: THREE.Event) => {
+        const action = (event as THREE.Event & { action: THREE.AnimationAction }).action;
+        if (action !== motionAction) return;
+        mixer.removeEventListener("finished", onFinish);
+        if (this._currentIdleAction) {
+          this._currentIdleAction.reset();
+          motionAction.crossFadeTo(this._currentIdleAction, 0.5, false);
+        }
+        this._isPlayingMotion = false;
+        resolve();
+      };
+      mixer.addEventListener("finished", onFinish);
+    });
   }
 
   /**
