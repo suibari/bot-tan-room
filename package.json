@@ -7,11 +7,13 @@
     "build": "next build",
     "start": "next build && next start",
     "export": "next export",
-    "lint": "next lint"
+    "lint": "next lint",
+    "generate-icons": "node scripts/generate-pwa-icons.mjs"
   },
   "dependencies": {
     "@atproto/oauth-client-browser": "^0.4.1",
     "@charcoal-ui/icons": "^2.6.0",
+    "@ducanh2912/next-pwa": "^10.2.9",
     "@google/genai": "^1.33.0",
     "@tailwindcss/line-clamp": "^0.4.4",
     "@types/dom-speech-recognition": "^0.0.1",
@@ -41,6 +43,7 @@
     "@types/three": "0.149.0",
     "autoprefixer": "^10.4.14",
     "postcss": "^8.4.21",
+    "sharp": "^0.34.5",
     "tailwindcss": "^3.3.1"
   },
   "engines": {
