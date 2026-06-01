@@ -156,53 +156,58 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quo
             </div>
           ) : isGiftMode ? (
             /* ギフトカード入力エリア */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {/* ヘッダー行：モードラベル + チャットに戻るボタン */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {/* モードラベル（絵文字なし） */}
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(200, 60, 100, 0.85)' }}>
+                {lang === 'ja' ? 'プレゼント' : 'Gift'}
+              </span>
+              {/* テキスト入力（全幅） */}
+              <input
+                type="text"
+                value={giftMessage}
+                onChange={(e) => setGiftMessage(e.target.value.slice(0, GIFT_MAX_CHARS))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing && !e.shiftKey) {
+                    e.preventDefault();
+                    handleGiftSend();
+                  }
+                }}
+                placeholder={lang === "ja" ? "プレゼントをどうぞ..." : "Send a gift..."}
+                disabled={isGiftProcessing}
+                className="w-full text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
+                style={{
+                  height: "48px",
+                  background: "rgba(255, 255, 255, 0.65)",
+                  border: "1.5px solid rgba(255, 150, 180, 0.5)",
+                  borderRadius: "9999px",
+                  padding: "0 20px",
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(255, 100, 150, 0.7)';
+                  e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255, 150, 180, 0.2)';
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(255, 150, 180, 0.5)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              />
+              {/* ボタン行：💬トグル（左）+ 送信（右） */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(200, 60, 100, 0.85)' }}>
-                  🎁 {lang === 'ja' ? 'プレゼント' : 'Gift'}
-                </span>
                 <button
                   onClick={onGiftModeToggle}
                   aria-label="back to chat"
-                  className="transition-opacity duration-200 hover:opacity-70"
-                  style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(80, 100, 200, 0.75)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px' }}
-                >
-                  💬 {lang === 'ja' ? 'チャットに戻る' : 'Back to chat'}
-                </button>
-              </div>
-              {/* 入力行：チャットと同じ2要素レイアウト */}
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <input
-                  type="text"
-                  value={giftMessage}
-                  onChange={(e) => setGiftMessage(e.target.value.slice(0, GIFT_MAX_CHARS))}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.nativeEvent.isComposing && !e.shiftKey) {
-                      e.preventDefault();
-                      handleGiftSend();
-                    }
-                  }}
-                  placeholder={lang === "ja" ? "プレゼントをどうぞ..." : "Send a gift..."}
-                  disabled={isGiftProcessing}
-                  className="flex-1 text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
+                  className="shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95"
                   style={{
+                    width: "48px",
                     height: "48px",
-                    background: "rgba(255, 255, 255, 0.65)",
-                    border: "1.5px solid rgba(255, 150, 180, 0.5)",
                     borderRadius: "9999px",
-                    padding: "0 20px",
+                    background: "rgba(220, 235, 255, 0.6)",
+                    border: "1.5px solid rgba(80, 130, 220, 0.3)",
+                    fontSize: "20px",
                   }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(255, 100, 150, 0.7)';
-                    e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255, 150, 180, 0.2)';
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(255, 150, 180, 0.5)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                />
-                {/* 送信ボタン（チャットと同じ送信アイコン） */}
+                >
+                  💬
+                </button>
                 <button
                   onClick={handleGiftSend}
                   disabled={isGiftProcessing || !giftMessage.trim()}
@@ -232,35 +237,15 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quo
                   )}
                 </button>
               </div>
-              {/* 文字数カウンター */}
-              <span
-                className="text-right text-xs font-semibold"
-                style={{ color: giftMessage.length >= GIFT_MAX_CHARS ? 'rgba(220, 50, 80, 0.8)' : 'rgba(180, 100, 120, 0.6)' }}
-              >
-                {giftMessage.length}/{GIFT_MAX_CHARS}
-              </span>
             </div>
           ) : (
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              {/* ギフトモード切替ボタン（サインイン済みの場合のみ表示） */}
-              {isSignedIn && (
-                <button
-                  onClick={onGiftModeToggle}
-                  aria-label="gift mode"
-                  className="shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95"
-                  style={{
-                    width: "48px",
-                    height: "48px",
-                    borderRadius: "9999px",
-                    background: "rgba(255, 210, 220, 0.5)",
-                    border: "1.5px solid rgba(255, 150, 180, 0.4)",
-                    fontSize: "20px",
-                  }}
-                >
-                  🎁
-                </button>
-              )}
-              {/* テキスト入力 */}
+            /* チャット入力エリア */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {/* モードラベル（絵文字なし） */}
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(58, 155, 213, 0.85)' }}>
+                {lang === 'ja' ? 'チャット' : 'Chat'}
+              </span>
+              {/* テキスト入力（全幅） */}
               <input
                 type="text"
                 value={userMessage}
@@ -273,7 +258,7 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quo
                 }}
                 placeholder={l.placeholder}
                 disabled={isChatProcessing}
-                className="flex-1 text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
+                className="w-full text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
                 style={{
                   height: "48px",
                   background: "rgba(255, 255, 255, 0.55)",
@@ -290,35 +275,51 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quo
                   e.currentTarget.style.boxShadow = 'none';
                 }}
               />
-
-              {/* 送信 */}
-              <button
-                onClick={handleSend}
-                disabled={isChatProcessing || !userMessage.trim()}
-                aria-label="send"
-                className="shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed bg-theme-gradient shadow-md"
-                style={{
-                  width: "48px",
-                  height: "48px",
-                  borderRadius: "9999px",
-                }}
-              >
-                {isChatProcessing ? (
-                  <span
-                    className="block w-4 h-4"
-                    style={{
-                      border: "2px solid rgba(255,255,255,0.3)",
-                      borderTopColor: "#fff",
-                      animation: "chat-spin 0.75s linear infinite",
-                      borderRadius: "50%",
-                    }}
-                  />
-                ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
-                    <path d="M2 21l21-9L2 3v7l15 2-15 2z" />
-                  </svg>
-                )}
-              </button>
+              {/* ボタン行：🎁トグル（左）+ 送信（右） */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button
+                  onClick={onGiftModeToggle}
+                  aria-label="gift mode"
+                  className="shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95"
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "9999px",
+                    background: "rgba(255, 210, 220, 0.5)",
+                    border: "1.5px solid rgba(255, 150, 180, 0.4)",
+                    fontSize: "20px",
+                  }}
+                >
+                  🎁
+                </button>
+                <button
+                  onClick={handleSend}
+                  disabled={isChatProcessing || !userMessage.trim()}
+                  aria-label="send"
+                  className="shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed bg-theme-gradient shadow-md"
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "9999px",
+                  }}
+                >
+                  {isChatProcessing ? (
+                    <span
+                      className="block w-4 h-4"
+                      style={{
+                        border: "2px solid rgba(255,255,255,0.3)",
+                        borderTopColor: "#fff",
+                        animation: "chat-spin 0.75s linear infinite",
+                        borderRadius: "50%",
+                      }}
+                    />
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
+                      <path d="M2 21l21-9L2 3v7l15 2-15 2z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
           )}
           <style jsx global>{`
