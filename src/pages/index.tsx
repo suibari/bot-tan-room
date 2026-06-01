@@ -74,6 +74,7 @@ export default function MainHome() {
   const [displayedMoodContext, setDisplayedMoodContext] = useState<{ moodJa: string; moodEn: string; emotionTag: string } | null>(null);
   const [isGiftMode, setIsGiftMode] = useState(false);
   const [isGiftProcessing, setIsGiftProcessing] = useState(false);
+  const [showSignInForm, setShowSignInForm] = useState(false);
   const prefetchedMoodAudioRef = useRef<Promise<ArrayBuffer | null>>(Promise.resolve(null));
   const pendingAudioRef = useRef<Promise<ArrayBuffer | null>>(Promise.resolve(null));
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -348,11 +349,6 @@ export default function MainHome() {
                 }));
                 setChatLog(mappedLog);
 
-                // デバッグ用に最新10件の会話履歴をブラウザコンソールに出力
-                console.log(`[History Log] Latest 10 messages from DB for ${did}:`);
-                currentHistory.slice(-10).forEach((msg: any, idx: number) => {
-                  console.log(`  [${idx + 1}] [${msg.role === 'model' ? 'botたん' : 'ユーザー'}] ${msg.parts?.[0]?.text}`);
-                });
               }
             } catch (err) {
               console.error('[History synchronization error]:', err);
@@ -1118,7 +1114,7 @@ export default function MainHome() {
 
       {/* ===== LANDING ===== */}
       {phase === "landing" && !isAuthChecking && !quotaExceeded && (
-        <div className="absolute z-20 flex flex-col justify-end" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)))", top: 'auto', gap: "0.75rem" }}>
+        <div className="absolute z-20 flex flex-col justify-end" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(0.75rem, env(safe-area-inset-bottom)))", top: "60dvh", gap: "0.5rem" }}>
           {/* botたんのメッセージはカードの外・上に表示 */}
           <div className="w-full max-w-xl self-center">
             <AssistantBubble message={assistantMessage} lang={lang} />
@@ -1130,23 +1126,18 @@ export default function MainHome() {
               backdropFilter: "blur(30px) saturate(140%)",
               border: "1.5px solid rgba(255, 255, 255, 0.55)",
               borderRadius: "2.5rem",
-              padding: "1.5rem 2.25rem",
+              padding: "1rem 1.5rem",
               display: "flex",
               flexDirection: "column",
-              gap: "1.15rem",
+              gap: "0.75rem",
               boxShadow: "0 24px 64px -16px rgba(15, 32, 67, 0.12)",
             }}
           >
 
-            <h1 className="text-slate-800 text-2xl font-black text-center tracking-wide"
+            <h1 className="text-slate-800 text-xl font-black text-center tracking-wide"
               style={{ textShadow: '0 2px 10px rgba(58, 155, 213, 0.15)' }}>
               {lang === "ja" ? "Botたんのお部屋へようこそ" : "Welcome to Bot-tan's Room"}
             </h1>
-            <p className="text-sm font-semibold text-slate-600 text-center leading-relaxed">
-              {lang === "ja"
-                ? "あなたのこと、botたんに話してみて。どんなことも、ぜんぶ受け止めるよ"
-                : "Tell bot-tan about yourself. I will embrace every part of you with warmth"}
-            </p>
             <input
               ref={nameInputRef}
               type="text"
@@ -1160,7 +1151,7 @@ export default function MainHome() {
                 background: "rgba(255, 255, 255, 0.55)",
                 border: "1.5px solid rgba(58, 155, 213, 0.25)",
                 borderRadius: "9999px",
-                padding: "13px 24px",
+                padding: "10px 20px",
               }}
               onFocus={(e) => {
                 e.currentTarget.style.borderColor = 'var(--theme-blue)';
@@ -1176,7 +1167,7 @@ export default function MainHome() {
               className="w-full font-black text-white text-base shadow-md tracking-wider transition-all duration-300 hover:shadow-lg hover:brightness-105 active:scale-[0.97] bg-theme-gradient"
               style={{
                 borderRadius: "9999px",
-                padding: "13px 24px",
+                padding: "10px 20px",
               }}
             >
               {LABEL.button}
@@ -1231,9 +1222,9 @@ export default function MainHome() {
 
       {/* ===== スピナー（ボタン押下〜VoiceVox再生開始まで常に表示） ===== */}
       {((isWaitingForVoice && phase !== "chat") || (phase === "chat" && (chatProcessing || isWaitingForVoice))) && (
-        <div className="absolute inset-x-0 top-1/3 z-30 flex justify-center pointer-events-none">
+        <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
           <div
-            className="flex flex-col items-center gap-4 px-10 py-7 rounded-3xl"
+            className="flex flex-col items-center gap-4 px-10 py-10 rounded-3xl"
             style={{
               background: "rgba(255, 255, 255, 0.70)",
               backdropFilter: "blur(20px)",
@@ -1269,10 +1260,11 @@ export default function MainHome() {
 
       {/* ===== FORTUNE ===== */}
       {phase === "fortune" && fortune && !quotaExceeded && (
-        <div className="absolute z-20 flex justify-center pointer-events-none" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)))", top: 'auto' }}>
+        <div className="absolute z-20 flex justify-center pointer-events-none" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(0.75rem, env(safe-area-inset-bottom)))", top: "60dvh" }}>
           <div
-            className="w-full max-w-xl shadow-2xl max-h-[72vh] overflow-y-auto pointer-events-auto scrollbar-thin"
+            className="w-full max-w-xl shadow-2xl overflow-y-auto pointer-events-auto scrollbar-thin"
             style={{
+              maxHeight: "100%",
               background: "rgba(255, 255, 255, 0.72)",
               backdropFilter: "blur(30px) saturate(140%)",
               border: "1.5px solid rgba(255, 255, 255, 0.55)",
@@ -1284,11 +1276,25 @@ export default function MainHome() {
               boxShadow: "0 24px 64px -16px rgba(15, 32, 67, 0.12)",
             }}
           >
-            {/* ドラッグハンドル */}
-            <div className="w-12 h-1.5 rounded-full mx-auto mb-2"
-              style={{ background: "rgba(58, 155, 213, 0.25)" }} />
             <FortuneCard name={userName} fortune={fortune} lang={lang} isSpeaking={isSpeaking} flat={true} />
-            <BlueskyPrompt lang={lang} isSignedIn={isSignedIn} onSignIn={handleSignIn} />
+            {!isSignedIn && !showSignInForm && (
+              <button
+                onClick={() => setShowSignInForm(true)}
+                className="w-full font-bold text-sm transition-all duration-200 hover:brightness-105"
+                style={{
+                  borderRadius: "9999px",
+                  padding: "10px 20px",
+                  background: "rgba(255, 255, 255, 0.6)",
+                  border: "1.5px solid rgba(58, 155, 213, 0.3)",
+                  color: "rgba(58, 155, 213, 0.9)",
+                }}
+              >
+                {lang === "ja" ? "Blueskyでサインインしてチャットしよう →" : "Sign in with Bluesky to chat →"}
+              </button>
+            )}
+            {!isSignedIn && showSignInForm && (
+              <BlueskyPrompt lang={lang} isSignedIn={isSignedIn} onSignIn={handleSignIn} />
+            )}
             {isSignedIn && (
               <button
                 onClick={handleStartChat}

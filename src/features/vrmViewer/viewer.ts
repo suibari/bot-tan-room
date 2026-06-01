@@ -19,6 +19,11 @@ export class Viewer {
   private _camera?: THREE.PerspectiveCamera;
   private _cameraControls?: OrbitControls;
 
+  private _baseCameraZ = 1.5;
+  private _motionCameraZ = 2.0;
+  private _cameraLerpT = 0;
+  private _cameraTargetT = 0;
+
   constructor() {
     this.isReady = false;
 
@@ -100,6 +105,8 @@ export class Viewer {
     // camera
     const isMobile = width < 768;
     const cameraZ = isMobile ? 2.2 : 1.5;
+    this._baseCameraZ = cameraZ;
+    this._motionCameraZ = cameraZ + 0.5;
     this._camera = new THREE.PerspectiveCamera(20.0, width / height, 0.1, 20.0);
     this._camera.position.set(0, 1.3, cameraZ);
     this._cameraControls?.target.set(0, 1.3, 0);
@@ -141,6 +148,8 @@ export class Viewer {
     // デバイス回転時などのリサイズでカメラ距離をスマホサイズに合わせて再調整する
     const isMobile = width < 768;
     const cameraZ = isMobile ? 2.2 : 1.5;
+    this._baseCameraZ = cameraZ;
+    this._motionCameraZ = cameraZ + 0.5;
     this._camera.position.z = cameraZ;
     this.resetCamera();
   }
@@ -170,7 +179,10 @@ export class Viewer {
   public async playVrmaMotion(url: string): Promise<void> {
     if (!this.model) return;
     const vrma = await loadVRMAnimation(url);
-    if (vrma) await this.model.playMotionOnce(vrma);
+    if (!vrma) return;
+    this._cameraTargetT = 1;
+    await this.model.playMotionOnce(vrma);
+    this._cameraTargetT = 0;
   }
 
   public handleRaycast(clientX: number, clientY: number): boolean {
@@ -197,7 +209,13 @@ export class Viewer {
   public update = () => {
     requestAnimationFrame(this.update);
     const delta = this._clock.getDelta();
-    // update vrm components
+
+    // モーション再生中はカメラをなめらかに引き、終わったら戻す
+    this._cameraLerpT += (this._cameraTargetT - this._cameraLerpT) * Math.min(delta * 4.0, 1);
+    if (this._camera) {
+      this._camera.position.z = THREE.MathUtils.lerp(this._baseCameraZ, this._motionCameraZ, this._cameraLerpT);
+    }
+
     if (this.model) {
       this.model.update(delta);
     }

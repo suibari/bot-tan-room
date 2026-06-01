@@ -118,7 +118,7 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quo
 
           {/* ギフトモード インフォアイコン */}
           {isGiftMode && (
-            <div style={{ position: 'absolute', top: '0.75rem', right: '1rem', zIndex: 10 }}>
+            <div style={{ position: 'absolute', top: '1rem', right: '1.25rem', zIndex: 10 }}>
               <button
                 onClick={() => setShowGiftInfo(v => !v)}
                 aria-label="gift info"
@@ -223,7 +223,7 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quo
                     handleGiftSend();
                   }
                 }}
-                placeholder={lang === "ja" ? "プレゼントをどうぞ..." : "Send a gift..."}
+                placeholder={lang === "ja" ? "プレゼントの名前をいれてね" : "What's the gift?"}
                 disabled={isGiftProcessing}
                 className="w-full text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
                 style={{
