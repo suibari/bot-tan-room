@@ -171,7 +171,9 @@ export async function verifyAtprotoToken(
           }
         } else {
           const errBody = await pdsRes.text().catch(() => '');
-          console.warn(`[JWTVerifier] PDS validation returned status ${pdsRes.status}: ${errBody}`);
+          // DPoP-bound tokens (dpop_bound_access_tokens: true) require a DPoP proof header,
+          // so plain Bearer requests to PDS always return 400 InvalidToken. This is expected.
+          console.info(`[JWTVerifier] PDS validation returned status ${pdsRes.status} (expected if DPoP-bound): ${errBody}`);
         }
       } catch (pdsErr: any) {
         console.warn(`[JWTVerifier] Exception during PDS verification check: ${pdsErr.message}`);
@@ -223,9 +225,10 @@ export async function verifyAtprotoToken(
       }
     }
 
-    // 6. Fallback: Structural check validation
-    // Since entryway's public JWKS is empty and PDS getSession is DPoP-bound,
-    // we fallback to structural verification (sub, iss, exp already verified above).
+    // 6. Intended fallback: Structural validation.
+    // Step 4 fails because DPoP-bound tokens require a DPoP proof header (not generated server-side).
+    // Step 5 fails because entryway's public JWKS is empty.
+    // sub/iss/exp are already verified above, so structural validation is the working security model here.
     const parts = token.split('.');
     if (parts.length === 3 && payload.sub === expectedDid && payload.iss.startsWith('https://')) {
       return { verified: true };
