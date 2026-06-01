@@ -8,6 +8,11 @@ type Props = {
   onSend: (text: string) => void;
   quotaExceeded?: boolean;
   isInvitationMode?: boolean;
+  isSignedIn?: boolean;
+  isGiftMode?: boolean;
+  onGiftModeToggle?: () => void;
+  onGiftSend?: (text: string) => void;
+  isGiftProcessing?: boolean;
 };
 
 const LABELS = {
@@ -19,9 +24,12 @@ const LABELS = {
  * 性格診断 UI と統一したグラス調のチャット画面。
  * 上部に botたんの発言バブル、下部にテキスト＋音声入力バーを表示する。
  */
-export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quotaExceeded = false, isInvitationMode = false }: Props) {
+const GIFT_MAX_CHARS = 30;
+
+export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quotaExceeded = false, isInvitationMode = false, isSignedIn = false, isGiftMode = false, onGiftModeToggle, onGiftSend, isGiftProcessing = false }: Props) {
   const l = LABELS[lang];
   const [userMessage, setUserMessage] = useState("");
+  const [giftMessage, setGiftMessage] = useState("");
   const [speechRecognition, setSpeechRecognition] = useState<SpeechRecognition>();
   const [isMicRecording, setIsMicRecording] = useState(false);
 
@@ -54,6 +62,13 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quo
     if (!text || isChatProcessing) return;
     onSend(text);
   }, [userMessage, isChatProcessing, onSend]);
+
+  const handleGiftSend = useCallback(() => {
+    const text = giftMessage.trim();
+    if (!text || isGiftProcessing) return;
+    onGiftSend?.(text);
+    setGiftMessage("");
+  }, [giftMessage, isGiftProcessing, onGiftSend]);
 
   useEffect(() => {
     const SpeechRecognition =
@@ -88,9 +103,9 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quo
         <div
           className="w-full max-w-xl self-center shadow-2xl relative overflow-hidden transition-all duration-300"
           style={{
-            background: "rgba(255, 255, 255, 0.72)",
+            background: isGiftMode ? "rgba(255, 210, 220, 0.82)" : "rgba(255, 255, 255, 0.72)",
             backdropFilter: "blur(30px) saturate(140%)",
-            border: "1.5px solid rgba(255, 255, 255, 0.55)",
+            border: isGiftMode ? "1.5px solid rgba(255, 150, 180, 0.5)" : "1.5px solid rgba(255, 255, 255, 0.55)",
             borderRadius: "2.5rem",
             padding: "1.5rem 2.25rem",
             display: "flex",
@@ -139,8 +154,115 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, onSend, quo
                 {lang === "ja" ? "今日はbotたんのお部屋は満員になっちゃった！　また明日ね！" : "The room is full today! See you tomorrow!"}
               </p>
             </div>
+          ) : isGiftMode ? (
+            /* ギフトカード入力エリア */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                {/* チャットに戻るボタン */}
+                <button
+                  onClick={onGiftModeToggle}
+                  aria-label="back to chat"
+                  className="shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95"
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "9999px",
+                    background: "rgba(255, 180, 200, 0.4)",
+                    border: "1.5px solid rgba(255, 150, 180, 0.5)",
+                    fontSize: "20px",
+                  }}
+                >
+                  💬
+                </button>
+                {/* ギフト入力 */}
+                <div className="flex-1 relative">
+                  <input
+                    type="text"
+                    value={giftMessage}
+                    onChange={(e) => setGiftMessage(e.target.value.slice(0, GIFT_MAX_CHARS))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.nativeEvent.isComposing && !e.shiftKey) {
+                        e.preventDefault();
+                        handleGiftSend();
+                      }
+                    }}
+                    placeholder={lang === "ja" ? "プレゼントをどうぞ..." : "Send a gift..."}
+                    disabled={isGiftProcessing}
+                    className="w-full text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
+                    style={{
+                      height: "48px",
+                      background: "rgba(255, 255, 255, 0.65)",
+                      border: "1.5px solid rgba(255, 150, 180, 0.5)",
+                      borderRadius: "9999px",
+                      padding: "0 52px 0 20px",
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = 'rgba(255, 100, 150, 0.7)';
+                      e.currentTarget.style.boxShadow = '0 0 0 4px rgba(255, 150, 180, 0.2)';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = 'rgba(255, 150, 180, 0.5)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  />
+                  {/* 文字数カウンター */}
+                  <span
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold pointer-events-none"
+                    style={{ color: giftMessage.length >= GIFT_MAX_CHARS ? 'rgba(220, 50, 80, 0.8)' : 'rgba(180, 100, 120, 0.6)' }}
+                  >
+                    {giftMessage.length}/{GIFT_MAX_CHARS}
+                  </span>
+                </div>
+                {/* 送信ボタン */}
+                <button
+                  onClick={handleGiftSend}
+                  disabled={isGiftProcessing || !giftMessage.trim()}
+                  aria-label="send gift"
+                  className="shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed shadow-md"
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "9999px",
+                    background: "linear-gradient(135deg, #ff8fab, #ff6b9d)",
+                    fontSize: "20px",
+                  }}
+                >
+                  {isGiftProcessing ? (
+                    <span
+                      className="block w-4 h-4"
+                      style={{
+                        border: "2px solid rgba(255,255,255,0.3)",
+                        borderTopColor: "#fff",
+                        animation: "chat-spin 0.75s linear infinite",
+                        borderRadius: "50%",
+                      }}
+                    />
+                  ) : (
+                    <span>🎁</span>
+                  )}
+                </button>
+              </div>
+            </div>
           ) : (
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              {/* ギフトモード切替ボタン（サインイン済みの場合のみ表示） */}
+              {isSignedIn && (
+                <button
+                  onClick={onGiftModeToggle}
+                  aria-label="gift mode"
+                  className="shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95"
+                  style={{
+                    width: "48px",
+                    height: "48px",
+                    borderRadius: "9999px",
+                    background: "rgba(255, 210, 220, 0.5)",
+                    border: "1.5px solid rgba(255, 150, 180, 0.4)",
+                    fontSize: "20px",
+                  }}
+                >
+                  🎁
+                </button>
+              )}
               {/* テキスト入力 */}
               <input
                 type="text"

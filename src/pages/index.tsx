@@ -71,6 +71,8 @@ export default function MainHome() {
   const [isFetchingMood, setIsFetchingMood] = useState(false);
   const [prefetchedMood, setPrefetchedMood] = useState<{ mood: string; mood_en: string; status: string } | null>(null);
   const [displayedMoodContext, setDisplayedMoodContext] = useState<{ moodJa: string; moodEn: string; emotionTag: string } | null>(null);
+  const [isGiftMode, setIsGiftMode] = useState(false);
+  const [isGiftProcessing, setIsGiftProcessing] = useState(false);
   const prefetchedMoodAudioRef = useRef<Promise<ArrayBuffer | null>>(Promise.resolve(null));
   const pendingAudioRef = useRef<Promise<ArrayBuffer | null>>(Promise.resolve(null));
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -877,6 +879,65 @@ export default function MainHome() {
     [systemPrompt, chatLog, userName, lang, safeSpeak]
   );
 
+  const handleGiftSend = useCallback(
+    async (text: string) => {
+      if (!text) return;
+      setIsGiftProcessing(true);
+      setIsGiftMode(false);
+      setAssistantMessage("");
+
+      try {
+        const did = bskySessionRef.current?.did;
+        const tokenSet = await (bskySessionRef.current as any)?.getTokenSet?.();
+        const token = tokenSet?.access_token ?? '';
+
+        const response = await fetch('/api/gift', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ did, content: text, lang }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          const errMsg = data.message ?? (lang === 'ja' ? 'プレゼントを渡せなかったよ…' : 'Could not send the gift...');
+          setAssistantMessage(`[sad]${errMsg}`);
+          return;
+        }
+
+        const thankYou: string = data.thankYou ?? '';
+        if (thankYou) {
+          const { parseLanguageContent, stripEmotionTags } = await import('@/utils/languageParser');
+          const jaRawText = parseLanguageContent(thankYou, 'ja');
+          setIsWaitingForVoice(true);
+          safeSpeak(
+            jaRawText,
+            () => {
+              setIsWaitingForVoice(false);
+              setIsSpeaking(true);
+              setAssistantMessage(thankYou);
+            },
+            () => setIsSpeaking(false),
+            () => {
+              setIsWaitingForVoice(false);
+              setIsSpeaking(false);
+              setAssistantMessage(thankYou);
+            }
+          );
+        }
+      } catch (e) {
+        console.error('[handleGiftSend error]:', e);
+        setAssistantMessage(lang === 'ja' ? '[sad]うまく届かなかったよ…もう一度試してみてね。' : '[sad]Something went wrong. Please try again.');
+      } finally {
+        setIsGiftProcessing(false);
+      }
+    },
+    [lang, safeSpeak]
+  );
+
   // --- labels ---
   const LABEL = {
     ja: {
@@ -1240,6 +1301,11 @@ export default function MainHome() {
           onSend={handleSendChat}
           quotaExceeded={quotaExceeded}
           isInvitationMode={isInvitationMode}
+          isSignedIn={isSignedIn}
+          isGiftMode={isGiftMode}
+          onGiftModeToggle={() => setIsGiftMode(prev => !prev)}
+          onGiftSend={handleGiftSend}
+          isGiftProcessing={isGiftProcessing}
         />
       )}
 
