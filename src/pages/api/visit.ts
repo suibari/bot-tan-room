@@ -38,6 +38,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   };
 
   try {
+    // お誘いからの来訪かどうかを確認するため、まず現在の room_invite_sent を取得
+    let wasInvited = false;
+    try {
+      const getRes = await fetch(
+        `${DB_URL}/followers?did=eq.${encodeURIComponent(did)}&select=room_invite_sent`,
+        { method: 'GET', headers }
+      );
+      if (getRes.ok) {
+        const rows: Array<{ room_invite_sent: number }> = await getRes.json();
+        wasInvited = rows.length > 0 && rows[0].room_invite_sent === 1;
+      }
+    } catch (e) {
+      console.warn('[API visit] Failed to fetch room_invite_sent, treating as non-invited visit:', e);
+    }
+
     const dbRes = await fetch(
       `${DB_URL}/followers?did=eq.${encodeURIComponent(did)}`,
       {
@@ -46,6 +61,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         body: JSON.stringify({
           last_room_visit_at: new Date().toISOString(),
           room_invite_sent: 0,
+          room_badge_pending: wasInvited ? 1 : 0,
         }),
         keepalive: true,
       }
@@ -54,6 +70,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!dbRes.ok) {
       const errText = await dbRes.text().catch(() => '');
       throw new Error(`DB update failed with status ${dbRes.status}: ${errText}`);
+    }
+
+    if (wasInvited) {
+      console.log(`[API visit] Invited visit detected for ${did}, room_badge_pending set to 1.`);
     }
 
     return res.status(200).json({ success: true });
