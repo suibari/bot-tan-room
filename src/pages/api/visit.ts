@@ -68,7 +68,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           last_room_visit_at: now,
           room_invite_sent: 0,
           room_badge_pending: badgeGranted ? 1 : 0,
-          ...(badgeGranted ? { last_regular_badge_at: now } : {}),
         }),
         keepalive: true,
       }
