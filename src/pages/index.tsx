@@ -1230,6 +1230,8 @@ export default function MainHome() {
       setIsGiftProcessing(true);
       setIsGiftMode(false);
       setAssistantMessage("");
+      // React に再レンダリングの機会を与えてスピナーを即表示する
+      await new Promise<void>(resolve => setTimeout(resolve, 0));
 
       try {
         const did = bskySessionRef.current?.did;
