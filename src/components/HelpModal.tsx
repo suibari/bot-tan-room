@@ -88,6 +88,18 @@ export function HelpModal({ lang, onClose }: Props) {
             )}
           </p>
 
+          {/* あいさつ機能 */}
+          <div className="space-y-1">
+            <h3 className="font-extrabold text-base flex items-center gap-1.5" style={{ color: "#0085ff" }}>
+              {lang === "ja" ? "👋 あいさつ機能" : "👋 Greeting"}
+            </h3>
+            <p className="text-slate-600 text-xs pl-0">
+              {lang === "ja"
+                ? "サインイン後、ページを開いたときに時間帯などに応じてbotたんが特別なあいさつをしてくれます。"
+                : "After signing in, bot-tan greets you with a special message based on the time of day and other factors when you open the page."}
+            </p>
+          </div>
+
           {/* プレゼント機能 */}
           <div className="space-y-1">
             <h3 className="font-extrabold text-base flex items-center gap-1.5" style={{ color: "#0085ff" }}>
@@ -95,8 +107,8 @@ export function HelpModal({ lang, onClose }: Props) {
             </h3>
             <p className="text-slate-600 text-xs pl-0">
               {lang === "ja"
-                ? "サインイン後、チャット画面右上の 🎁 ボタンからbotたんにプレゼントを贈れます。1日1回まで。Bluesky上のbotたんが反応してくれるかも？"
-                : "After signing in, tap the 🎁 button (top-right in chat) to send bot-tan a gift. Once per day. Bot-tan might react on Bluesky!"}
+                ? "サインイン後、画面右上の 🎁 ボタンからbotたんにプレゼントを贈れます。1日1回まで。Bluesky上のbotたんが反応してくれるかも？"
+                : "After signing in, tap the 🎁 button (top-right) to send bot-tan a gift. Once per day. Bot-tan might react on Bluesky!"}
             </p>
           </div>
 
