@@ -1,10 +1,21 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { GetStaticProps } from 'next';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
+import { getJSTHour, interpolateBackground } from '@/utils/timeBasedBackground';
 
 export default function CallbackPage() {
   const router = useRouter();
+  const [gradient, setGradient] = useState<string>(
+    'linear-gradient(180deg, #3a9bd5 0%, #74c0e8 45%, #b0ddf5 100%)'
+  );
+
+  useEffect(() => {
+    const update = () => setGradient(interpolateBackground(getJSTHour()));
+    update();
+    const id = setInterval(update, 10000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     import('@/features/auth/bskyOAuth')
@@ -29,7 +40,8 @@ export default function CallbackPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(135deg, #3a9bd5 0%, #74bfe8 50%, #9bf6ff 100%)",
+        background: gradient,
+        transition: "background 1s ease-in-out",
       }}
     >
       <div
