@@ -6,7 +6,54 @@ import { BOTTAN_CHARACTER_SETTINGS } from "@/features/constants/bottanCharacterS
 
 const GIFT_MAX_CHARS = 30;
 
+async function handleGet(req: NextApiRequest, res: NextApiResponse) {
+  const { did } = req.query;
+  if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
+    return res.status(400).json({ message: 'Invalid or missing DID' });
+  }
+
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : '';
+  const verification = await verifyAtprotoToken(token, did);
+  if (!verification.verified) {
+    return res.status(401).json({ message: 'Unauthorized session' });
+  }
+
+  const DB_URL = process.env.DB_URL ?? 'https://db.suibari.com';
+  const CF_ID = process.env.CF_ACCESS_CLIENT_ID_DB;
+  const CF_SECRET = process.env.CF_ACCESS_CLIENT_SECRET_DB;
+
+  if (!CF_ID || !CF_SECRET) {
+    return res.status(500).json({ message: 'Server Configuration Error' });
+  }
+
+  const dbHeaders: HeadersInit = {
+    'Accept-Profile': 'affirmative_bot',
+    'cf-access-client-id': CF_ID,
+    'cf-access-client-secret': CF_SECRET,
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  };
+
+  try {
+    const giftsRes = await fetch(
+      `${DB_URL}/gifts?did=eq.${encodeURIComponent(did)}&order=created_at.desc&limit=5&select=content,created_at`,
+      { headers: dbHeaders, keepalive: true }
+    );
+    if (!giftsRes.ok) {
+      throw new Error(`DB fetch failed with status ${giftsRes.status}`);
+    }
+    const gifts = await giftsRes.json();
+    return res.status(200).json({ gifts });
+  } catch (e) {
+    console.error('[API gift GET error]:', e);
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method === 'GET') {
+    return handleGet(req, res);
+  }
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }

@@ -154,6 +154,7 @@ export default function MainHome() {
   const [guestTurnCount, setGuestTurnCount] = useState(0);
   const [landingMessage, setLandingMessage] = useState("");
   const [greetingMode, setGreetingMode] = useState<GreetingMode>(null);
+  const [regularLevel, setRegularLevel] = useState(0);
   const greetingElapsedMsRef = useRef<number | null>(null);
   const pendingFirstMessageRef = useRef<string | null>(null);
   const prefetchedMoodAudioRef = useRef<Promise<ArrayBuffer | null>>(Promise.resolve(null));
@@ -387,6 +388,8 @@ export default function MainHome() {
                   setGreetingMode('hajimemashite');
                 }
               }
+
+              setRegularLevel(historyData.regular_level ?? 0);
 
               if (historyData.isFollower) {
                 let currentHistory = historyData.conv_history || [];
@@ -880,11 +883,44 @@ export default function MainHome() {
     }
 
     const nameInstruction = `必ずユーザーの名前「${userName}」を呼びかけてください。`;
-    const greetingCtx = mode === 'tadaima'
+    let greetingCtx = mode === 'tadaima'
       ? `\n\n# 今回の挨拶\nユーザーが「ただいま！」と言ってあなたの部屋に帰ってきてくれました。${elapsedDesc}。現在は${tod}です。${nameInstruction}経過時間と時間帯にあわせた「おかえり！」の温かい挨拶をしてください。`
       : mode === 'konnichiwa'
       ? `\n\n# 今回の挨拶\nユーザーが初めてあなたのお部屋に来てくれました。Blueskyでbotたんをフォローしてくれているユーザーです。現在は${tod}です。${nameInstruction}時間帯に合った挨拶をしながら、Blueskyでいつもありがとう・来てくれて嬉しいという気持ちを伝えてください。`
       : `\n\n# 今回の挨拶\nユーザーが初めてあなたのお部屋に来てくれました。Blueskyではまだ繋がっていないユーザーです。現在は${tod}です。${nameInstruction}時間帯に合ったはじめましての挨拶をしてください。`;
+
+    // 40%の確率で過去のプレゼント・会話に言及するコンテキストを追加（ただいまモードのみ）
+    if (mode === 'tadaima' && Math.random() < 0.4) {
+      try {
+        const did = bskySessionRef.current?.did;
+        const tokenSet = await (bskySessionRef.current as any)?.getTokenSet?.();
+        const token = tokenSet?.access_token ?? '';
+        if (did) {
+          const giftsRes = await fetch(`/api/gift?did=${encodeURIComponent(did)}`, {
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+          });
+          const giftsData = giftsRes.ok ? await giftsRes.json() : null;
+          const recentGifts: { content: string }[] = giftsData?.gifts ?? [];
+
+          const recentMessages = chatLog.slice(-4).filter(m => m.role !== 'system');
+
+          if (recentGifts.length > 0 || recentMessages.length > 0) {
+            greetingCtx += `\n\n# 過去のやりとり（自然な流れで挨拶に織り込んでOK、毎回言及不要）`;
+            if (recentGifts.length > 0) {
+              greetingCtx += `\n過去にもらったプレゼント: ${recentGifts.map(g => `「${g.content}」`).join('、')}`;
+            }
+            if (recentMessages.length > 0) {
+              const snippet = recentMessages
+                .map(m => `${m.role === 'user' ? 'ユーザー' : 'あなた'}：${stripEmotionTags(parseLanguageContent(m.content, 'ja')).slice(0, 40)}`)
+                .join('\n');
+              greetingCtx += `\n最近の会話（抜粋）：\n${snippet}`;
+            }
+          }
+        }
+      } catch (e) {
+        console.error('[handleGreeting past context error]:', e);
+      }
+    }
 
     const triggerText = mode === 'tadaima' ? 'ただいま！'
       : mode === 'konnichiwa' ? 'こんにちは！' : 'はじめまして！';
@@ -894,7 +930,7 @@ export default function MainHome() {
       { role: "user", content: triggerText, userName },
     ];
 
-    const stream = await getGeminiResponseStream(messages, userName, lang).catch((e) => {
+    const stream = await getGeminiResponseStream(messages, userName, lang, regularLevel).catch((e) => {
       if (e.message === "quota_exceeded") setQuotaExceeded(true);
       console.error(e);
       return null;
@@ -918,6 +954,42 @@ export default function MainHome() {
     setChatLog([{ role: "assistant", content: fullText }]);
     setChatProcessing(false);
 
+    // あいさつ交換をDB会話履歴に記録
+    const did = bskySessionRef.current?.did;
+    if (did) {
+      (async () => {
+        try {
+          const tokenSet = await (bskySessionRef.current as any)?.getTokenSet?.();
+          const token = tokenSet?.access_token;
+          const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`, {
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+          });
+          if (historyRes.ok) {
+            const historyData = await historyRes.json();
+            if (historyData.isFollower) {
+              const currentHistory = historyData.conv_history || [];
+              const cleanModelText = stripEmotionTags(parseLanguageContent(fullText, 'ja'));
+              const updatedHistory = [
+                ...currentHistory,
+                { role: 'user', parts: [{ text: triggerText }] },
+                { role: 'model', parts: [{ text: cleanModelText }] },
+              ];
+              await fetch('/api/history', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify({ did, conv_history: updatedHistory }),
+              });
+            }
+          }
+        } catch (err) {
+          console.error('[Save greeting history error]:', err);
+        }
+      })();
+    }
+
     const jaRawText = parseLanguageContent(fullText, "ja");
     const speakText = stripEmotionTags(jaRawText);
     if (speakText) {
@@ -931,7 +1003,7 @@ export default function MainHome() {
     } else {
       setAssistantMessage(fullText);
     }
-  }, [greetingMode, systemPrompt, userName, lang, safeSpeak]);
+  }, [greetingMode, systemPrompt, userName, lang, safeSpeak, regularLevel, chatLog]);
 
   const handleSendChat = useCallback(
     async (text: string) => {
@@ -959,7 +1031,7 @@ export default function MainHome() {
         ...messageLog,
       ];
 
-      const stream = await getGeminiResponseStream(messages, userName, lang).catch(
+      const stream = await getGeminiResponseStream(messages, userName, lang, regularLevel).catch(
         (e) => {
           if (e.message === "quota_exceeded") {
             setQuotaExceeded(true);
@@ -1060,7 +1132,7 @@ export default function MainHome() {
         setAssistantMessage(fullText);
       }
     },
-    [systemPrompt, chatLog, userName, lang, safeSpeak, isSignedIn, guestTurnCount]
+    [systemPrompt, chatLog, userName, lang, safeSpeak, isSignedIn, guestTurnCount, regularLevel]
   );
 
   const handleGiftSend = useCallback(
@@ -1094,13 +1166,46 @@ export default function MainHome() {
 
         const thankYou: string = data.thankYou ?? '';
         if (thankYou) {
-          // 会話履歴にギフトエントリを追加
+          // UIの会話ログにギフトエントリを追加
           const giftEntry = lang === 'ja' ? `🎁 プレゼント：「${text}」を渡した` : `🎁 Gift: "${text}"`;
           setChatLog(prev => [
             ...prev,
             { role: "user" as const, content: giftEntry, userName },
             { role: "assistant" as const, content: thankYou },
           ]);
+
+          // DB会話履歴にも記録
+          if (did) {
+            (async () => {
+              try {
+                const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`, {
+                  headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                });
+                if (historyRes.ok) {
+                  const historyData = await historyRes.json();
+                  if (historyData.isFollower) {
+                    const currentHistory = historyData.conv_history || [];
+                    const cleanModelText = stripEmotionTags(parseLanguageContent(thankYou, 'ja'));
+                    const updatedHistory = [
+                      ...currentHistory,
+                      { role: 'user', parts: [{ text: giftEntry }] },
+                      { role: 'model', parts: [{ text: cleanModelText }] },
+                    ];
+                    await fetch('/api/history', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                      },
+                      body: JSON.stringify({ did, conv_history: updatedHistory }),
+                    });
+                  }
+                }
+              } catch (err) {
+                console.error('[Save gift history error]:', err);
+              }
+            })();
+          }
 
           const jaRawText = parseLanguageContent(thankYou, 'ja');
           viewer.playVrmaMotion(MOTION_URLS.gift);

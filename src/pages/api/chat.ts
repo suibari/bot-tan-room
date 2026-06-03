@@ -52,7 +52,7 @@ export default async function handler(
     return;
   }
 
-  const { messages, lang } = req.body;
+  const { messages, lang, regularLevel, userName } = req.body;
 
   if (!messages || !Array.isArray(messages)) {
     res.status(400).json({ message: "Invalid messages format" });
@@ -61,15 +61,20 @@ export default async function handler(
 
   const client = new GoogleGenAI({ apiKey });
 
+  const level = typeof regularLevel === 'number' ? regularLevel : 0;
+  const { maxSentences, maxChars } = getLengthConstraint(level);
+  const intimacyInstruction = getIntimacyInstruction(level, typeof userName === 'string' ? userName.trim() : '');
+
   // System prompt logic
   let systemInstruction = messages.find((m: any) => m.role === 'system')?.content;
   if (systemInstruction) {
     // 確実に出力を抑制するための最重要指示を末尾に追加
     systemInstruction +=
       "\n\n[最重要：出力の制限ルール]\n" +
-      "1. あなたの返答は、絶対に2〜3文（120〜200文字程度）の簡潔なプレーンテキストにしてください。長文や要約、解説は禁止です。\n" +
+      `1. あなたの返答は、${maxSentences}文・${maxChars}文字以内を上限とし、自然な範囲で返答してください。長文や要約、解説は禁止です。\n` +
       "2. 太字（**）や箇条書き（*）、リンクなどのマークダウン装飾は【絶対に】使用しないでください。必ず平文のみで答えてください。\n" +
-      "3. 過去の会話をまとめたり、要約して振り返ったりしないでください。現在の最後のメッセージに対して直接、自然に返答してください。";
+      "3. 過去の会話をまとめたり、要約して振り返ったりしないでください。現在の最後のメッセージに対して直接、自然に返答してください。" +
+      (intimacyInstruction ? `\n4. ${intimacyInstruction}` : "");
   }
 
   let history = messages
@@ -110,8 +115,8 @@ export default async function handler(
     }
   }
 
-  // 過去履歴の件数を直近100件に制限して入力トークンを節約（DB保存上限に合わせる）
-  const MAX_HISTORY_LENGTH = 100;
+  // 過去履歴の件数を直近1000件に制限して入力トークンを節約（DB保存上限に合わせる）
+  const MAX_HISTORY_LENGTH = 1000;
   if (history.length > MAX_HISTORY_LENGTH) {
     history = history.slice(-MAX_HISTORY_LENGTH);
   }
@@ -128,8 +133,8 @@ export default async function handler(
     const rawText = lastMessage.parts[0].text;
     
     // システムの返答ルールをモデルに強制的に意識させるための割り込み命令
-    const constraintSuffix = 
-      "\n\n(※システムルール遵守：絶対に太字(**)やイタリック(*)、箇条書きなどのマークダウン装飾を使用せず、2〜3文(最大200文字)の簡潔なプレーンテキストで、改行を使わずに1段落で返答してください。過去の会話全体の要約や振り返りは絶対に禁止です。)";
+    const constraintSuffix =
+      `\n\n(※システムルール遵守：絶対に太字(**)やイタリック(*)、箇条書きなどのマークダウン装飾を使用せず、${maxSentences}文・${maxChars}文字以内を上限として自然なプレーンテキストで、改行を使わずに1段落で返答してください。過去の会話全体の要約や振り返りは絶対に禁止です。${intimacyInstruction ? ` また、${intimacyInstruction}` : ''})`;
     
     lastMessage.parts[0].text = rawText + constraintSuffix;
   }
@@ -242,5 +247,37 @@ const PROMPT_INJECTION_KEYWORDS = [
 function detectPromptInjection(text: string): boolean {
   const lower = text.toLowerCase();
   return PROMPT_INJECTION_KEYWORDS.some(keyword => lower.includes(keyword));
+}
+
+function getIntimacyInstruction(level: number, userName: string): string {
+  const name = userName || 'ユーザー';
+  if (level <= 30) return '';
+  if (level <= 50) return `ときどき「${name}」と名前を呼びかけてください。`;
+  if (level <= 70) return `積極的に「${name}」と名前を呼びかけ、相手の気持ちに寄り添った返答を心がけてください。`;
+  if (level <= 85) return `「${name}」と名前を呼びかけながら、親友として深く寄り添い、共感しながら返答してください。`;
+  return `必ず「${name}」と名前を呼びかけ、大切な親友への温かい愛情と共感を込めて返答してください。`;
+}
+
+function getLengthConstraint(level: number): { maxSentences: number; maxChars: number } {
+  if (level <= 4)  return { maxSentences: 2, maxChars: 130 };
+  if (level <= 9)  return { maxSentences: 2, maxChars: 145 };
+  if (level <= 14) return { maxSentences: 2, maxChars: 160 };
+  if (level <= 19) return { maxSentences: 3, maxChars: 180 };
+  if (level <= 24) return { maxSentences: 3, maxChars: 200 };
+  if (level <= 29) return { maxSentences: 3, maxChars: 220 };
+  if (level <= 34) return { maxSentences: 3, maxChars: 240 };
+  if (level <= 39) return { maxSentences: 3, maxChars: 260 };
+  if (level <= 44) return { maxSentences: 4, maxChars: 280 };
+  if (level <= 49) return { maxSentences: 4, maxChars: 300 };
+  if (level <= 54) return { maxSentences: 4, maxChars: 320 };
+  if (level <= 59) return { maxSentences: 4, maxChars: 340 };
+  if (level <= 64) return { maxSentences: 4, maxChars: 360 };
+  if (level <= 69) return { maxSentences: 5, maxChars: 380 };
+  if (level <= 74) return { maxSentences: 5, maxChars: 400 };
+  if (level <= 79) return { maxSentences: 5, maxChars: 420 };
+  if (level <= 84) return { maxSentences: 5, maxChars: 440 };
+  if (level <= 89) return { maxSentences: 6, maxChars: 460 };
+  if (level <= 94) return { maxSentences: 6, maxChars: 480 };
+  return           { maxSentences: 6, maxChars: 500 };
 }
 

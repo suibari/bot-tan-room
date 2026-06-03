@@ -51,10 +51,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const follower = records[0];
       const conv_history = follower.conv_history ?? [];
+      const regular_level = follower.regular_level ?? 0;
 
       return res.status(200).json({
         isFollower: true,
         conv_history,
+        regular_level,
       });
     } catch (e) {
       console.error('[API history GET error]:', e);
@@ -90,8 +92,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
-      // 100件の上限ルールを適用し、古いものから安全に切り詰める（先頭がuser、末尾がmodelであることを保証）
-      const truncatedHistory = truncateHistory(conv_history, 100);
+      // 1000件の上限ルールを適用し、古いものから安全に切り詰める（先頭がuser、末尾がmodelであることを保証）
+      const truncatedHistory = truncateHistory(conv_history, 1000);
 
       // Perform PATCH to update only conv_history for this DID
       const response = await fetch(
@@ -118,13 +120,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-// conv_historyの100件上限制約を適用しつつ、先頭がuser、末尾がmodelであることを保証する安全なスライス関数
-function truncateHistory(history: any[], maxLength: number = 100): any[] {
+// conv_historyの1000件上限制約を適用しつつ、先頭がuser、末尾がmodelであることを保証する安全なスライス関数
+function truncateHistory(history: any[], maxLength: number = 1000): any[] {
   if (history.length <= maxLength) {
     return history;
   }
 
-  // 100を超えているので、古いもの（配列の先頭）から削除する
+  // 上限を超えているので、古いもの（配列の先頭）から削除する
   let sliced = history.slice(-maxLength);
 
   // 先頭が 'user' で始まることを保証する
