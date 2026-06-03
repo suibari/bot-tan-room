@@ -165,6 +165,14 @@ export default function MainHome() {
   const [isGiftMode, setIsGiftMode] = useState(false);
   const [isGiftProcessing, setIsGiftProcessing] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+
+  useEffect(() => {
+    const alreadyShown = window.localStorage.getItem('help_shown');
+    const signedIn = window.localStorage.getItem('bsky_handle');
+    if (!alreadyShown && !signedIn) {
+      setShowHelp(true);
+    }
+  }, []);
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [diagnosisModalState, setDiagnosisModalState] = useState<DiagnosisModalState>("hidden");
   const [diagnosisNameInput, setDiagnosisNameInput] = useState("");
@@ -1745,7 +1753,10 @@ export default function MainHome() {
       )}
 
       {/* ===== HELP MODAL ===== */}
-      {showHelp && <HelpModal lang={lang} onClose={() => setShowHelp(false)} />}
+      {showHelp && <HelpModal lang={lang} onClose={() => {
+        setShowHelp(false);
+        window.localStorage.setItem('help_shown', '1');
+      }} />}
 
       {/* ===== SIGN-IN OVERLAY ===== */}
       {showSignInModal && (

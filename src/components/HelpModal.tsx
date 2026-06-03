@@ -67,7 +67,7 @@ export function HelpModal({ lang, onClose }: Props) {
                   className="hover:underline font-extrabold"
                   style={{ color: "#0085ff" }}
                 >
-                  全肯定botたん
+                  3Dモデルの全肯定botたん
                 </a>
                 {" "}と会話などの遊びを楽しむアプリです。
               </>
@@ -81,12 +81,23 @@ export function HelpModal({ lang, onClose }: Props) {
                   className="hover:underline font-extrabold"
                   style={{ color: "#0085ff" }}
                 >
-                  Zenkoitei bot-tan
+                  3D model Zenkoitei bot-tan
                 </a>
                 {" "}on Bluesky.
               </>
             )}
           </p>
+
+          {/* 音声注意 */}
+          <div className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold"
+            style={{ background: "rgba(251, 191, 36, 0.15)", border: "1.5px solid rgba(251, 191, 36, 0.5)", color: "#92400e" }}>
+            <span style={{ fontSize: "1rem" }}>⚠️</span>
+            <span>
+              {lang === "ja"
+                ? "botたんがしゃべる際に音が出ます！"
+                : "Sound plays when bot-tan speaks!"}
+            </span>
+          </div>
 
           {/* あいさつ機能 */}
           <div className="space-y-1">
@@ -97,6 +108,18 @@ export function HelpModal({ lang, onClose }: Props) {
               {lang === "ja"
                 ? "サインイン後、ページを開いたときに時間帯などに応じてbotたんが特別なあいさつをしてくれます。"
                 : "After signing in, bot-tan greets you with a special message based on the time of day and other factors when you open the page."}
+            </p>
+          </div>
+
+          {/* バイオリズム機能 */}
+          <div className="space-y-1">
+            <h3 className="font-extrabold text-base flex items-center gap-1.5" style={{ color: "#0085ff" }}>
+              {lang === "ja" ? "💖 バイオリズム機能" : "💖 Biorhythm"}
+            </h3>
+            <p className="text-slate-600 text-xs pl-0">
+              {lang === "ja"
+                ? "クリックなどのさまざまなアクションでBlueskyのbotたんを元気づけられます。元気になると、たくさんポストするかも！"
+                : "Various actions like clicking can cheer up bot-tan on Bluesky. When bot-tan gets energized, they might post more!"}
             </p>
           </div>
 
