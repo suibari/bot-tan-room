@@ -924,7 +924,7 @@ export default function MainHome() {
       setIsWaitingForVoice(true);
       safeSpeak(
         jaRawText,
-        () => { setIsWaitingForVoice(false); setIsSpeaking(true); setAssistantMessage(fullText); },
+        () => { viewer.playVrmaMotion(MOTION_URLS.invitation); setIsWaitingForVoice(false); setIsSpeaking(true); setAssistantMessage(fullText); },
         () => setIsSpeaking(false),
         () => { setIsWaitingForVoice(false); setIsSpeaking(false); setAssistantMessage(fullText); }
       );
