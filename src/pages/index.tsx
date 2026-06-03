@@ -28,6 +28,19 @@ import { getJSTHour } from "@/utils/timeBasedBackground";
 import { ConvHistoryPanel } from "@/components/ConvHistoryPanel";
 import { HelpModal } from "@/components/HelpModal";
 import { MOTION_URLS, getRandomClickMotion } from "@/features/vrmViewer/motionConfig";
+import UtilityBubble, { CrayonFilterDef } from "@/components/UtilityBubble";
+
+function getInteractEmoji(utilities: Record<string, number>, energy: number): string {
+  const entries = Object.entries(utilities);
+  if (entries.length === 0) return '🌸';
+  const dominant = entries.sort((a, b) => b[1] - a[1])[0][0];
+  const map: Record<string, [string, string]> = {
+    FreeTime: ['🎉', '🌸'], Relax: ['🥰', '🫶'],
+    Study: ['📚', '🤔'], WakeUp: ['☀️', '🌅'], Sleep: ['😴', '😪'],
+  };
+  const [hi, lo] = map[dominant] ?? ['✨', '🌸'];
+  return energy >= 50 ? hi : lo;
+}
 
 type AnswerItem = { question: string; answer: string };
 type Phase = "landing" | "chat";
@@ -142,7 +155,11 @@ export default function MainHome() {
   const [pendingInvite, setPendingInvite] = useState<{ textJa: string; textEn: string } | null>(null);
   const [inviteTexts, setInviteTexts] = useState<{ textJa: string; textEn: string } | null>(null);
   const [isFetchingMood, setIsFetchingMood] = useState(false);
-  const [prefetchedMood, setPrefetchedMood] = useState<{ mood: string; mood_en: string; status: string } | null>(null);
+  const [prefetchedMood, setPrefetchedMood] = useState<{ mood: string; mood_en: string; status: string; energy: number; utilities: Record<string, number> } | null>(null);
+  type BubbleState = 'hidden' | 'visible' | 'celebrating';
+  const [bubbleState, setBubbleState] = useState<BubbleState>('hidden');
+  const [bubbleEmoji, setBubbleEmoji] = useState('🌸');
+  const [bubblePos, setBubblePos] = useState<{ x: number; y: number } | null>(null);
   const [displayedMoodContext, setDisplayedMoodContext] = useState<{ moodJa: string; moodEn: string; emotionTag: string } | null>(null);
   const [bubbleTrigger, setBubbleTrigger] = useState(0);
   const [isGiftMode, setIsGiftMode] = useState(false);
@@ -248,6 +265,20 @@ export default function MainHome() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefetchedMood]);
 
+  // UtilityBubble: bubbleState が visible/celebrating の間 head スクリーン座標を毎フレーム更新
+  useEffect(() => {
+    if (bubbleState === 'hidden') return;
+    let raf: number;
+    const update = () => {
+      const pos = viewer.getHeadScreenPosition();
+      if (pos) setBubblePos(pos);
+      raf = requestAnimationFrame(update);
+    };
+    raf = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(raf);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bubbleState, viewer]);
+
   // inviteTexts + lang が変わるたびにチャットバブルを更新（ダイアログ外でも反映）
   useEffect(() => {
     if (!inviteTexts) return;
@@ -280,7 +311,7 @@ export default function MainHome() {
       const res = await fetch("/api/mood");
       if (res.ok) {
         const data = await res.json();
-        setPrefetchedMood({ mood: data.mood, mood_en: data.mood_en ?? '', status: data.status });
+        setPrefetchedMood({ mood: data.mood, mood_en: data.mood_en ?? '', status: data.status, energy: data.energy ?? 100, utilities: data.utilities ?? {} });
       }
     } catch (e) {
       console.error("[Mood Prefetch Error]:", e);
@@ -564,6 +595,7 @@ export default function MainHome() {
       setIsInvitationMode(false);
     };
 
+    const inviteEmoji = prefetchedMood ? getInteractEmoji(prefetchedMood.utilities, prefetchedMood.energy) : '🌸';
     try {
       viewer.playVrmaMotion(MOTION_URLS.invitation);
       setIsSpeaking(true);
@@ -572,15 +604,20 @@ export default function MainHome() {
       const audioBuffer = await pendingAudioRef.current;
       if (!audioBuffer) throw new Error('Audio not available');
       viewer.model?.stopSpeak();
-      // onStart: 再生開始と同時にダイアログを閉じる
-      await viewer.model?.speak(audioBuffer, talks[0], closeDialog);
+      // onStart: 再生開始と同時にダイアログを閉じる + 吹き出し表示
+      await viewer.model?.speak(audioBuffer, talks[0], () => {
+        closeDialog();
+        setBubbleEmoji(inviteEmoji);
+        setBubbleState('visible');
+      });
+      setBubbleState('celebrating');
     } catch (err) {
       console.error('[Welcome audio playback error]:', err);
       closeDialog();
     } finally {
       setIsSpeaking(false);
     }
-  }, [pendingInvite, viewer, koeiroParam]);
+  }, [pendingInvite, viewer, koeiroParam, prefetchedMood]);
 
   const handleGuestStart = useCallback(() => {
     setUserName(lang === "ja" ? "ユーザーさん" : "User");
@@ -816,7 +853,7 @@ export default function MainHome() {
         const res = await fetch("/api/mood");
         if (!res.ok) throw new Error("Failed to fetch mood");
         const data = await res.json();
-        setPrefetchedMood({ mood: data.mood, mood_en: data.mood_en ?? '', status: data.status });
+        setPrefetchedMood({ mood: data.mood, mood_en: data.mood_en ?? '', status: data.status, energy: data.energy ?? 100, utilities: data.utilities ?? {} });
       } catch (err) {
         console.error("[Mood Fallback Error]:", err);
       } finally {
@@ -826,6 +863,7 @@ export default function MainHome() {
     }
 
     const { mood: moodText, mood_en: moodEnText, status: statusText } = prefetchedMood;
+    const clickEmoji = getInteractEmoji(prefetchedMood.utilities, prefetchedMood.energy);
 
     // 状態（status）に合わせて表情を設定
     let emotionTag = "[halfHappy]";
@@ -844,19 +882,22 @@ export default function MainHome() {
       viewer.playVrmaMotion(getRandomClickMotion());
       setIsSpeaking(true);
       const talks = textsToScreenplay([`${emotionTag}${moodText}`], koeiroParam);
-      
+
       // 先読みしておいた音声バッファの取得を待つ（すでに完了していれば即座に返る）
       const audioBuffer = await prefetchedMoodAudioRef.current;
       if (!audioBuffer) throw new Error("Audio buffer not available in prefetch");
 
       viewer.model?.stopSpeak();
-      
+
       // 再生開始と同時に吹き出しを表示する
       await viewer.model?.speak(audioBuffer, talks[0], () => {
         setDisplayedMoodContext({ moodJa: moodText, moodEn: moodEnText || '', emotionTag });
         setAssistantMessage(fullMessage);
         setBubbleTrigger(t => t + 1);
+        setBubbleEmoji(clickEmoji);
+        setBubbleState('visible');
       });
+      setBubbleState('celebrating');
     } catch (err) {
       console.error("[Mood playback error]:", err);
       // エラー時でも吹き出しテキストは表示してあげる
@@ -1024,20 +1065,21 @@ export default function MainHome() {
       })();
     }
 
+    const greetEmoji = prefetchedMood ? getInteractEmoji(prefetchedMood.utilities, prefetchedMood.energy) : '🌸';
     const jaRawText = parseLanguageContent(fullText, "ja");
     const speakText = stripEmotionTags(jaRawText);
     if (speakText) {
       setIsWaitingForVoice(true);
       safeSpeak(
         jaRawText,
-        () => { viewer.playVrmaMotion(MOTION_URLS.invitation); setIsWaitingForVoice(false); setIsSpeaking(true); setAssistantMessage(fullText); },
-        () => setIsSpeaking(false),
+        () => { viewer.playVrmaMotion(MOTION_URLS.invitation); setIsWaitingForVoice(false); setIsSpeaking(true); setAssistantMessage(fullText); setBubbleEmoji(greetEmoji); setBubbleState('visible'); },
+        () => { setIsSpeaking(false); setBubbleState('celebrating'); },
         () => { setIsWaitingForVoice(false); setIsSpeaking(false); setAssistantMessage(fullText); }
       );
     } else {
       setAssistantMessage(fullText);
     }
-  }, [greetingMode, systemPrompt, userName, lang, safeSpeak, regularLevel, chatLog]);
+  }, [greetingMode, systemPrompt, userName, lang, safeSpeak, regularLevel, chatLog, prefetchedMood]);
 
   const handleSendChat = useCallback(
     async (text: string) => {
@@ -1148,6 +1190,7 @@ export default function MainHome() {
       // 表示言語に関係なく、常に日本語ブロック（[ja]）を抽出してVoiceVoxで発話する
       const jaRawText = parseLanguageContent(fullText, "ja");
       const speakText = stripEmotionTags(jaRawText);
+      const chatEmoji = prefetchedMood ? getInteractEmoji(prefetchedMood.utilities, prefetchedMood.energy) : '🌸';
       if (speakText) {
         setIsWaitingForVoice(true);
         safeSpeak(
@@ -1157,8 +1200,10 @@ export default function MainHome() {
             setIsSpeaking(true);
             // 音声が再生された瞬間にテキストを一括で表示する！
             setAssistantMessage(fullText);
+            setBubbleEmoji(chatEmoji);
+            setBubbleState('visible');
           },
-          () => setIsSpeaking(false),
+          () => { setIsSpeaking(false); setBubbleState('celebrating'); },
           () => {
             console.warn("[handleSendChat] VoiceVox request rejected or failed.");
             setIsWaitingForVoice(false);
@@ -1172,7 +1217,7 @@ export default function MainHome() {
         setAssistantMessage(fullText);
       }
     },
-    [systemPrompt, chatLog, userName, lang, safeSpeak, isSignedIn, guestTurnCount, regularLevel]
+    [systemPrompt, chatLog, userName, lang, safeSpeak, isSignedIn, guestTurnCount, regularLevel, prefetchedMood]
   );
 
   const handleGiftSend = useCallback(
@@ -1247,6 +1292,7 @@ export default function MainHome() {
             })();
           }
 
+          const giftEmoji = prefetchedMood ? getInteractEmoji(prefetchedMood.utilities, prefetchedMood.energy) : '🌸';
           const jaRawText = parseLanguageContent(thankYou, 'ja');
           viewer.playVrmaMotion(MOTION_URLS.gift);
           setIsWaitingForVoice(true);
@@ -1256,8 +1302,10 @@ export default function MainHome() {
               setIsWaitingForVoice(false);
               setIsSpeaking(true);
               setAssistantMessage(thankYou);
+              setBubbleEmoji(giftEmoji);
+              setBubbleState('visible');
             },
-            () => setIsSpeaking(false),
+            () => { setIsSpeaking(false); setBubbleState('celebrating'); },
             () => {
               setIsWaitingForVoice(false);
               setIsSpeaking(false);
@@ -1272,7 +1320,7 @@ export default function MainHome() {
         setIsGiftProcessing(false);
       }
     },
-    [lang, userName, safeSpeak, viewer]
+    [lang, userName, safeSpeak, viewer, prefetchedMood]
   );
 
   // Dynamic OGP image URL
@@ -1290,6 +1338,13 @@ export default function MainHome() {
 
   return (
     <div className="relative w-full h-[100dvh] overflow-hidden font-M_PLUS_2">
+      <CrayonFilterDef />
+      <UtilityBubble
+        state={bubbleState}
+        emoji={bubbleEmoji}
+        pos={bubblePos}
+        onHide={() => setBubbleState('hidden')}
+      />
       <Head>
         <title>{t("meta.title")}</title>
         <meta name="description" content={t("meta.description")} />

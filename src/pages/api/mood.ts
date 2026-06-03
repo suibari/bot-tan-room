@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { getUtilities } from '@/utils/utilityAI';
 
 /**
  * DBからbotたんのバイオリズム（気分や状態など）を取得するAPI
@@ -55,13 +56,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
+    const energy: number = valueObj?.energy ?? 100;
+
+    // Utility計算（JST基準）
+    const jstNow = new Date(Date.now() + 9 * 3600_000);
+    const jstHour = jstNow.getUTCHours();
+    const jstDay = jstNow.getUTCDay();
+    const utilities = getUtilities({ hour: jstHour, isWeekend: jstDay === 0 || jstDay === 6, energy });
+
     // mood（気分）、status（状態）、energy（エネルギー）などを返却
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate');
     return res.status(200).json({
       mood:       valueObj?.mood    ?? 'わたしは、今日もおつかれさま！',
       mood_en:    valueObj?.mood_en ?? '',
-      energy:     valueObj?.energy  ?? 100,
+      energy,
       status:     valueObj?.status  ?? 'FreeTime',
+      utilities,
       updated_at: data[0].updated_at,
     });
   } catch (e) {

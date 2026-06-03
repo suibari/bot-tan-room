@@ -56,7 +56,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       body: JSON.stringify({ room_interaction_count: current + amount }),
     });
     if (!patchRes.ok) throw new Error(`PATCH failed: ${patchRes.status}`);
-    console.log(`[interact] +${amount} for ${did} (${current} -> ${current + amount})`);
   } catch (e) {
     console.warn('[interact] room_interaction update failed:', e);
   }

@@ -155,6 +155,22 @@ export class Viewer {
   }
 
   /**
+   * headボーンのスクリーン座標を返す（吹き出し追従用）
+   */
+  public getHeadScreenPosition(): { x: number; y: number } | null {
+    if (!this._camera || !this._renderer) return null;
+    const headNode = this.model?.vrm?.humanoid.getNormalizedBoneNode('head');
+    if (!headNode) return null;
+    const headWPos = headNode.getWorldPosition(new THREE.Vector3());
+    const projected = headWPos.clone().project(this._camera);
+    const canvas = this._renderer.domElement;
+    return {
+      x: (projected.x + 1) / 2 * canvas.clientWidth,
+      y: -(projected.y - 1) / 2 * canvas.clientHeight,
+    };
+  }
+
+  /**
    * VRMのheadノードを参照してカメラ位置を調整する
    */
   public resetCamera() {
