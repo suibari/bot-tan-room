@@ -236,6 +236,16 @@ export class Viewer {
       this.model.update(delta);
     }
 
+    // 頭ボーン位置に毎フレーム追従してキャラを常に中心に捉える
+    if (this.model?.vrm && this._cameraControls) {
+      const headNode = this.model.vrm.humanoid.getNormalizedBoneNode('head');
+      if (headNode) {
+        const headWPos = headNode.getWorldPosition(new THREE.Vector3());
+        this._cameraControls.target.set(headWPos.x, headWPos.y, headWPos.z);
+        this._cameraControls.update();
+      }
+    }
+
     if (this._renderer && this._camera) {
       this._renderer.render(this._scene, this._camera);
     }
