@@ -56,7 +56,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    const energy: number = valueObj?.energy ?? 100;
+    // bot_state の energy は 0〜10000 スケールで保存されているため、getUtilities が期待する 0〜100 に変換する
+    const energy: number = (valueObj?.energy ?? 10000) / 100;
 
     // Utility計算（JST基準）
     const jstNow = new Date(Date.now() + 9 * 3600_000);

@@ -35,8 +35,8 @@ function getInteractEmoji(utilities: Record<string, number>, energy: number): st
   if (entries.length === 0) return '🌸';
   const dominant = entries.sort((a, b) => b[1] - a[1])[0][0];
   const map: Record<string, [string, string]> = {
-    FreeTime: ['🎉', '🌸'], Relax: ['🥰', '🫶'],
-    Study: ['📚', '🤔'], WakeUp: ['☀️', '🌅'], Sleep: ['😴', '😪'],
+    FreeTime: ['🎮', '🐕'], Relax: ['🥰', '☕️'],
+    Study: ['📚', '✍️'], WakeUp: ['☀️', '🌅'], Sleep: ['😴', '😪'],
   };
   const [hi, lo] = map[dominant] ?? ['✨', '🌸'];
   return energy >= 50 ? hi : lo;
