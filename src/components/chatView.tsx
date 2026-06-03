@@ -12,9 +12,10 @@ type Props = {
   isInvitationMode?: boolean;
   isSignedIn?: boolean;
   isGiftMode?: boolean;
-  onGiftModeToggle?: () => void;
   onGiftSend?: (text: string) => void;
   isGiftProcessing?: boolean;
+  guestTurnCount?: number;
+  onRequestSignIn?: () => void;
 };
 
 const LABELS = {
@@ -28,7 +29,7 @@ const LABELS = {
  */
 const GIFT_MAX_CHARS = 30;
 
-export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking = false, bubbleTrigger = 0, onSend, quotaExceeded = false, isInvitationMode = false, isSignedIn = false, isGiftMode = false, onGiftModeToggle, onGiftSend, isGiftProcessing = false }: Props) {
+export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking = false, bubbleTrigger = 0, onSend, quotaExceeded = false, isInvitationMode = false, isSignedIn = false, isGiftMode = false, onGiftSend, isGiftProcessing = false, guestTurnCount = 0, onRequestSignIn }: Props) {
   const l = LABELS[lang];
   const [userMessage, setUserMessage] = useState("");
   const [giftMessage, setGiftMessage] = useState("");
@@ -104,7 +105,7 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking 
           <AssistantBubble message={assistantMessage} lang={lang} isSpeaking={isSpeaking} showTrigger={bubbleTrigger} />
         </div>
         <div
-          className="w-full max-w-xl self-center shadow-2xl relative overflow-hidden transition-all duration-300"
+          className="w-full max-w-xl self-center shadow-2xl relative transition-all duration-300"
           style={{
             background: isGiftMode ? "rgba(255, 210, 220, 0.82)" : "rgba(255, 255, 255, 0.72)",
             backdropFilter: "blur(30px) saturate(140%)",
@@ -118,55 +119,66 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking 
           }}
         >
 
-          {/* ギフトモード インフォアイコン */}
-          {isGiftMode && (
-            <div style={{ position: 'absolute', top: '1rem', right: '1.25rem', zIndex: 10 }}>
-              <button
-                onClick={() => setShowGiftInfo(v => !v)}
-                aria-label="gift info"
-                style={{
-                  width: '22px',
-                  height: '22px',
-                  borderRadius: '9999px',
-                  background: 'rgba(255, 150, 180, 0.2)',
-                  border: '1.5px solid rgba(255, 150, 180, 0.5)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  padding: 0,
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                  stroke="rgba(200, 60, 100, 0.85)" strokeWidth="2.5"
-                  strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
-                </svg>
-              </button>
-              {showGiftInfo && (
-                <div style={{
-                  position: 'absolute',
-                  top: '26px',
-                  right: 0,
-                  background: 'rgba(255, 255, 255, 0.97)',
-                  border: '1.5px solid rgba(255, 150, 180, 0.5)',
-                  borderRadius: '0.75rem',
-                  padding: '0.5rem 0.75rem',
-                  fontSize: '11px',
-                  color: 'rgba(200, 60, 100, 0.9)',
-                  fontWeight: 600,
-                  width: '200px',
-                  lineHeight: 1.6,
-                  boxShadow: '0 4px 16px rgba(200, 60, 100, 0.15)',
-                  zIndex: 20,
-                }}>
-                  botたんに1日1回プレゼントをあげよう！<br/>Blueskyで見せてくれるかも？
-                </div>
-              )}
-            </div>
-          )}
+          {/* カードヘッダー: 左ラベル + 右ツールチップ（ギフト時のみ） */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{
+              fontSize: '13px',
+              fontWeight: 700,
+              color: isGiftMode ? 'rgba(200, 60, 100, 0.85)' : 'rgba(58, 155, 213, 0.85)',
+            }}>
+              {isGiftMode
+                ? (lang === 'ja' ? 'プレゼント' : 'Gift')
+                : (lang === 'ja' ? 'チャット' : 'Chat')}
+            </span>
+            {isGiftMode && (
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setShowGiftInfo(v => !v)}
+                  aria-label="gift info"
+                  style={{
+                    width: '22px',
+                    height: '22px',
+                    borderRadius: '9999px',
+                    background: 'rgba(255, 150, 180, 0.2)',
+                    border: '1.5px solid rgba(255, 150, 180, 0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    padding: 0,
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                    stroke="rgba(200, 60, 100, 0.85)" strokeWidth="2.5"
+                    strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                </button>
+                {showGiftInfo && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '26px',
+                    right: 0,
+                    background: 'rgba(255, 255, 255, 0.97)',
+                    border: '1.5px solid rgba(255, 150, 180, 0.5)',
+                    borderRadius: '0.75rem',
+                    padding: '0.5rem 0.75rem',
+                    fontSize: '11px',
+                    color: 'rgba(200, 60, 100, 0.9)',
+                    fontWeight: 600,
+                    width: '200px',
+                    lineHeight: 1.6,
+                    boxShadow: '0 4px 16px rgba(200, 60, 100, 0.15)',
+                    zIndex: 20,
+                  }}>
+                    botたんに1日1回プレゼントをあげよう！<br/>Blueskyで見せてくれるかも？
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* 入力バー もしくは リミット到達メッセージ もしくは お迎え演出メッセージ */}
           {isInvitationMode ? (
@@ -209,12 +221,7 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking 
             </div>
           ) : isGiftMode ? (
             /* ギフトカード入力エリア */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {/* モードラベル（絵文字なし） */}
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(200, 60, 100, 0.85)' }}>
-                {lang === 'ja' ? 'プレゼント' : 'Gift'}
-              </span>
-              {/* テキスト入力（全幅） */}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <input
                 type="text"
                 value={giftMessage}
@@ -227,7 +234,7 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking 
                 }}
                 placeholder={lang === "ja" ? "プレゼントの名前をいれてね" : "What's the gift?"}
                 disabled={isGiftProcessing}
-                className="w-full text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
+                className="flex-1 text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
                 style={{
                   height: "48px",
                   background: "rgba(255, 255, 255, 0.65)",
@@ -244,23 +251,8 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking 
                   e.currentTarget.style.boxShadow = 'none';
                 }}
               />
-              {/* ボタン行：💬トグル（左）+ 送信（右） */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <button
-                  onClick={onGiftModeToggle}
-                  aria-label="back to chat"
-                  className="shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95"
-                  style={{
-                    width: "48px",
-                    height: "48px",
-                    borderRadius: "9999px",
-                    background: "rgba(220, 235, 255, 0.6)",
-                    border: "1.5px solid rgba(80, 130, 220, 0.3)",
-                    fontSize: "20px",
-                  }}
-                >
-                  💬
-                </button>
+              {/* 送信ボタン */}
+              <div style={{ display: 'flex', alignItems: 'center' }}>
                 <button
                   onClick={handleGiftSend}
                   disabled={isGiftProcessing || !giftMessage.trim()}
@@ -291,14 +283,23 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking 
                 </button>
               </div>
             </div>
+          ) : !isSignedIn && guestTurnCount >= 3 ? (
+            /* ゲスト3ターン制限: サインイン促進UI */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
+              <p style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(58, 155, 213, 0.9)', textAlign: 'center', margin: 0 }}>
+                {lang === 'ja' ? '続きを話すにはサインインしてね' : 'Sign in to keep chatting'}
+              </p>
+              <button
+                onClick={onRequestSignIn}
+                className="w-full font-black text-white text-sm shadow-md tracking-wide transition-all duration-300 hover:brightness-105 active:scale-[0.97] bg-theme-gradient"
+                style={{ borderRadius: '9999px', padding: '10px 20px' }}
+              >
+                {lang === 'ja' ? 'Blueskyでサインイン' : 'Sign in with Bluesky'}
+              </button>
+            </div>
           ) : (
             /* チャット入力エリア */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {/* モードラベル（絵文字なし） */}
-              <span style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(58, 155, 213, 0.85)' }}>
-                {lang === 'ja' ? 'チャット' : 'Chat'}
-              </span>
-              {/* テキスト入力（全幅） */}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <input
                 type="text"
                 value={userMessage}
@@ -311,7 +312,7 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking 
                 }}
                 placeholder={l.placeholder}
                 disabled={isChatProcessing}
-                className="w-full text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
+                className="flex-1 text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
                 style={{
                   height: "48px",
                   background: "rgba(255, 255, 255, 0.55)",
@@ -328,23 +329,8 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking 
                   e.currentTarget.style.boxShadow = 'none';
                 }}
               />
-              {/* ボタン行：🎁トグル（左）+ 送信（右） */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <button
-                  onClick={onGiftModeToggle}
-                  aria-label="gift mode"
-                  className="shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95"
-                  style={{
-                    width: "48px",
-                    height: "48px",
-                    borderRadius: "9999px",
-                    background: "rgba(255, 210, 220, 0.5)",
-                    border: "1.5px solid rgba(255, 150, 180, 0.4)",
-                    fontSize: "20px",
-                  }}
-                >
-                  🎁
-                </button>
+              {/* 送信ボタン */}
+              <div style={{ display: 'flex', alignItems: 'center' }}>
                 <button
                   onClick={handleSend}
                   disabled={isChatProcessing || !userMessage.trim()}

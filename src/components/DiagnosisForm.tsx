@@ -151,7 +151,7 @@ export function DiagnosisForm({ lang, onSubmit, onQuestionShow, onExpressionChan
         {isLast ? l.submit : l.next}
       </button>
 
-      <p className="text-[11px] font-bold text-slate-400 text-center leading-normal max-w-sm mx-auto">
+      <p className="text-[11px] font-bold text-slate-400 text-center leading-normal">
         {l.disclaimer}
       </p>
     </div>

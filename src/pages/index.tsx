@@ -25,10 +25,67 @@ import type { DiagnosisResult } from "@/pages/api/fortune";
 import { fetchAudio, fetchAudioUrl } from "@/features/messages/speakCharacter";
 import { parseLanguageContent, stripEmotionTags } from "@/utils/languageParser";
 import { ConvHistoryPanel } from "@/components/ConvHistoryPanel";
+import { HelpModal } from "@/components/HelpModal";
 import { MOTION_URLS, getRandomClickMotion } from "@/features/vrmViewer/motionConfig";
 
 type AnswerItem = { question: string; answer: string };
-type Phase = "landing" | "questions" | "loading" | "fortune" | "chat";
+type Phase = "landing" | "chat";
+type DiagnosisModalState = "hidden" | "name" | "questions" | "loading" | "result";
+
+function LandingInfoTooltip({ lang }: { lang: "ja" | "en" }) {
+  const [show, setShow] = useState(false);
+  const text = lang === "ja"
+    ? "サインインで、Blueskyのbotたんと遊べる機能を解放！"
+    : "Sign in to unlock features with bot-tan on Bluesky!";
+  return (
+    <div style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+      <button
+        onClick={() => setShow(v => !v)}
+        aria-label="info"
+        style={{
+          width: "22px",
+          height: "22px",
+          borderRadius: "9999px",
+          background: "rgba(58, 155, 213, 0.1)",
+          border: "1.5px solid rgba(58, 155, 213, 0.3)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 0,
+          cursor: "pointer",
+          flexShrink: 0,
+        }}
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(58, 155, 213, 0.85)"
+          strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
+        </svg>
+      </button>
+      {show && (
+        <div style={{
+          position: "absolute",
+          bottom: "28px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: "rgba(255,255,255,0.97)",
+          border: "1.5px solid rgba(58,155,213,0.25)",
+          borderRadius: "0.75rem",
+          padding: "0.5rem 0.75rem",
+          fontSize: "11px",
+          color: "rgba(15,32,67,0.85)",
+          fontWeight: 600,
+          width: "220px",
+          lineHeight: 1.6,
+          boxShadow: "0 4px 16px rgba(58,155,213,0.12)",
+          zIndex: 20,
+          pointerEvents: "none",
+        }}>
+          {text}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // OAuthSession 型は @atproto/oauth-client の exports 解決問題で直接 import できないため
 // BrowserOAuthClient.init() の戻り値から導出する
@@ -60,7 +117,6 @@ export default function MainHome() {
 
   // --- new state ---
   const [phase, setPhase] = useState<Phase>("landing");
-  const [nameInput, setNameInput] = useState("");
   const [fortune, setFortune] = useState<DiagnosisResult | null>(null);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true); // OAuth init 解決まで true
@@ -75,10 +131,15 @@ export default function MainHome() {
   const [bubbleTrigger, setBubbleTrigger] = useState(0);
   const [isGiftMode, setIsGiftMode] = useState(false);
   const [isGiftProcessing, setIsGiftProcessing] = useState(false);
-  const [showSignInForm, setShowSignInForm] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [showSignInModal, setShowSignInModal] = useState(false);
+  const [diagnosisModalState, setDiagnosisModalState] = useState<DiagnosisModalState>("hidden");
+  const [diagnosisNameInput, setDiagnosisNameInput] = useState("");
+  const [guestTurnCount, setGuestTurnCount] = useState(0);
+  const [landingMessage, setLandingMessage] = useState("");
+  const pendingFirstMessageRef = useRef<string | null>(null);
   const prefetchedMoodAudioRef = useRef<Promise<ArrayBuffer | null>>(Promise.resolve(null));
   const pendingAudioRef = useRef<Promise<ArrayBuffer | null>>(Promise.resolve(null));
-  const nameInputRef = useRef<HTMLInputElement>(null);
   const questionAbortRef = useRef<AbortController | null>(null);
   // OAuth クライアントをマウント時に事前ロードして signInRedirect がすぐ呼べるようにする
   const bskyClientRef = useRef<BskyOAuthClient | null>(null);
@@ -136,7 +197,7 @@ export default function MainHome() {
    * Viewerの初期化には数秒かかるため、ポーリングで待機する。
    */
   useEffect(() => {
-    if (phase !== 'landing' && phase !== 'questions') return;
+    if (phase !== 'landing') return;
     const interval = setInterval(() => {
       if (viewer.isReady) {
         clearInterval(interval);
@@ -239,8 +300,9 @@ export default function MainHome() {
           window.localStorage.setItem('chatVRM_userName', fallback);
           window.localStorage.setItem('bsky_handle', fallback);
           setIsSignedIn(true);
-          setPhase('chat'); // 診断をスキップして会話から開始
+          setPhase('chat');
           setIsAuthChecking(false);
+
 
           // データベース同期処理
           const did = result.session.did;
@@ -468,28 +530,32 @@ export default function MainHome() {
     }
   }, [pendingInvite, viewer, koeiroParam]);
 
-  const handleNameSubmit = useCallback(() => {
-    const name = nameInput.trim();
-    if (!name) {
-      nameInputRef.current?.focus();
-      return;
-    }
-    setUserName(name);
-    window.localStorage.setItem("chatVRM_userName", name);
-    setPhase("questions");
+  const handleGuestStart = useCallback(() => {
+    setUserName(lang === "ja" ? "ユーザーさん" : "User");
+    setPhase("chat");
     setDisplayedMoodContext(null);
     setAssistantMessage("");
-  }, [nameInput]);
+  }, [lang]);
+
+  const handleLandingSubmit = useCallback((text: string) => {
+    if (!text.trim()) return;
+    setUserName(lang === "ja" ? "ユーザーさん" : "User");
+    pendingFirstMessageRef.current = text.trim();
+    setLandingMessage("");
+    setPhase("chat");
+    setDisplayedMoodContext(null);
+    setAssistantMessage("");
+  }, [lang]);
 
   const handleDiagnose = useCallback(async (answers: AnswerItem[]) => {
     setIsWaitingForVoice(true);
-    setPhase("loading");
+    setDiagnosisModalState("loading");
 
     try {
       const res = await fetch("/api/fortune", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: userName, lang, answers }),
+        body: JSON.stringify({ name: diagnosisNameInput || (lang === "ja" ? "ユーザーさん" : "User"), lang, answers }),
       });
       if (res.status === 429) {
         setIsWaitingForVoice(false);
@@ -505,22 +571,16 @@ export default function MainHome() {
       window.localStorage.setItem('pending_diagnosis_result', JSON.stringify(data));
 
       let hasOpened = false;
-      // openResult は必ず isWaitingForVoice=false も行う。
-      // これにより、タイムアウト経由でも onStart 経由でも
-      // カードが開いた瞬間に「声を準備してるよ...」スピナーが絶対に消える。
       const openResult = () => {
         if (hasOpened) return;
         hasOpened = true;
         setIsWaitingForVoice(false);
         setFortune(data);
-        setPhase("fortune");
-        // 診断結果表示時に表情を excited (驚き＋喜び) に切り替え、Vサインモーションを再生
+        setDiagnosisModalState("result");
         viewer.playVrmaMotion(MOTION_URLS.diagnosis);
         viewer.model?.emoteController?.playEmotion("excited");
       };
 
-      // VoiceVox API + MP3ダウンロード + デコードが全て完了するまで待つため
-      // タイムアウトを20秒に設定
       const timeoutId = setTimeout(() => {
         console.log("[handleDiagnose] Safety timeout reached, opening fortune card");
         openResult();
@@ -531,28 +591,26 @@ export default function MainHome() {
         () => {
           clearTimeout(timeoutId);
           setIsSpeaking(true);
-          openResult(); // 音声の再生開始と同時に結果画面を表示
+          openResult();
         },
         () => {
           setIsSpeaking(false);
-          // 診断結果の読み上げ完了時に表情を gentle (穏やか) に切り替える
           viewer.model?.emoteController?.playEmotion("gentle");
         },
         () => {
           console.warn("[handleDiagnose] VoiceVox request rejected or failed. Opening card immediately.");
           clearTimeout(timeoutId);
           setIsSpeaking(false);
-          openResult(); // 即座に診断結果を表示して、voicevoxはあきらめる
-          // 音声再生に失敗した際も表情を gentle (穏やか) に切り替える
+          openResult();
           viewer.model?.emoteController?.playEmotion("gentle");
         }
       );
     } catch (e) {
       console.error(e);
       setIsWaitingForVoice(false);
-      setPhase("questions");
+      setDiagnosisModalState("questions");
     }
-  }, [userName, lang, safeSpeak]);
+  }, [diagnosisNameInput, lang, safeSpeak]);
 
 
 
@@ -566,8 +624,10 @@ export default function MainHome() {
     await client.signInRedirect(handle, { state: handle });
   }, [lang]);
 
-  const handleStartChat = useCallback(async () => {
+  const handleDiagnosisComplete = useCallback(async () => {
     setPhase("chat");
+    setDiagnosisModalState("hidden");
+    setDiagnosisNameInput("");
     setDisplayedMoodContext(null);
     setAssistantMessage("");
 
@@ -658,11 +718,14 @@ export default function MainHome() {
     window.localStorage.removeItem('chatVRM_userName');
     setIsSignedIn(false);
     setUserName('');
-    setNameInput('');
     setChatLog([]);
     setPhase('landing');
     setDisplayedMoodContext(null);
     setAssistantMessage("");
+    setGuestTurnCount(0);
+    setDiagnosisModalState("hidden");
+    setDiagnosisNameInput("");
+    setIsGiftMode(false);
   }, []);
 
   /**
@@ -748,6 +811,16 @@ export default function MainHome() {
   //   1. 応答テキストを受信しながら逐次バブルに表示（生成中は送信ボタンがスピナー）
   //   2. 全文受信後、発話準備の中央スピナーを表示
   //   3. VoiceVox の再生開始でスピナーを消して発話
+  // ランディングから送信した初回メッセージを chat フェーズ移行後に自動送信
+  useEffect(() => {
+    if (phase === "chat" && pendingFirstMessageRef.current) {
+      const msg = pendingFirstMessageRef.current;
+      pendingFirstMessageRef.current = null;
+      handleSendChat(msg);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
   const handleSendChat = useCallback(
     async (text: string) => {
       if (!text) return;
@@ -760,6 +833,14 @@ export default function MainHome() {
         { role: "user", content: text, userName },
       ];
       setChatLog(messageLog);
+
+      // ゲストターン制限: 未サインイン時は3ターンまで
+      let nextGuestCount = guestTurnCount;
+      if (!isSignedIn) {
+        nextGuestCount = guestTurnCount + 1;
+        setGuestTurnCount(nextGuestCount);
+      }
+
       // 統合型システム指示: 常に [ja]日本語 [en]英語 の両方を同時に出力させる。
       // 表示は lang で切り替え、発話は常に [ja] ブロックを使う。
       const langDirective =
@@ -807,7 +888,21 @@ export default function MainHome() {
         reader.releaseLock();
       }
 
-      setChatLog([...messageLog, { role: "assistant", content: fullText }]);
+      const finalLog: Message[] = [...messageLog, { role: "assistant", content: fullText }];
+
+      // ゲスト3ターン目完了後: サインイン促進メッセージを追加
+      if (!isSignedIn && nextGuestCount >= 3) {
+        const signInMsg: Message = {
+          role: "assistant",
+          content: lang === "ja"
+            ? "[halfHappy]もっとお話したいな！Blueskyでサインインすると続きが楽しめるよ。"
+            : "[halfHappy]I'd love to keep chatting! Sign in with Bluesky to continue.",
+        };
+        finalLog.push(signInMsg);
+        setAssistantMessage(signInMsg.content);
+      }
+
+      setChatLog(finalLog);
       setChatProcessing(false);
 
       // サインイン済みのフォロワーであれば、会話履歴をデータベースに保存
@@ -880,7 +975,7 @@ export default function MainHome() {
         setAssistantMessage(fullText);
       }
     },
-    [systemPrompt, chatLog, userName, lang, safeSpeak]
+    [systemPrompt, chatLog, userName, lang, safeSpeak, isSignedIn, guestTurnCount]
   );
 
   const handleGiftSend = useCallback(
@@ -953,24 +1048,18 @@ export default function MainHome() {
   // --- labels ---
   const LABEL = {
     ja: {
-      placeholder: "あなたの名前やよびかたを入力",
-      button: "お部屋に入る →",
       loading: "botたんが読んでるよ...",
       voiceLoading: "声を準備してるよ...",
-      chat: "もっとbotたんと話す 💬",
     },
     en: {
-      placeholder: "Enter your name or nickname",
-      button: "Enter the Room →",
       loading: "bot-tan is reading...",
       voiceLoading: "Preparing voice...",
-      chat: "Keep talking with bot-tan 💬",
     },
   }[lang];
 
   // Dynamic OGP image URL
   const ogImageUrl =
-    phase === "fortune" && fortune
+    diagnosisModalState === "result" && fortune
       ? `${BASE_URL}/api/og?${new URLSearchParams({
         name: userName,
         analysis: lang === "ja" ? fortune.analysis_ja : fortune.analysis_en,
@@ -999,9 +1088,9 @@ export default function MainHome() {
       {/* VRM viewer — always rendered */}
       <VrmViewer onClickCharacter={handleCharacterClick} />
 
-      {/* トップバー — 常時表示。justify-between で左右グループが重ならない設計 */}
+      {/* トップバー — 左: りれき / 右: 2行レイアウト */}
       <div
-        className="absolute z-30 flex items-center justify-between animate-fadeIn"
+        className="absolute z-30 flex items-start justify-between animate-fadeIn"
         style={{
           top: "calc(max(1.5rem, env(safe-area-inset-top)))",
           left: "1.5rem",
@@ -1009,7 +1098,7 @@ export default function MainHome() {
         }}
       >
         {/* 左グループ: りれき（サインイン時のみ） */}
-        <div style={{ display: "flex", gap: "10px" }}>
+        <div>
           {isSignedIn && (
             <button
               onClick={() => setIsHistoryOpen(true)}
@@ -1033,199 +1122,281 @@ export default function MainHome() {
           )}
         </div>
 
-        {/* 右グループ: ポリシー + 言語トグル + サインアウト（サインイン時） */}
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          {/* ポリシーボタン */}
-          <button
-            onClick={() => setShowPolicy(true)}
-            title={t("policy.link")}
-            className="rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 shrink-0"
-            style={{
-              width: "48px",
-              height: "48px",
-              background: "rgba(255, 255, 255, 0.65)",
-              backdropFilter: "blur(20px)",
-              border: "1px solid rgba(255, 255, 255, 0.45)",
-              color: "rgba(15, 32, 67, 0.8)",
-              boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
-            }}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="16" x2="12" y2="12" />
-              <line x1="12" y1="8" x2="12.01" y2="8" />
-            </svg>
-          </button>
-          {/* 言語トグル */}
-          <div
-            className="transition-all duration-300 shrink-0"
-            style={{
-              padding: "5px",
-              gap: "4px",
-              background: "rgba(255, 255, 255, 0.65)",
-              backdropFilter: "blur(20px)",
-              border: "1px solid rgba(255, 255, 255, 0.45)",
-              boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
-              borderRadius: "9999px",
-              display: "flex",
-              alignItems: "center",
-            }}
-          >
-            {(["en", "ja"] as const).map((l) => (
-              <button
-                key={l}
-                onClick={() => switchLocale(l)}
-                className={`text-[14px] font-black transition-all duration-300 rounded-full select-none ${lang === l
-                  ? "bg-theme-gradient text-white shadow-md shadow-theme-blue/15 scale-100"
-                  : "text-slate-600 hover:text-slate-800 hover:bg-white/40 active:scale-95"
-                  }`}
-                style={{
-                  borderRadius: "9999px",
-                  padding: "9px 16px",
-                }}
-              >
-                {l === "en" ? "EN" : "日本語"}
-              </button>
-            ))}
-          </div>
+        {/* 右グループ: 2行レイアウト */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px" }}>
 
-          {/* サインアウト（アイコンのみ） */}
-          {isSignedIn && (
+          {/* 行1（横並び）: ヘルプ | インフォ | サインイン/アウト */}
+          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            {/* ヘルプボタン */}
             <button
-              onClick={handleSignOut}
-              title={lang === "ja" ? "サインアウト" : "Sign out"}
+              onClick={() => setShowHelp(true)}
+              title={lang === "ja" ? "ヘルプ" : "Help"}
               className="rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 shrink-0"
               style={{
-                width: "48px",
-                height: "48px",
+                width: "40px",
+                height: "40px",
                 background: "rgba(255, 255, 255, 0.65)",
                 backdropFilter: "blur(20px)",
                 border: "1px solid rgba(255, 255, 255, 0.45)",
-                color: "var(--theme-blue)",
+                color: "rgba(15, 32, 67, 0.7)",
                 boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
               }}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
               </svg>
             </button>
-          )}
+            {/* インフォ（ポリシー） */}
+            <button
+              onClick={() => setShowPolicy(true)}
+              title={t("policy.link")}
+              className="rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 shrink-0"
+              style={{
+                width: "40px",
+                height: "40px",
+                background: "rgba(255, 255, 255, 0.65)",
+                backdropFilter: "blur(20px)",
+                border: "1px solid rgba(255, 255, 255, 0.45)",
+                color: "rgba(15, 32, 67, 0.7)",
+                boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+            </button>
+            {/* サインイン / サインアウト */}
+            {isSignedIn ? (
+              <button
+                onClick={handleSignOut}
+                title={lang === "ja" ? "サインアウト" : "Sign out"}
+                className="rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 shrink-0"
+                style={{
+                  width: "40px",
+                  height: "40px",
+                  background: "rgba(255, 255, 255, 0.65)",
+                  backdropFilter: "blur(20px)",
+                  border: "1px solid rgba(255, 255, 255, 0.45)",
+                  color: "var(--theme-blue)",
+                  boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowSignInModal(true)}
+                title={lang === "ja" ? "サインイン" : "Sign in"}
+                className="font-black text-white text-xs tracking-wide transition-all hover:brightness-105 active:scale-95 bg-theme-gradient shrink-0"
+                style={{
+                  borderRadius: "9999px",
+                  padding: "9px 16px",
+                  height: "40px",
+                  boxShadow: "0 4px 12px rgba(15, 32, 67, 0.12)",
+                }}
+              >
+                {lang === "ja" ? "サインイン" : "Sign in"}
+              </button>
+            )}
+          </div>
+
+          {/* 行2（縦並び・右寄せ）: 言語切替 | 診断 | プレゼント切替（サインイン+chat時） */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end" }}>
+            {/* 言語トグル */}
+            <div
+              className="transition-all duration-300 shrink-0"
+              style={{
+                padding: "4px",
+                background: "rgba(255, 255, 255, 0.65)",
+                backdropFilter: "blur(20px)",
+                border: "1px solid rgba(255, 255, 255, 0.45)",
+                boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
+                borderRadius: "9999px",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              {(["en", "ja"] as const).map((l) => (
+                <button
+                  key={l}
+                  onClick={() => switchLocale(l)}
+                  className={`text-[12px] font-black transition-all duration-300 rounded-full select-none ${lang === l
+                    ? "bg-theme-gradient text-white shadow-md shadow-theme-blue/15 scale-100"
+                    : "text-slate-600 hover:text-slate-800 hover:bg-white/40 active:scale-95"
+                    }`}
+                  style={{ borderRadius: "9999px", padding: "6px 12px" }}
+                >
+                  {l === "en" ? "EN" : "日本語"}
+                </button>
+              ))}
+            </div>
+            {/* 診断ボタン */}
+            <button
+              onClick={() => setDiagnosisModalState("name")}
+              title={lang === "ja" ? "診断" : "Diagnosis"}
+              className="font-black text-xs tracking-wide transition-all hover:brightness-105 active:scale-95 shrink-0"
+              style={{
+                borderRadius: "9999px",
+                padding: "6px 14px",
+                height: "34px",
+                background: "rgba(255, 255, 255, 0.65)",
+                backdropFilter: "blur(20px)",
+                border: "1px solid rgba(255, 255, 255, 0.45)",
+                color: "rgba(15, 32, 67, 0.75)",
+                boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
+              }}
+            >
+              {lang === "ja" ? "✨ 診断" : "✨ Diagnosis"}
+            </button>
+            {/* プレゼント/チャット切替（サインイン+chatフェーズ時のみ） */}
+            {isSignedIn && phase === "chat" && (
+              <button
+                onClick={() => setIsGiftMode(prev => !prev)}
+                title={isGiftMode ? (lang === "ja" ? "チャットへ" : "Back to Chat") : (lang === "ja" ? "プレゼント" : "Gift")}
+                className="flex items-center gap-1.5 font-black text-xs tracking-wide transition-all hover:brightness-105 active:scale-95 shrink-0"
+                style={{
+                  borderRadius: "9999px",
+                  padding: "6px 12px",
+                  height: "34px",
+                  backdropFilter: "blur(20px)",
+                  boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
+                  background: isGiftMode ? "rgba(255, 255, 255, 0.65)" : "rgba(255, 210, 220, 0.75)",
+                  border: isGiftMode ? "1px solid rgba(255, 255, 255, 0.45)" : "1px solid rgba(255, 150, 180, 0.4)",
+                  color: isGiftMode ? "rgba(15, 32, 67, 0.75)" : "rgba(200, 60, 100, 0.9)",
+                }}
+              >
+                {isGiftMode ? (
+                  <>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                    {lang === "ja" ? "チャット" : "Chat"}
+                  </>
+                ) : (
+                  <>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 12 20 22 4 22 4 12" />
+                      <rect x="2" y="7" width="20" height="5" />
+                      <line x1="12" y1="22" x2="12" y2="7" />
+                      <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+                      <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+                    </svg>
+                    {lang === "ja" ? "プレゼント" : "Gift"}
+                  </>
+                )}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       {/* ===== LANDING ===== */}
-      {phase === "landing" && !isAuthChecking && !quotaExceeded && (
+      {phase === "landing" && !isAuthChecking && !quotaExceeded && diagnosisModalState === "hidden" && (
         <div className="absolute z-20 flex flex-col justify-end" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(0.75rem, env(safe-area-inset-bottom)))", top: "60dvh", gap: "0.5rem" }}>
           {/* botたんのメッセージはカードの外・上に表示 */}
           <div className="w-full max-w-xl self-center">
             <AssistantBubble message={assistantMessage} lang={lang} isSpeaking={isSpeaking} showTrigger={bubbleTrigger} />
           </div>
           <div
-            className="w-full max-w-xl self-center shadow-2xl relative overflow-hidden transition-all duration-300"
+            className="w-full max-w-xl self-center shadow-2xl relative overflow-hidden transition-all duration-300 animate-fadeIn"
             style={{
               background: "rgba(255, 255, 255, 0.72)",
               backdropFilter: "blur(30px) saturate(140%)",
               border: "1.5px solid rgba(255, 255, 255, 0.55)",
               borderRadius: "2.5rem",
-              padding: "1rem 1.5rem",
+              padding: "1.25rem 1.75rem",
               display: "flex",
               flexDirection: "column",
               gap: "0.75rem",
               boxShadow: "0 24px 64px -16px rgba(15, 32, 67, 0.12)",
             }}
           >
-
+            {/* タイトル */}
             <h1 className="text-slate-800 text-xl font-black text-center tracking-wide"
               style={{ textShadow: '0 2px 10px rgba(58, 155, 213, 0.15)' }}>
-              {lang === "ja" ? "Botたんのお部屋へようこそ" : "Welcome to Bot-tan's Room"}
+              {lang === "ja" ? "botたんのお部屋" : "Bot-tan's Room"}
             </h1>
-            <input
-              ref={nameInputRef}
-              type="text"
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleNameSubmit()}
-              placeholder={LABEL.placeholder}
-              maxLength={30}
-              className="w-full text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
-              style={{
-                background: "rgba(255, 255, 255, 0.55)",
-                border: "1.5px solid rgba(58, 155, 213, 0.25)",
-                borderRadius: "9999px",
-                padding: "10px 20px",
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = 'var(--theme-blue)';
-                e.currentTarget.style.boxShadow = '0 0 0 4px rgba(58, 155, 213, 0.15)';
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(58, 155, 213, 0.25)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            />
-            <button
-              onClick={handleNameSubmit}
-              className="w-full font-black text-white text-base shadow-md tracking-wider transition-all duration-300 hover:shadow-lg hover:brightness-105 active:scale-[0.97] bg-theme-gradient"
-              style={{
-                borderRadius: "9999px",
-                padding: "10px 20px",
-              }}
-            >
-              {LABEL.button}
-            </button>
-            <p className="text-[11px] font-bold text-slate-400 text-center leading-normal max-w-sm mx-auto">
-              {t("introduction.disclaimer")}
+            {/* キャッチコピー */}
+            <p className="text-slate-600 text-sm font-bold text-center leading-relaxed" style={{ margin: 0 }}>
+              {lang === "ja" ? "ただいまって言える、あなたとのお部屋" : "A room where you can always come home"}
             </p>
-            <div className="text-center">
+            {/* チャット入力 + 送信ボタン */}
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <input
+                type="text"
+                value={landingMessage}
+                onChange={(e) => setLandingMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing) handleLandingSubmit(landingMessage);
+                }}
+                placeholder={lang === "ja" ? "メッセージを入力..." : "Type a message..."}
+                className="flex-1 text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
+                style={{
+                  height: "48px",
+                  background: "rgba(255, 255, 255, 0.55)",
+                  border: "1.5px solid rgba(58, 155, 213, 0.25)",
+                  borderRadius: "9999px",
+                  padding: "0 20px",
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = "var(--theme-blue)";
+                  e.currentTarget.style.boxShadow = "0 0 0 4px rgba(58, 155, 213, 0.15)";
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = "rgba(58, 155, 213, 0.25)";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              />
               <button
-                onClick={() => setShowPolicy(true)}
-                className="text-xs transition-colors underline text-slate-400 hover:text-slate-600 font-semibold"
+                onClick={() => handleLandingSubmit(landingMessage)}
+                disabled={!landingMessage.trim()}
+                aria-label="send"
+                className="shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed bg-theme-gradient shadow-md"
+                style={{ width: "48px", height: "48px", borderRadius: "9999px" }}
               >
-                {t("policy.link")}
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
+                  <path d="M2 21l21-9L2 3v7l15 2-15 2z" />
+                </svg>
               </button>
             </div>
+            {/* 展開式サインイン（旧 Fortune カード下部と同等） */}
+            {!isSignedIn && (
+              <button
+                onClick={() => setShowSignInModal(true)}
+                className="w-full font-bold text-sm transition-all duration-200 hover:brightness-105 active:scale-[0.97] bg-theme-gradient text-white shadow-md tracking-wide"
+                style={{ borderRadius: "9999px", padding: "10px 20px" }}
+              >
+                <span style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                  <span>{lang === "ja" ? "Blueskyでサインインして、botたんと遊ぼう！" : "Sign in with Bluesky to play with bot-tan!"}</span>
+                  <span style={{ fontSize: "11px", fontWeight: 600, opacity: 0.8 }}>
+                    {lang === "ja" ? "詳しくは右上のヘルプを見てね" : "See Help (top-right) for details"}
+                  </span>
+                </span>
+              </button>
+            )}
+            {isSignedIn && (
+              <button
+                onClick={() => setPhase("chat")}
+                className="w-full font-black text-white text-base shadow-md tracking-wider transition-all duration-300 hover:shadow-lg hover:brightness-105 active:scale-[0.97] bg-theme-gradient"
+                style={{ borderRadius: "9999px", padding: "13px 24px" }}
+              >
+                {lang === "ja" ? "チャットへ →" : "Go to Chat →"}
+              </button>
+            )}
           </div>
         </div>
       )}
 
-      {/* ===== QUESTIONS ===== */}
-      {phase === "questions" && !quotaExceeded && (
-        <div className="absolute z-20 flex justify-center" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(1.5rem, env(safe-area-inset-bottom)))", top: "60dvh" }}>
-          <div
-            className="w-full max-w-xl shadow-2xl relative overflow-y-auto transition-all duration-300"
-            style={{
-              maxHeight: "100%",
-              background: "rgba(255, 255, 255, 0.72)",
-              backdropFilter: "blur(30px) saturate(140%)",
-              border: "1.5px solid rgba(255, 255, 255, 0.55)",
-              borderRadius: "2.5rem",
-              padding: "1.5rem 2.25rem",
-              display: "flex",
-              flexDirection: "column",
-              gap: "1.15rem",
-              boxShadow: "0 24px 64px -16px rgba(15, 32, 67, 0.12)",
-            }}
-          >
-            <h2 className="text-slate-800 text-lg font-black text-center tracking-wide"
-              style={{ textShadow: '0 2px 10px rgba(58, 155, 213, 0.12)' }}>
-              {lang === "ja"
-                ? `${userName}さんのこと、聞かせてね`
-                : `Tell me about you, ${userName}`}
-            </h2>
-            <DiagnosisForm
-              lang={lang}
-              onSubmit={handleDiagnose}
-              onQuestionShow={speakQuestion}
-              onExpressionChange={handleQuestionExpression}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* ===== スピナー（ボタン押下〜VoiceVox再生開始まで常に表示） ===== */}
-      {((isWaitingForVoice && phase !== "chat") || (phase === "chat" && (chatProcessing || isWaitingForVoice))) && (
+      {/* ===== スピナー（診断ローディング・チャット処理・VoiceVox待機） ===== */}
+      {((diagnosisModalState === "loading") || (phase === "chat" && (chatProcessing || isWaitingForVoice))) && (
         <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
           <div
             className="flex flex-col items-center gap-4 px-10 py-10 rounded-3xl"
@@ -1240,9 +1411,9 @@ export default function MainHome() {
           >
             <div className="spinner-ring" />
             <span className="text-slate-800 text-base font-bold" style={{ color: "#0f172a" }}>
-              {phase === "chat"
-                ? (lang === "ja" ? "考え中..." : "Thinking...")
-                : (phase === "loading" ? LABEL.loading : LABEL.voiceLoading)}
+              {diagnosisModalState === "loading"
+                ? (isWaitingForVoice ? LABEL.voiceLoading : (lang === "ja" ? "あなたの回答を読んでるよ..." : "Reading your answers..."))
+                : (isWaitingForVoice ? LABEL.voiceLoading : (lang === "ja" ? "考え中..." : "Thinking..."))}
             </span>
             <style jsx global>{`
               .spinner-ring {
@@ -1262,61 +1433,9 @@ export default function MainHome() {
         </div>
       )}
 
-      {/* ===== FORTUNE ===== */}
-      {phase === "fortune" && fortune && !quotaExceeded && (
-        <div className="absolute z-20 flex justify-center pointer-events-none" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(0.75rem, env(safe-area-inset-bottom)))", top: "60dvh" }}>
-          <div
-            className="w-full max-w-xl shadow-2xl overflow-y-auto pointer-events-auto scrollbar-thin"
-            style={{
-              maxHeight: "100%",
-              background: "rgba(255, 255, 255, 0.72)",
-              backdropFilter: "blur(30px) saturate(140%)",
-              border: "1.5px solid rgba(255, 255, 255, 0.55)",
-              borderRadius: "2.5rem",
-              padding: "1.5rem clamp(1rem, 4vw, 2.25rem)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "1.15rem",
-              boxShadow: "0 24px 64px -16px rgba(15, 32, 67, 0.12)",
-            }}
-          >
-            <FortuneCard name={userName} fortune={fortune} lang={lang} isSpeaking={isSpeaking} flat={true} />
-            {!isSignedIn && !showSignInForm && (
-              <button
-                onClick={() => setShowSignInForm(true)}
-                className="w-full font-bold text-sm transition-all duration-200 hover:brightness-105"
-                style={{
-                  borderRadius: "9999px",
-                  padding: "10px 20px",
-                  background: "rgba(255, 255, 255, 0.6)",
-                  border: "1.5px solid rgba(58, 155, 213, 0.3)",
-                  color: "rgba(58, 155, 213, 0.9)",
-                }}
-              >
-                {lang === "ja" ? "Blueskyでサインインしてチャットしよう →" : "Sign in with Bluesky to chat →"}
-              </button>
-            )}
-            {!isSignedIn && showSignInForm && (
-              <BlueskyPrompt lang={lang} isSignedIn={isSignedIn} onSignIn={handleSignIn} />
-            )}
-            {isSignedIn && (
-              <button
-                onClick={handleStartChat}
-                className="w-full font-black text-white text-base shadow-md tracking-wider transition-all duration-300 hover:shadow-lg hover:brightness-105 active:scale-[0.97] bg-theme-gradient"
-                style={{
-                  borderRadius: "9999px",
-                  padding: "13px 24px",
-                }}
-              >
-                {LABEL.chat}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* ===== CHAT ===== */}
-      {phase === "chat" && (
+      {phase === "chat" && diagnosisModalState === "hidden" && (
         <ChatView
           lang={lang}
           assistantMessage={assistantMessage}
@@ -1328,9 +1447,10 @@ export default function MainHome() {
           isInvitationMode={isInvitationMode}
           isSignedIn={isSignedIn}
           isGiftMode={isGiftMode}
-          onGiftModeToggle={() => setIsGiftMode(prev => !prev)}
           onGiftSend={handleGiftSend}
           isGiftProcessing={isGiftProcessing}
+          guestTurnCount={guestTurnCount}
+          onRequestSignIn={() => setShowSignInModal(true)}
         />
       )}
 
@@ -1341,6 +1461,163 @@ export default function MainHome() {
           lang={lang}
           onClose={() => setIsHistoryOpen(false)}
         />
+      )}
+
+      {/* ===== HELP MODAL ===== */}
+      {showHelp && <HelpModal lang={lang} onClose={() => setShowHelp(false)} />}
+
+      {/* ===== SIGN-IN OVERLAY ===== */}
+      {showSignInModal && (
+        <div
+          onClick={() => setShowSignInModal(false)}
+          className="absolute inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn"
+          style={{ background: "rgba(15, 32, 67, 0.45)", backdropFilter: "blur(8px)" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-xl rounded-[2rem] shadow-2xl flex flex-col gap-4 animate-fadeIn"
+            style={{
+              padding: "1.75rem",
+              background: "rgba(255, 255, 255, 0.88)",
+              backdropFilter: "blur(30px) saturate(140%)",
+              border: "1.5px solid rgba(255, 255, 255, 0.65)",
+              boxShadow: "0 24px 64px -16px rgba(15, 32, 67, 0.18)",
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-slate-800 text-lg font-black tracking-wide">
+                {lang === "ja" ? "サインイン" : "Sign in"}
+              </h2>
+              <button
+                onClick={() => setShowSignInModal(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all shrink-0"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <BlueskyPrompt lang={lang} isSignedIn={isSignedIn} onSignIn={handleSignIn} />
+          </div>
+        </div>
+      )}
+
+      {/* ===== DIAGNOSIS (bottom card) ===== */}
+      {diagnosisModalState !== "hidden" && (
+        <div className="absolute z-20 flex flex-col justify-end" style={{ left: "1.5rem", right: "1.5rem", bottom: "calc(max(0.75rem, env(safe-area-inset-bottom)))", top: "60dvh", gap: "0.5rem" }}>
+          <div
+            className="w-full max-w-xl self-center shadow-2xl relative transition-all duration-300 animate-fadeIn"
+            style={{
+              background: "rgba(255, 255, 255, 0.72)",
+              backdropFilter: "blur(30px) saturate(140%)",
+              border: "1.5px solid rgba(255, 255, 255, 0.55)",
+              borderRadius: "2.5rem",
+              padding: "1.5rem 2.25rem",
+              display: "flex",
+              flexDirection: "column",
+              gap: "1.15rem",
+              boxShadow: "0 24px 64px -16px rgba(15, 32, 67, 0.12)",
+              overflowY: diagnosisModalState === "result" ? "auto" : "visible",
+              maxHeight: diagnosisModalState === "result" ? "calc(100% - 0.5rem)" : "none",
+            }}
+          >
+            {/* ヘッダー */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-slate-800 text-lg font-black tracking-wide"
+                style={{ textShadow: '0 2px 10px rgba(58, 155, 213, 0.12)' }}>
+                {diagnosisModalState === "result"
+                  ? (lang === "ja" ? "✨ 診断結果" : "✨ Diagnosis Result")
+                  : (lang === "ja" ? "✨ 性格診断" : "✨ Personality Diagnosis")}
+              </h2>
+              {diagnosisModalState !== "loading" && (
+                <button
+                  onClick={() => setDiagnosisModalState("hidden")}
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {/* 名前入力 */}
+            {diagnosisModalState === "name" && (
+              <>
+                <p className="text-slate-800 text-sm font-bold leading-relaxed" style={{ margin: 0, whiteSpace: "pre-line" }}>
+                  {lang === "ja"
+                    ? "3つの質問のあなたの考えを聴かせてね\n答えから、わたしが全肯定で性格診断するよ！"
+                    : "I'll ask you 3 questions about how you think.\nFrom your answers, I'll give you my all-affirming personality diagnosis!"}
+                </p>
+                <p className="text-slate-600 text-sm font-semibold" style={{ margin: 0 }}>
+                  {lang === "ja" ? "まず、あなたのよびかたを教えてね" : "First, tell me what to call you"}
+                </p>
+                <input
+                  type="text"
+                  value={diagnosisNameInput}
+                  onChange={(e) => setDiagnosisNameInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && diagnosisNameInput.trim()) setDiagnosisModalState("questions");
+                  }}
+                  placeholder={lang === "ja" ? "あなたの名前やよびかた" : "Your name or nickname"}
+                  maxLength={30}
+                  autoFocus
+                  className="w-full text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
+                  style={{
+                    background: "rgba(255, 255, 255, 0.55)",
+                    border: "1.5px solid rgba(58, 155, 213, 0.25)",
+                    borderRadius: "9999px",
+                    padding: "10px 20px",
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "var(--theme-blue)";
+                    e.currentTarget.style.boxShadow = "0 0 0 4px rgba(58, 155, 213, 0.15)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(58, 155, 213, 0.25)";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                />
+                <button
+                  onClick={() => { if (diagnosisNameInput.trim()) setDiagnosisModalState("questions"); }}
+                  disabled={!diagnosisNameInput.trim()}
+                  className="w-full font-black text-white text-base shadow-md tracking-wider transition-all disabled:opacity-30 disabled:cursor-not-allowed bg-theme-gradient"
+                  style={{ borderRadius: "9999px", padding: "10px 20px" }}
+                >
+                  {lang === "ja" ? "次へ →" : "Next →"}
+                </button>
+              </>
+            )}
+
+            {/* 質問フォーム */}
+            {diagnosisModalState === "questions" && (
+              <>
+                <DiagnosisForm
+                  lang={lang}
+                  onSubmit={handleDiagnose}
+                  onQuestionShow={speakQuestion}
+                  onExpressionChange={handleQuestionExpression}
+                />
+              </>
+            )}
+
+            {/* 診断結果 */}
+            {diagnosisModalState === "result" && fortune && (
+              <>
+                <FortuneCard name={diagnosisNameInput} fortune={fortune} lang={lang} isSpeaking={isSpeaking} flat={true} />
+                {!isSignedIn && (
+                  <button
+                    onClick={() => setShowSignInModal(true)}
+                    className="w-full font-bold text-sm transition-all duration-200 hover:brightness-105 active:scale-[0.97] bg-theme-gradient text-white shadow-md tracking-wide"
+                    style={{ borderRadius: "9999px", padding: "10px 20px" }}
+                  >
+                    {lang === "ja" ? "Blueskyでサインインして診断結果について話そう" : "Sign in with Bluesky to talk about your diagnosis"}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
       )}
 
       {/* ===== POLICY MODAL ===== */}

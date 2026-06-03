@@ -11,7 +11,7 @@ function createClient(): BrowserOAuthClient {
 
   if (isLocal) {
     const port = window.location.port;
-    const origin = `http://127.0.0.1:${port}`;
+    const origin = `window.location.origin`;
     const redirectUri = `${origin}/callback/`;
     const enc = encodeURIComponent;
     const clientId = `http://localhost?redirect_uri=${enc(redirectUri)}&scope=${enc(SCOPE)}`;
