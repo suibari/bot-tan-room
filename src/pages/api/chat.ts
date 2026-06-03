@@ -115,17 +115,18 @@ export default async function handler(
     }
   }
 
-  // 過去履歴の件数を直近1000件に制限して入力トークンを節約（DB保存上限に合わせる）
-  const MAX_HISTORY_LENGTH = 1000;
+  // Gemini APIに渡す履歴を直近50ターンに制限（DBには全件保持）
+  const MAX_HISTORY_LENGTH = 50;
   if (history.length > MAX_HISTORY_LENGTH) {
     history = history.slice(-MAX_HISTORY_LENGTH);
   }
 
-  // Gemini APIは会話履歴の開始が 'user' であることを期待するため、
-  // 切り詰めた結果先頭が 'model' (assistant) で始まっている場合は、
-  // 安全のためそれを削って 'user' から始まるように調整する
+  // Gemini API仕様: contentsは先頭が 'user'、末尾が 'model' でなければならない
   while (history.length > 0 && history[0].role === 'model') {
     history.shift();
+  }
+  while (history.length > 0 && history[history.length - 1].role !== 'model') {
+    history.pop();
   }
 
   // 最後のユーザー発言の末尾に、強力なフォーマット制約をインジェクションして出力崩れと長文化を完全に防ぐ

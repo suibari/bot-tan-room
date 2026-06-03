@@ -92,16 +92,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
-      // 1000件の上限ルールを適用し、古いものから安全に切り詰める（先頭がuser、末尾がmodelであることを保証）
-      const truncatedHistory = truncateHistory(conv_history, 1000);
-
       // Perform PATCH to update only conv_history for this DID
       const response = await fetch(
         `${DB_URL}/followers?did=eq.${encodeURIComponent(did)}`,
         {
           method: 'PATCH',
           headers,
-          body: JSON.stringify({ conv_history: truncatedHistory }),
+          body: JSON.stringify({ conv_history }),
           keepalive: true,
         }
       );
@@ -120,24 +117,3 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-// conv_historyの1000件上限制約を適用しつつ、先頭がuser、末尾がmodelであることを保証する安全なスライス関数
-function truncateHistory(history: any[], maxLength: number = 1000): any[] {
-  if (history.length <= maxLength) {
-    return history;
-  }
-
-  // 上限を超えているので、古いもの（配列の先頭）から削除する
-  let sliced = history.slice(-maxLength);
-
-  // 先頭が 'user' で始まることを保証する
-  while (sliced.length > 0 && sliced[0].role !== 'user') {
-    sliced.shift(); // 先頭の model などを取り除く
-  }
-
-  // 末尾が 'model' で終わることを保証する（Geminiの会話ペア完結の担保）
-  while (sliced.length > 0 && sliced[sliced.length - 1].role !== 'model') {
-    sliced.pop(); // 末尾の不完全な user を取り除く
-  }
-
-  return sliced;
-}
