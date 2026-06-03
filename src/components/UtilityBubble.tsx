@@ -33,9 +33,16 @@ export default function UtilityBubble({ state, emoji, pos, onHide }: Props) {
 
   if (state === 'hidden') return null;
 
+  // ビューポート幅に応じてスケール（900px基準、最大1.6倍）
+  const scale = Math.max(1, Math.min(1.6, window.innerWidth / 900));
+  const offsetX = Math.round(110 * scale);
+  const offsetY = Math.round(140 * scale);
+  const emojiSize = Math.round(52 * scale);
+  const heartSize = Math.round(20 * scale);
+
   // head右上にオフセット（フォールバックは画面中央右寄り）
-  const left = pos ? pos.x + 110 : window.innerWidth * 0.62;
-  const top  = pos ? pos.y - 140 : window.innerHeight * 0.08;
+  const left = pos ? pos.x + offsetX : window.innerWidth * 0.62;
+  const top  = pos ? pos.y - offsetY : window.innerHeight * 0.08;
 
   const isCelebrating = state === 'celebrating';
 
@@ -57,7 +64,7 @@ export default function UtilityBubble({ state, emoji, pos, onHide }: Props) {
           border: '3px solid #222222',
           borderRadius: '16px',
           padding: '14px 20px',
-          fontSize: '52px',
+          fontSize: `${emojiSize}px`,
           lineHeight: 1,
           animation: isCelebrating
             ? `bubbleOut ${CELEBRATE_DURATION_MS}ms ease-in forwards`
@@ -100,7 +107,7 @@ export default function UtilityBubble({ state, emoji, pos, onHide }: Props) {
               position: 'absolute',
               top: '50%',
               left: '50%',
-              fontSize: '20px',
+              fontSize: `${heartSize}px`,
               opacity: 1,
               animation: `heartFly${i} ${CELEBRATE_DURATION_MS * 0.8}ms ease-out ${i * 60}ms forwards`,
             }}
