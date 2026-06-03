@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { sendGAEvent } from "@next/third-parties/google";
 import type { DiagnosisResult } from '@/pages/api/fortune';
 
 type Props = {
@@ -83,6 +84,7 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false, flat = fa
     if (isSharingX) return;
     setIsSharingX(true);
     try {
+      sendGAEvent('event', 'share', { method: 'x' });
       const shareUrl = await buildShareUrl();
       const shareText =
         lang === 'ja'
@@ -98,6 +100,7 @@ export function FortuneCard({ name, fortune, lang, isSpeaking = false, flat = fa
     if (isSharingBsky) return;
     setIsSharingBsky(true);
     try {
+      sendGAEvent('event', 'share', { method: 'bluesky' });
       const shareUrl = await buildShareUrl();
       const shareText =
         lang === 'ja'

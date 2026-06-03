@@ -171,6 +171,13 @@ export function HelpModal({ lang, onClose }: Props) {
             </p>
           </div>
 
+          {/* アナリティクス */}
+          <p className="text-slate-400 text-xs pt-1">
+            {lang === "ja"
+              ? "このアプリはサービス改善のため Google Analytics を使用しています。"
+              : "This app uses Google Analytics for service improvement."}
+          </p>
+
         </div>
 
         {/* Footer */}

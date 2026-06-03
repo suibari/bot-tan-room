@@ -1,4 +1,5 @@
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { sendGAEvent } from "@next/third-parties/google";
 import Head from "next/head";
 import VrmViewer from "@/components/vrmViewer";
 import { ViewerContext } from "@/features/vrmViewer/viewerContext";
@@ -714,6 +715,7 @@ export default function MainHome() {
   const handleSignIn = useCallback(async (handle: string) => {
     // サインイン前の言語を退避
     window.localStorage.setItem('pre_signin_lang', lang);
+    sendGAEvent('event', 'login', { method: 'bluesky' });
     const { getBskyOAuthClient } = await import('@/features/auth/bskyOAuth');
     const client = bskyClientRef.current ?? getBskyOAuthClient();
     // フルページリダイレクト方式でポップアップ・BroadcastChannel 問題を回避
@@ -722,6 +724,7 @@ export default function MainHome() {
   }, [lang]);
 
   const handleDiagnosisComplete = useCallback(async () => {
+    sendGAEvent('event', 'diagnosis_complete');
     setPhase("chat");
     setDiagnosisModalState("hidden");
     setDiagnosisNameInput("");
@@ -843,6 +846,7 @@ export default function MainHome() {
     }
 
     // クリックインタラクション: +20 (fire-and-forget)
+    sendGAEvent('event', 'character_click');
     const clickDid = bskySessionRef.current?.did;
     if (clickDid) {
       (bskySessionRef.current as any)?.getTokenSet().then((ts: any) => {
@@ -940,6 +944,7 @@ export default function MainHome() {
 
   const handleGreeting = useCallback(async () => {
     if (!greetingMode) return;
+    sendGAEvent('event', 'greeting', { mode: greetingMode });
     // 入室あいさつインタラクション: +10 (fire-and-forget)
     const greetDid = bskySessionRef.current?.did;
     if (greetDid) {
@@ -1097,6 +1102,7 @@ export default function MainHome() {
     async (text: string) => {
       if (!text) return;
       if (!isSignedIn && guestTurnCount >= 3) return;
+      sendGAEvent('event', 'chat_send');
       setChatProcessing(true);
       setDisplayedMoodContext(null);
       setAssistantMessage("");
@@ -1235,6 +1241,7 @@ export default function MainHome() {
   const handleGiftSend = useCallback(
     async (text: string) => {
       if (!text) return;
+      sendGAEvent('event', 'gift_send');
       setIsGiftProcessing(true);
       setIsGiftMode(false);
       setAssistantMessage("");

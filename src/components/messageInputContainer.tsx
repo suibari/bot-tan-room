@@ -1,5 +1,6 @@
 import { MessageInput } from "@/components/messageInput";
 import { useState, useEffect, useCallback } from "react";
+import { sendGAEvent } from "@next/third-parties/google";
 
 type Props = {
   isChatProcessing: boolean;
@@ -51,6 +52,7 @@ export const MessageInputContainer = ({
       return;
     }
 
+    sendGAEvent('event', 'voice_input_start');
     speechRecognition?.start();
     setIsMicRecording(true);
   }, [isMicRecording, speechRecognition]);
