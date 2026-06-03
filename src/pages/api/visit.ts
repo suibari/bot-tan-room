@@ -57,7 +57,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.warn('[API visit] Failed to fetch follower state, treating as non-eligible visit:', e);
     }
 
-    const now = new Date().toISOString();
+    const nowMs = Date.now();
+    // タイムゾーン情報がない文字列は UTC として扱う（TIMESTAMP WITHOUT TZ 対策）
+    const prevMs = previousVisitAt
+      ? (() => {
+          const normalized = /[Zz]$|[+-]\d{2}:?\d{2}$/.test(previousVisitAt)
+            ? previousVisitAt
+            : previousVisitAt + 'Z';
+          const t = new Date(normalized).getTime();
+          return isNaN(t) ? null : t;
+        })()
+      : null;
+    const elapsedMs: number | null = prevMs !== null ? nowMs - prevMs : null;
+    const now = new Date(nowMs).toISOString();
 
     const dbRes = await fetch(
       `${DB_URL}/followers?did=eq.${encodeURIComponent(did)}`,
@@ -82,7 +94,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log(`[API visit] Visit eligible for badge for ${did}, room_badge_pending set to 1.`);
     }
 
-    return res.status(200).json({ success: true, previousVisitAt });
+    return res.status(200).json({ success: true, previousVisitAt, elapsedMs });
   } catch (e: any) {
     console.error('[API visit POST error]:', e);
     return res.status(500).json({ message: 'Internal Server Error', error: e.message || String(e) });

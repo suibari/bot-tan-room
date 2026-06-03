@@ -154,7 +154,7 @@ export default function MainHome() {
   const [guestTurnCount, setGuestTurnCount] = useState(0);
   const [landingMessage, setLandingMessage] = useState("");
   const [greetingMode, setGreetingMode] = useState<GreetingMode>(null);
-  const previousVisitAtRef = useRef<string | null>(null);
+  const greetingElapsedMsRef = useRef<number | null>(null);
   const pendingFirstMessageRef = useRef<string | null>(null);
   const prefetchedMoodAudioRef = useRef<Promise<ArrayBuffer | null>>(Promise.resolve(null));
   const pendingAudioRef = useRef<Promise<ArrayBuffer | null>>(Promise.resolve(null));
@@ -332,7 +332,6 @@ export default function MainHome() {
               // 1. 来訪記録の更新（await してグリーティング判定用 previousVisitAt を取得）
               // 2. お迎えメッセージの取得（独立して並列実行）
               let inviteHasInvite = false;
-              let visitPreviousVisitAt: string | null = null;
 
               const [visitData] = await Promise.all([
                 fetch('/api/visit/', {
@@ -364,7 +363,8 @@ export default function MainHome() {
                   .catch(err => console.error('[get-invite API error]:', err)),
               ]);
 
-              visitPreviousVisitAt = visitData?.previousVisitAt ?? null;
+              // elapsedMs はサーバー側で UTC 基準に計算済み（クライアントのタイムゾーン影響なし）
+              const elapsedMs: number | null = visitData?.elapsedMs ?? null;
 
               const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`, {
                 headers: token ? { 'Authorization': `Bearer ${token}` } : {}
@@ -378,15 +378,12 @@ export default function MainHome() {
 
               // グリーティングモード決定（招待がある場合はスキップ）
               if (!inviteHasInvite) {
-                const elapsed = visitPreviousVisitAt
-                  ? Date.now() - new Date(visitPreviousVisitAt).getTime()
-                  : null;
-                if (elapsed !== null && elapsed >= 60 * 60 * 1000) {
-                  previousVisitAtRef.current = visitPreviousVisitAt;
+                if (elapsedMs !== null && elapsedMs >= 60 * 60 * 1000) {
+                  greetingElapsedMsRef.current = elapsedMs;
                   setGreetingMode('tadaima');
-                } else if (!visitPreviousVisitAt && historyData.isFollower) {
+                } else if (elapsedMs === null && historyData.isFollower) {
                   setGreetingMode('konnichiwa');
-                } else if (!visitPreviousVisitAt && !historyData.isFollower) {
+                } else if (elapsedMs === null && !historyData.isFollower) {
                   setGreetingMode('hajimemashite');
                 }
               }
@@ -873,8 +870,8 @@ export default function MainHome() {
     const tod = h >= 5 && h < 11 ? '朝' : h < 17 ? '昼' : h < 21 ? '夕方' : '夜';
 
     let elapsedDesc = '';
-    if (mode === 'tadaima' && previousVisitAtRef.current) {
-      const ms = Date.now() - new Date(previousVisitAtRef.current).getTime();
+    if (mode === 'tadaima' && greetingElapsedMsRef.current !== null) {
+      const ms = greetingElapsedMsRef.current;
       elapsedDesc = ms < 24 * 3600_000
         ? '前回の来訪から24時間以内の再来訪です'
         : ms < 7 * 24 * 3600_000
