@@ -12,9 +12,7 @@ function createClient(): BrowserOAuthClient {
   if (isLocal) {
     const port = window.location.port;
     const origin = `http://127.0.0.1:${port}`;
-    // ルート '/' を redirect_uri に使う。trailingSlash:true でも '/' は '/' のままなので
-    // パスマッチが壊れない（/oauth/callback だと /oauth/callback/ にリダイレクトされ破綻する）
-    const redirectUri = `${origin}/`;
+    const redirectUri = `${origin}/callback/`;
     const enc = encodeURIComponent;
     const clientId = `http://localhost?redirect_uri=${enc(redirectUri)}&scope=${enc(SCOPE)}`;
 
@@ -35,8 +33,8 @@ function createClient(): BrowserOAuthClient {
     });
   }
 
-  // 本番環境: public/client-metadata.json を参照。redirect_uri はルートを使う
-  const redirectUri = `${base}/`;
+  // 本番環境: public/client-metadata.json を参照。redirect_uri は /callback/ を使う
+  const redirectUri = `${base}/callback/`;
   return new BrowserOAuthClient({
     handleResolver: 'https://bsky.social',
     clientMetadata: {

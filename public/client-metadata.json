@@ -8,5 +8,5 @@
   "token_endpoint_auth_method": "none",
   "dpop_bound_access_tokens": true,
   "scope": "atproto transition:generic",
-  "redirect_uris": ["https://room-bot-tan.suibari.com/"]
+  "redirect_uris": ["https://room-bot-tan.suibari.com/callback/"]
 }
