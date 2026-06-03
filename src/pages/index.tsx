@@ -936,6 +936,7 @@ export default function MainHome() {
   const handleSendChat = useCallback(
     async (text: string) => {
       if (!text) return;
+      if (!isSignedIn && guestTurnCount >= 3) return;
       setChatProcessing(true);
       setDisplayedMoodContext(null);
       setAssistantMessage("");
@@ -985,18 +986,6 @@ export default function MainHome() {
       }
 
       const finalLog: Message[] = [...messageLog, { role: "assistant", content: fullText }];
-
-      // ゲスト3ターン目完了後: サインイン促進メッセージを追加
-      if (!isSignedIn && nextGuestCount >= 3) {
-        const signInMsg: Message = {
-          role: "assistant",
-          content: lang === "ja"
-            ? "[halfHappy]もっとお話したいな！Blueskyでサインインすると続きが楽しめるよ。"
-            : "[halfHappy]I'd love to keep chatting! Sign in with Bluesky to continue.",
-        };
-        finalLog.push(signInMsg);
-        setAssistantMessage(signInMsg.content);
-      }
 
       setChatLog(finalLog);
       setChatProcessing(false);
@@ -1140,18 +1129,6 @@ export default function MainHome() {
     },
     [lang, userName, safeSpeak, viewer]
   );
-
-  // --- labels ---
-  const LABEL = {
-    ja: {
-      loading: "botたんが読んでるよ...",
-      voiceLoading: "声を準備してるよ...",
-    },
-    en: {
-      loading: "bot-tan is reading...",
-      voiceLoading: "Preparing voice...",
-    },
-  }[lang];
 
   // Dynamic OGP image URL
   const ogImageUrl =
@@ -1508,8 +1485,8 @@ export default function MainHome() {
             <div className="spinner-ring" />
             <span className="text-slate-800 text-base font-bold" style={{ color: "#0f172a" }}>
               {diagnosisModalState === "loading"
-                ? (isWaitingForVoice ? LABEL.voiceLoading : (lang === "ja" ? "あなたの回答を読んでるよ..." : "Reading your answers..."))
-                : (isWaitingForVoice ? LABEL.voiceLoading : (lang === "ja" ? "考え中..." : "Thinking..."))}
+                ? (lang === "ja" ? "あなたの回答を読んでるよ..." : "Reading your answers...")
+                : (lang === "ja" ? "考え中..." : "Thinking...")}
             </span>
             <style jsx global>{`
               .spinner-ring {
