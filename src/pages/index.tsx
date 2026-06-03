@@ -904,6 +904,10 @@ export default function MainHome() {
       setDisplayedMoodContext({ moodJa: moodText, moodEn: moodEnText || '', emotionTag });
       setAssistantMessage(fullMessage);
       setBubbleTrigger(t => t + 1);
+      // 音声なしでもバブルは表示する（800ms後にcelebrating）
+      setBubbleEmoji(clickEmoji);
+      setBubbleState('visible');
+      setTimeout(() => setBubbleState('celebrating'), 800);
     } finally {
       setIsSpeaking(false);
       // 次のクリックに備えて、裏で新しい気分と音声の再プリフェッチを開始しておく
