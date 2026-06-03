@@ -24,6 +24,7 @@ import { BlueskyPrompt } from "@/components/blueskyPrompt";
 import type { DiagnosisResult } from "@/pages/api/fortune";
 import { fetchAudio, fetchAudioUrl } from "@/features/messages/speakCharacter";
 import { parseLanguageContent, stripEmotionTags } from "@/utils/languageParser";
+import { getJSTHour } from "@/utils/timeBasedBackground";
 import { ConvHistoryPanel } from "@/components/ConvHistoryPanel";
 import { HelpModal } from "@/components/HelpModal";
 import { MOTION_URLS, getRandomClickMotion } from "@/features/vrmViewer/motionConfig";
@@ -31,6 +32,21 @@ import { MOTION_URLS, getRandomClickMotion } from "@/features/vrmViewer/motionCo
 type AnswerItem = { question: string; answer: string };
 type Phase = "landing" | "chat";
 type DiagnosisModalState = "hidden" | "name" | "questions" | "loading" | "result";
+type GreetingMode = 'tadaima' | 'konnichiwa' | 'hajimemashite' | null;
+
+const LANG_DIRECTIVE =
+  "\n\n# Response Format Rules (CRITICAL — MUST FOLLOW EXACTLY)\n" +
+  "You MUST always respond with BOTH a Japanese block AND an English block in this exact format:\n" +
+  "[ja][emotion]日本語の返答[en][emotion]English reply\n\n" +
+  "Rules:\n" +
+  "- [ja] block: Write in Japanese. Casual tone. Endings like 「～だよ」「～だね」「～よ」. No formal language.\n" +
+  "- [en] block: Write in English. Casual, warm, friendly tone.\n" +
+  "- Emotion tag: Must be one of [halfHappy], [neutral], [sad], [angry], [relaxed]. Place it immediately after [ja] or [en].\n" +
+  "- Both blocks must be concise: 2-3 sentences max, under 200 characters each.\n" +
+  "- NEVER use markdown formatting (**, *, bullet lists). Plain text only.\n" +
+  "- NEVER summarize or recap past conversation history. Focus on natural back-and-forth.\n\n" +
+  "Example output:\n" +
+  "[ja][halfHappy]元気いっぱいだよ！そっちはどう？[en][halfHappy]I'm doing great! How about you?";
 
 function LandingInfoTooltip({ lang }: { lang: "ja" | "en" }) {
   const [show, setShow] = useState(false);
@@ -137,6 +153,8 @@ export default function MainHome() {
   const [diagnosisNameInput, setDiagnosisNameInput] = useState("");
   const [guestTurnCount, setGuestTurnCount] = useState(0);
   const [landingMessage, setLandingMessage] = useState("");
+  const [greetingMode, setGreetingMode] = useState<GreetingMode>(null);
+  const previousVisitAtRef = useRef<string | null>(null);
   const pendingFirstMessageRef = useRef<string | null>(null);
   const prefetchedMoodAudioRef = useRef<Promise<ArrayBuffer | null>>(Promise.resolve(null));
   const pendingAudioRef = useRef<Promise<ArrayBuffer | null>>(Promise.resolve(null));
@@ -311,34 +329,42 @@ export default function MainHome() {
               const tokenSet = await (result.session as any).getTokenSet();
               const token = tokenSet?.access_token;
 
-              // 1. 来訪記録の更新 (visit API呼び出し)
-              fetch('/api/visit/', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-                },
-                body: JSON.stringify({ did }),
-              }).catch(err => console.error('[visit API error]:', err));
+              // 1. 来訪記録の更新（await してグリーティング判定用 previousVisitAt を取得）
+              // 2. お迎えメッセージの取得（独立して並列実行）
+              let inviteHasInvite = false;
+              let visitPreviousVisitAt: string | null = null;
 
-              // 2. お迎えメッセージの取得
-              fetch(`/api/get-invite/?did=${encodeURIComponent(did)}`, {
-                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-              })
-                .then(async (inviteRes) => {
-                  if (!inviteRes.ok) {
-                    const errBody = await inviteRes.json().catch(() => ({}));
-                    console.error('[get-invite error status]:', inviteRes.status, 'Reason:', errBody.reason || errBody.message || 'Unknown');
-                    return;
-                  }
-                  const inviteData = await inviteRes.json();
-                  if (inviteData && inviteData.hasInvite) {
-                    setIsInvitationMode(true);
-                    setInviteTexts({ textJa: inviteData.textJa, textEn: inviteData.textEn });
-                    setPendingInvite(inviteData);
-                  }
+              const [visitData] = await Promise.all([
+                fetch('/api/visit/', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                  },
+                  body: JSON.stringify({ did }),
+                }).then(r => r.json()).catch(err => { console.error('[visit API error]:', err); return null; }),
+
+                fetch(`/api/get-invite/?did=${encodeURIComponent(did)}`, {
+                  headers: token ? { 'Authorization': `Bearer ${token}` } : {}
                 })
-                .catch(err => console.error('[get-invite API error]:', err));
+                  .then(async (inviteRes) => {
+                    if (!inviteRes.ok) {
+                      const errBody = await inviteRes.json().catch(() => ({}));
+                      console.error('[get-invite error status]:', inviteRes.status, 'Reason:', errBody.reason || errBody.message || 'Unknown');
+                      return;
+                    }
+                    const inviteData = await inviteRes.json();
+                    if (inviteData && inviteData.hasInvite) {
+                      inviteHasInvite = true;
+                      setIsInvitationMode(true);
+                      setInviteTexts({ textJa: inviteData.textJa, textEn: inviteData.textEn });
+                      setPendingInvite(inviteData);
+                    }
+                  })
+                  .catch(err => console.error('[get-invite API error]:', err)),
+              ]);
+
+              visitPreviousVisitAt = visitData?.previousVisitAt ?? null;
 
               const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`, {
                 headers: token ? { 'Authorization': `Bearer ${token}` } : {}
@@ -349,6 +375,21 @@ export default function MainHome() {
                 throw new Error(`Failed to fetch history API: ${errBody.reason || errBody.message || 'Unknown'}`);
               }
               const historyData = await historyRes.json();
+
+              // グリーティングモード決定（招待がある場合はスキップ）
+              if (!inviteHasInvite) {
+                const elapsed = visitPreviousVisitAt
+                  ? Date.now() - new Date(visitPreviousVisitAt).getTime()
+                  : null;
+                if (elapsed !== null && elapsed >= 60 * 60 * 1000) {
+                  previousVisitAtRef.current = visitPreviousVisitAt;
+                  setGreetingMode('tadaima');
+                } else if (!visitPreviousVisitAt && historyData.isFollower) {
+                  setGreetingMode('konnichiwa');
+                } else if (!visitPreviousVisitAt && !historyData.isFollower) {
+                  setGreetingMode('hajimemashite');
+                }
+              }
 
               if (historyData.isFollower) {
                 let currentHistory = historyData.conv_history || [];
@@ -821,6 +862,80 @@ export default function MainHome() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
+  const handleGreeting = useCallback(async () => {
+    if (!greetingMode) return;
+    const mode = greetingMode;
+    setGreetingMode(null);
+    setChatProcessing(true);
+    setAssistantMessage("");
+
+    const h = getJSTHour();
+    const tod = h >= 5 && h < 11 ? '朝' : h < 17 ? '昼' : h < 21 ? '夕方' : '夜';
+
+    let elapsedDesc = '';
+    if (mode === 'tadaima' && previousVisitAtRef.current) {
+      const ms = Date.now() - new Date(previousVisitAtRef.current).getTime();
+      elapsedDesc = ms < 24 * 3600_000
+        ? '前回の来訪から24時間以内の再来訪です'
+        : ms < 7 * 24 * 3600_000
+        ? '前回の来訪から数日（24時間〜1週間）が経ちました'
+        : '前回の来訪から1週間以上が経ちました';
+    }
+
+    const nameInstruction = `必ずユーザーの名前「${userName}」を呼びかけてください。`;
+    const greetingCtx = mode === 'tadaima'
+      ? `\n\n# 今回の挨拶\nユーザーが「ただいま！」と言ってあなたの部屋に帰ってきてくれました。${elapsedDesc}。現在は${tod}です。${nameInstruction}経過時間と時間帯にあわせた「おかえり！」の温かい挨拶をしてください。`
+      : mode === 'konnichiwa'
+      ? `\n\n# 今回の挨拶\nユーザーが初めてあなたのお部屋に来てくれました。Blueskyでbotたんをフォローしてくれているユーザーです。現在は${tod}です。${nameInstruction}時間帯に合った挨拶をしながら、Blueskyでいつもありがとう・来てくれて嬉しいという気持ちを伝えてください。`
+      : `\n\n# 今回の挨拶\nユーザーが初めてあなたのお部屋に来てくれました。Blueskyではまだ繋がっていないユーザーです。現在は${tod}です。${nameInstruction}時間帯に合ったはじめましての挨拶をしてください。`;
+
+    const triggerText = mode === 'tadaima' ? 'ただいま！'
+      : mode === 'konnichiwa' ? 'こんにちは！' : 'はじめまして！';
+
+    const messages: Message[] = [
+      { role: "system", content: systemPrompt + greetingCtx + LANG_DIRECTIVE },
+      { role: "user", content: triggerText, userName },
+    ];
+
+    const stream = await getGeminiResponseStream(messages, userName, lang).catch((e) => {
+      if (e.message === "quota_exceeded") setQuotaExceeded(true);
+      console.error(e);
+      return null;
+    });
+    if (!stream) { setChatProcessing(false); return; }
+
+    const reader = stream.getReader();
+    let fullText = "";
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        fullText += value;
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      reader.releaseLock();
+    }
+
+    setChatLog([{ role: "assistant", content: fullText }]);
+    setChatProcessing(false);
+
+    const jaRawText = parseLanguageContent(fullText, "ja");
+    const speakText = stripEmotionTags(jaRawText);
+    if (speakText) {
+      setIsWaitingForVoice(true);
+      safeSpeak(
+        jaRawText,
+        () => { setIsWaitingForVoice(false); setIsSpeaking(true); setAssistantMessage(fullText); },
+        () => setIsSpeaking(false),
+        () => { setIsWaitingForVoice(false); setIsSpeaking(false); setAssistantMessage(fullText); }
+      );
+    } else {
+      setAssistantMessage(fullText);
+    }
+  }, [greetingMode, systemPrompt, userName, lang, safeSpeak]);
+
   const handleSendChat = useCallback(
     async (text: string) => {
       if (!text) return;
@@ -841,24 +956,8 @@ export default function MainHome() {
         setGuestTurnCount(nextGuestCount);
       }
 
-      // 統合型システム指示: 常に [ja]日本語 [en]英語 の両方を同時に出力させる。
-      // 表示は lang で切り替え、発話は常に [ja] ブロックを使う。
-      const langDirective =
-        "\n\n# Response Format Rules (CRITICAL — MUST FOLLOW EXACTLY)\n" +
-        "You MUST always respond with BOTH a Japanese block AND an English block in this exact format:\n" +
-        "[ja][emotion]日本語の返答[en][emotion]English reply\n\n" +
-        "Rules:\n" +
-        "- [ja] block: Write in Japanese. Casual tone. Endings like 「～だよ」「～だね」「～よ」. No formal language.\n" +
-        "- [en] block: Write in English. Casual, warm, friendly tone.\n" +
-        "- Emotion tag: Must be one of [halfHappy], [neutral], [sad], [angry], [relaxed]. Place it immediately after [ja] or [en].\n" +
-        "- Both blocks must be concise: 2-3 sentences max, under 200 characters each.\n" +
-        "- NEVER use markdown formatting (**, *, bullet lists). Plain text only.\n" +
-        "- NEVER summarize or recap past conversation history. Focus on natural back-and-forth.\n\n" +
-        "Example output:\n" +
-        "[ja][halfHappy]元気いっぱいだよ！そっちはどう？[en][halfHappy]I'm doing great! How about you?";
-
       const messages: Message[] = [
-        { role: "system", content: systemPrompt + langDirective },
+        { role: "system", content: systemPrompt + LANG_DIRECTIVE },
         ...messageLog,
       ];
 
@@ -1451,6 +1550,8 @@ export default function MainHome() {
           isGiftProcessing={isGiftProcessing}
           guestTurnCount={guestTurnCount}
           onRequestSignIn={() => setShowSignInModal(true)}
+          greetingMode={greetingMode}
+          onGreeting={handleGreeting}
         />
       )}
 

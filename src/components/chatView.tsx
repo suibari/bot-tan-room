@@ -16,6 +16,8 @@ type Props = {
   isGiftProcessing?: boolean;
   guestTurnCount?: number;
   onRequestSignIn?: () => void;
+  greetingMode?: 'tadaima' | 'konnichiwa' | 'hajimemashite' | null;
+  onGreeting?: () => void;
 };
 
 const LABELS = {
@@ -29,7 +31,7 @@ const LABELS = {
  */
 const GIFT_MAX_CHARS = 30;
 
-export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking = false, bubbleTrigger = 0, onSend, quotaExceeded = false, isInvitationMode = false, isSignedIn = false, isGiftMode = false, onGiftSend, isGiftProcessing = false, guestTurnCount = 0, onRequestSignIn }: Props) {
+export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking = false, bubbleTrigger = 0, onSend, quotaExceeded = false, isInvitationMode = false, isSignedIn = false, isGiftMode = false, onGiftSend, isGiftProcessing = false, guestTurnCount = 0, onRequestSignIn, greetingMode = null, onGreeting }: Props) {
   const l = LABELS[lang];
   const [userMessage, setUserMessage] = useState("");
   const [giftMessage, setGiftMessage] = useState("");
@@ -180,7 +182,7 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking 
             )}
           </div>
 
-          {/* 入力バー もしくは リミット到達メッセージ もしくは お迎え演出メッセージ */}
+          {/* 入力バー もしくは リミット到達メッセージ もしくは お迎え演出メッセージ もしくは グリーティングボタン */}
           {isInvitationMode ? (
             <div 
               className="flex items-center gap-3 py-3 px-5 text-center animate-pulse justify-center shrink-0"
@@ -195,6 +197,17 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking 
                 {l.welcome}
               </span>
             </div>
+          ) : greetingMode ? (
+            <button
+              onClick={onGreeting}
+              disabled={isChatProcessing}
+              className="w-full font-black text-white text-lg shadow-md tracking-wide transition-all duration-300 hover:brightness-105 active:scale-[0.97] bg-theme-gradient disabled:opacity-30 disabled:cursor-not-allowed"
+              style={{ borderRadius: '9999px', padding: '14px 20px' }}
+            >
+              {greetingMode === 'tadaima' ? 'ただいま！'
+                : greetingMode === 'konnichiwa' ? 'こんにちは！'
+                : 'はじめまして！'}
+            </button>
           ) : quotaExceeded ? (
             <div 
               className="flex flex-col items-center gap-2 py-3 text-center animate-fadeIn"

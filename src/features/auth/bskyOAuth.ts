@@ -10,9 +10,10 @@ function createClient(): BrowserOAuthClient {
   const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
 
   if (isLocal) {
-    const port = window.location.port;
-    const origin = `window.location.origin`;
-    const redirectUri = `${origin}/callback/`;
+    const port = window.location.port || '3000';
+    // RFC 8252 § 8.3: redirect_uris must use 127.0.0.1, not "localhost"
+    const loopbackOrigin = `http://127.0.0.1:${port}`;
+    const redirectUri = `${loopbackOrigin}/callback/`;
     const enc = encodeURIComponent;
     const clientId = `http://localhost?redirect_uri=${enc(redirectUri)}&scope=${enc(SCOPE)}`;
 
@@ -22,7 +23,7 @@ function createClient(): BrowserOAuthClient {
       clientMetadata: {
         client_id: clientId,
         client_name: 'bot-tanのお部屋 (dev)',
-        client_uri: origin,
+        client_uri: window.location.origin,
         redirect_uris: [redirectUri],
         grant_types: ['authorization_code', 'refresh_token'],
         response_types: ['code'],

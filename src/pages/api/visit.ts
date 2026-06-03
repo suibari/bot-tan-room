@@ -39,16 +39,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // 前回バッジ付与から24h以上経過しているか確認（お誘い・自発来訪問わずバッジ付与条件）
+    // 同時に前回来訪日時も取得（グリーティングモード判定用）
     let badgeEligible = false;
+    let previousVisitAt: string | null = null;
     try {
       const getRes = await fetch(
-        `${DB_URL}/followers?did=eq.${encodeURIComponent(did)}&select=last_regular_badge_at`,
+        `${DB_URL}/followers?did=eq.${encodeURIComponent(did)}&select=last_regular_badge_at,last_room_visit_at`,
         { method: 'GET', headers }
       );
       if (getRes.ok) {
-        const rows: Array<{ last_regular_badge_at: string | null }> = await getRes.json();
+        const rows: Array<{ last_regular_badge_at: string | null; last_room_visit_at: string | null }> = await getRes.json();
         const lastBadgeAt = rows[0]?.last_regular_badge_at ? new Date(rows[0].last_regular_badge_at) : null;
         badgeEligible = !lastBadgeAt || (Date.now() - lastBadgeAt.getTime()) > 24 * 60 * 60 * 1000;
+        previousVisitAt = rows[0]?.last_room_visit_at ?? null;
       }
     } catch (e) {
       console.warn('[API visit] Failed to fetch follower state, treating as non-eligible visit:', e);
@@ -79,7 +82,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log(`[API visit] Visit eligible for badge for ${did}, room_badge_pending set to 1.`);
     }
 
-    return res.status(200).json({ success: true });
+    return res.status(200).json({ success: true, previousVisitAt });
   } catch (e: any) {
     console.error('[API visit POST error]:', e);
     return res.status(500).json({ message: 'Internal Server Error', error: e.message || String(e) });
