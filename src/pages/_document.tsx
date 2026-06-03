@@ -25,7 +25,7 @@ export default function Document() {
         />
         <link rel="icon" href={buildUrl("/favicon.png")} type="image/png" />
       </Head>
-      <body style={{ backgroundImage: `url(${buildUrl("/bg-c.png")})` }}>
+      <body style={{ background: "linear-gradient(135deg, #3a9bd5 0%, #74bfe8 50%, #9bf6ff 100%)" }}>
         <Main />
         <NextScript />
       </body>

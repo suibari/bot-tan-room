@@ -21,7 +21,30 @@ export default function CallbackPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return null;
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(135deg, #3a9bd5 0%, #74bfe8 50%, #9bf6ff 100%)",
+      }}
+    >
+      <div
+        style={{
+          width: 48,
+          height: 48,
+          borderRadius: "50%",
+          border: "4px solid rgba(255,255,255,0.3)",
+          borderTopColor: "#fff",
+          animation: "spin 0.8s linear infinite",
+        }}
+      />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
 }
 
 export const getStaticProps: GetStaticProps = async ({ locale }) => ({
