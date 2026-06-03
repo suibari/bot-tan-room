@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import { GEMINI_MODELS } from "@/features/constants/aiModels";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { checkAndIncrementDailyLimit, checkRateLimit } from "@/lib/rateLimit";
+import { withGeminiRetry } from "@/lib/geminiRetry";
 
 export default async function handler(
   req: NextApiRequest,
@@ -149,7 +150,7 @@ export default async function handler(
   const chatModels = GEMINI_MODELS;
   for (const model of chatModels) {
     try {
-      const streamResult = await client.models.generateContentStream({
+      const streamResult = await withGeminiRetry(() => client.models.generateContentStream({
         model,
         config: {
           systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
@@ -158,7 +159,7 @@ export default async function handler(
           ...history,
           lastMessage
         ]
-      });
+      }));
 
       for await (const chunk of streamResult) {
         const chunkText = chunk.text;

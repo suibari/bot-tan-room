@@ -3,6 +3,7 @@ import { verifyAtprotoToken } from '@/lib/jwtVerifier';
 import { GoogleGenAI } from "@google/genai";
 import { GEMINI_MODEL } from "@/features/constants/aiModels";
 import { BOTTAN_CHARACTER_SETTINGS } from "@/features/constants/bottanCharacterSettings";
+import { withGeminiRetry } from '@/lib/geminiRetry';
 
 const GIFT_MAX_CHARS = 30;
 
@@ -129,13 +130,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // コンテンツ審査
   try {
-    const moderationRes = await gemini.models.generateContent({
+    const moderationRes = await withGeminiRetry(() => gemini.models.generateContent({
       model: GEMINI_MODEL,
       contents: [{
         role: 'user',
         parts: [{ text: `以下のメッセージが政治的・宗教的な内容、または公序良俗に反する内容（暴力・差別・性的表現など）を含む場合のみ{"isAcceptable":false,"reason":"理由"}と返答してください。問題なければ{"isAcceptable":true}のみ返答してください。\n\nメッセージ：「${content}」` }]
       }],
-    });
+    }));
     const moderationText = moderationRes.text ?? '';
     const jsonMatch = moderationText.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
@@ -188,14 +189,14 @@ ${nameInstruction}
 感情タグは[halfHappy]または[excited]のどちらかを選択してください。マークダウン装飾は使わないこと。`;
 
   try {
-    const thankYouRes = await gemini.models.generateContent({
+    const thankYouRes = await withGeminiRetry(() => gemini.models.generateContent({
       model: GEMINI_MODEL,
       contents: [{
         role: 'user',
         parts: [{ text: `「${content}」をもらいました！あなた（botたん）が直接受け取った立場として、一人称で喜びと感謝を伝えてください。` }]
       }],
       config: { systemInstruction },
-    });
+    }));
     const thankYou = thankYouRes.text?.trim() ?? '';
     return res.status(200).json({ thankYou });
   } catch (e) {

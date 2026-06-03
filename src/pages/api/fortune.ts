@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { GEMINI_MODELS } from '@/features/constants/aiModels';
 import { checkAndIncrementDailyLimit, checkRateLimit } from '@/lib/rateLimit';
+import { withGeminiRetry } from '@/lib/geminiRetry';
 
 // 1回の生成で日英両方を出力する。トグルは ja/en を出し分けるだけ（追加リクエストなし）。
 // 発話（VoiceVox）は常に analysis_ja を使う。
@@ -209,10 +210,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   for (const model of fortuneModels) {
     try {
       console.log(`[API fortune] Sending request to model: ${model}`);
-      const result = await client.models.generateContent({
+      const result = await withGeminiRetry(() => client.models.generateContent({
         model,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      });
+      }));
       let text = result.text ?? '';
       console.log(`[API fortune] Raw response from ${model}:`, text);
 
