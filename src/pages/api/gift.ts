@@ -174,6 +174,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ message: 'Internal Server Error' });
   }
 
+  // プレゼントインタラクション: +100 (fire-and-forget)
+  (async () => {
+    try {
+      const getRes = await fetch(
+        `${DB_URL}/followers?did=eq.${encodeURIComponent(did)}&select=room_interaction_count`,
+        { headers: dbHeaders }
+      );
+      if (!getRes.ok) throw new Error(`GET failed: ${getRes.status}`);
+      const rows = await getRes.json();
+      const current: number = rows[0]?.room_interaction_count ?? 0;
+      await fetch(`${DB_URL}/followers?did=eq.${encodeURIComponent(did)}`, {
+        method: 'PATCH',
+        headers: dbHeaders,
+        body: JSON.stringify({ room_interaction_count: current + 100 }),
+        keepalive: true,
+      });
+    } catch (e) {
+      console.warn('[gift] room_interaction update failed:', e);
+    }
+  })();
+
   // botたんキャラの感謝メッセージ生成
   const callerName = typeof userName === 'string' && userName.trim() ? userName.trim() : null;
   const nameInstruction = callerName

@@ -546,6 +546,17 @@ export default function MainHome() {
 
   const handlePlayWelcomeVoice = useCallback(async () => {
     if (!pendingInvite || !viewer.isReady) return;
+    // お誘いボタン押下インタラクション: +10 (fire-and-forget)
+    const inviteDid = bskySessionRef.current?.did;
+    if (inviteDid) {
+      (bskySessionRef.current as any)?.getTokenSet?.().then((ts: any) => {
+        fetch('/api/interact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ts?.access_token}` },
+          body: JSON.stringify({ did: inviteDid, amount: 10 }),
+        }).catch(() => {});
+      }).catch(() => {});
+    }
     const { textJa } = pendingInvite;
 
     const closeDialog = () => {
@@ -786,6 +797,18 @@ export default function MainHome() {
       return;
     }
 
+    // クリックインタラクション: +20 (fire-and-forget)
+    const clickDid = bskySessionRef.current?.did;
+    if (clickDid) {
+      (bskySessionRef.current as any)?.getTokenSet().then((ts: any) => {
+        fetch('/api/interact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ts?.access_token}` },
+          body: JSON.stringify({ did: clickDid, amount: 20 }),
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+
     // プリフェッチ済みのデータがない場合は、フォールバックとして通常取得を試みる（通常はマウント時に完了しているはず）
     if (!prefetchedMood) {
       setIsFetchingMood(true);
@@ -864,6 +887,17 @@ export default function MainHome() {
 
   const handleGreeting = useCallback(async () => {
     if (!greetingMode) return;
+    // 入室あいさつインタラクション: +10 (fire-and-forget)
+    const greetDid = bskySessionRef.current?.did;
+    if (greetDid) {
+      (bskySessionRef.current as any)?.getTokenSet?.().then((ts: any) => {
+        fetch('/api/interact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ts?.access_token}` },
+          body: JSON.stringify({ did: greetDid, amount: 10 }),
+        }).catch(() => {});
+      }).catch(() => {});
+    }
     const mode = greetingMode;
     setGreetingMode(null);
     setChatProcessing(true);
@@ -1069,6 +1103,12 @@ export default function MainHome() {
           try {
             const tokenSet = await (bskySessionRef.current as any)?.getTokenSet();
             const token = tokenSet?.access_token;
+            // 会話インタラクション: +10 (fire-and-forget)
+            fetch('/api/interact', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+              body: JSON.stringify({ did, amount: 10 }),
+            }).catch(() => {});
             const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`, {
               headers: token ? { 'Authorization': `Bearer ${token}` } : {}
             });
