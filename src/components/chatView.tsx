@@ -21,8 +21,8 @@ type Props = {
 };
 
 const LABELS = {
-  ja: { placeholder: "メッセージを入力...", name: "botたん", welcome: "✨ botたんからのお迎えメッセージ..." },
-  en: { placeholder: "Type a message...", name: "bot-tan", welcome: "✨ Special Welcome from bot-tan..." },
+  ja: { placeholder: "メッセージを入力...", name: "botたん", welcome: "✨ botたんからのお迎えメッセージ...", tadaima: "ただいま！", konnichiwa: "こんにちは！", hajimemashite: "はじめまして！" },
+  en: { placeholder: "Type a message...", name: "bot-tan", welcome: "✨ Special Welcome from bot-tan...", tadaima: "I'm home!", konnichiwa: "Hello!", hajimemashite: "Nice to meet you!" },
 };
 
 /**
@@ -268,9 +268,9 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking 
               className="w-full font-black text-white text-lg shadow-md tracking-wide transition-all duration-300 hover:brightness-105 active:scale-[0.97] bg-theme-gradient disabled:opacity-30 disabled:cursor-not-allowed"
               style={{ borderRadius: '9999px', padding: '14px 20px' }}
             >
-              {greetingMode === 'tadaima' ? 'ただいま！'
-                : greetingMode === 'konnichiwa' ? 'こんにちは！'
-                : 'はじめまして！'}
+              {greetingMode === 'tadaima' ? l.tadaima
+                : greetingMode === 'konnichiwa' ? l.konnichiwa
+                : l.hajimemashite}
             </button>
           ) : quotaExceeded ? (
             <div
