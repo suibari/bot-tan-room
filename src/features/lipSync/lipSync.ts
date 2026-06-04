@@ -5,6 +5,7 @@ const TIME_DOMAIN_DATA_LENGTH = 2048;
 export class LipSync {
   public readonly audio: AudioContext;
   public readonly analyser: AnalyserNode;
+  public readonly gainNode: GainNode;
   public readonly timeDomainData: Float32Array;
   private _currentSource: AudioBufferSourceNode | null = null;
   private _audioElement: HTMLAudioElement | null = null;
@@ -14,7 +15,14 @@ export class LipSync {
     this.audio = audio;
 
     this.analyser = audio.createAnalyser();
+    this.gainNode = audio.createGain();
+    this.analyser.connect(this.gainNode);
+    this.gainNode.connect(audio.destination);
     this.timeDomainData = new Float32Array(TIME_DOMAIN_DATA_LENGTH);
+  }
+
+  public setMuted(muted: boolean) {
+    this.gainNode.gain.value = muted ? 0 : 1;
   }
 
   public update(): LipSyncAnalyzeResult {
@@ -56,9 +64,7 @@ export class LipSync {
     this._currentSource = bufferSource;
     bufferSource.buffer = audioBuffer;
 
-    // analyser を destination の前段に接続（リップシンク + 音声出力）
     bufferSource.connect(this.analyser);
-    this.analyser.connect(this.audio.destination);
     
     // 再生が開始される直前にコールバックを実行
     onPlayStart?.();

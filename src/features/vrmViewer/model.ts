@@ -110,6 +110,10 @@ export class Model {
     this._lipSync?.stop();
   }
 
+  public setMuted(muted: boolean) {
+    this._lipSync?.setMuted(muted);
+  }
+
   public async speak(buffer: ArrayBuffer, screenplay: Screenplay, onPlayStart?: () => void) {
     this.emoteController?.playEmotion(screenplay.expression);
     await new Promise((resolve) => {

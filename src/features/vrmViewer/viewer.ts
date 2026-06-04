@@ -197,6 +197,10 @@ export class Viewer {
     this._headTrackingPausedUntil = Date.now() + ms;
   }
 
+  public setMuted(muted: boolean): void {
+    this.model?.setMuted(muted);
+  }
+
   public async playVrmaMotion(url: string): Promise<void> {
     if (!this.model) return;
     const vrma = await loadVRMAnimation(url);

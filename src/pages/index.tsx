@@ -133,6 +133,15 @@ export default function MainHome() {
     router.push(router.pathname, router.asPath, { locale: l });
   }, [router]);
 
+  const toggleMute = useCallback(() => {
+    setIsMuted(prev => {
+      const next = !prev;
+      localStorage.setItem('chatVRM_muted', String(next));
+      viewer.setMuted(next);
+      return next;
+    });
+  }, [viewer]);
+
   // --- chat state (preserved from original) ---
   const [systemPrompt] = useState(SYSTEM_PROMPT);
   const [userName, setUserName] = useState("");
@@ -166,6 +175,7 @@ export default function MainHome() {
   const [isGiftMode, setIsGiftMode] = useState(false);
   const [isGiftProcessing, setIsGiftProcessing] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
 
   useEffect(() => {
     const alreadyShown = window.localStorage.getItem('help_shown');
@@ -173,6 +183,10 @@ export default function MainHome() {
     if (!alreadyShown && !signedIn) {
       setShowHelp(true);
     }
+  }, []);
+
+  useEffect(() => {
+    setIsMuted(localStorage.getItem('chatVRM_muted') === 'true');
   }, []);
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [diagnosisModalState, setDiagnosisModalState] = useState<DiagnosisModalState>("hidden");
@@ -250,12 +264,13 @@ export default function MainHome() {
         const expr = getTimeBasedExpression();
         console.log(`[TimeExpression] Applying ${expr} (hour: ${new Date().getHours()})`);
         viewer.model?.emoteController?.playEmotion(expr);
+        viewer.setMuted(isMuted);
       }
     }, 200);
     return () => clearInterval(interval);
-    // viewer オブジェクトは参照が安定しているので phase の変化のみ監視
+    // viewer オブジェクトは参照が安定しているので phase と isMuted の変化のみ監視
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase]);
+  }, [phase, isMuted]);
 
   // pendingInvite がセットされた瞬間にチャットと同じパイプラインで音声を先読み
   useEffect(() => {
@@ -1512,33 +1527,70 @@ export default function MainHome() {
 
           {/* 行2（縦並び・右寄せ）: 言語切替 | 診断 | プレゼント切替（サインイン+chat時） */}
           <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end" }}>
-            {/* 言語トグル */}
-            <div
-              className="transition-all duration-300 shrink-0"
-              style={{
-                padding: "4px",
-                background: "rgba(255, 255, 255, 0.65)",
-                backdropFilter: "blur(20px)",
-                border: "1px solid rgba(255, 255, 255, 0.45)",
-                boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
-                borderRadius: "9999px",
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              {(["en", "ja"] as const).map((l) => (
-                <button
-                  key={l}
-                  onClick={() => switchLocale(l)}
-                  className={`text-[12px] font-black transition-all duration-300 rounded-full select-none ${lang === l
-                    ? "bg-theme-gradient text-white shadow-md shadow-theme-blue/15 scale-100"
-                    : "text-slate-600 hover:text-slate-800 hover:bg-white/40 active:scale-95"
-                    }`}
-                  style={{ borderRadius: "9999px", padding: "6px 12px" }}
-                >
-                  {l === "en" ? "EN" : "日本語"}
-                </button>
-              ))}
+            {/* ミュート + 言語トグル 横並び */}
+            <div style={{ display: "flex", flexDirection: "row", gap: "6px", alignItems: "center" }}>
+              {/* ミュートボタン */}
+              <button
+                onClick={toggleMute}
+                title={isMuted ? (lang === "ja" ? "ミュート解除" : "Unmute") : (lang === "ja" ? "ミュート" : "Mute")}
+                className="transition-all hover:brightness-105 active:scale-95 shrink-0"
+                style={{
+                  borderRadius: "9999px",
+                  width: "40px",
+                  height: "40px",
+                  background: "rgba(255, 255, 255, 0.65)",
+                  backdropFilter: "blur(20px)",
+                  border: "1px solid rgba(255, 255, 255, 0.45)",
+                  boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(15, 32, 67, 0.75)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {isMuted ? (
+                    <>
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                      <line x1="23" y1="9" x2="17" y2="15" />
+                      <line x1="17" y1="9" x2="23" y2="15" />
+                    </>
+                  ) : (
+                    <>
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                    </>
+                  )}
+                </svg>
+              </button>
+              {/* 言語トグル */}
+              <div
+                className="transition-all duration-300 shrink-0"
+                style={{
+                  padding: "4px",
+                  background: "rgba(255, 255, 255, 0.65)",
+                  backdropFilter: "blur(20px)",
+                  border: "1px solid rgba(255, 255, 255, 0.45)",
+                  boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
+                  borderRadius: "9999px",
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                {(["en", "ja"] as const).map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => switchLocale(l)}
+                    className={`text-[12px] font-black transition-all duration-300 rounded-full select-none ${lang === l
+                      ? "bg-theme-gradient text-white shadow-md shadow-theme-blue/15 scale-100"
+                      : "text-slate-600 hover:text-slate-800 hover:bg-white/40 active:scale-95"
+                      }`}
+                    style={{ borderRadius: "9999px", padding: "6px 12px" }}
+                  >
+                    {l === "en" ? "EN" : "日本語"}
+                  </button>
+                ))}
+              </div>
             </div>
             {/* 診断ボタン */}
             <button
