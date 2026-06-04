@@ -180,6 +180,7 @@ export default function MainHome() {
   const [guestTurnCount, setGuestTurnCount] = useState(0);
   const [landingMessage, setLandingMessage] = useState("");
   const [greetingMode, setGreetingMode] = useState<GreetingMode>(null);
+  const [isGreetingModeReady, setIsGreetingModeReady] = useState(false);
   const [regularLevel, setRegularLevel] = useState(0);
   const greetingElapsedMsRef = useRef<number | null>(null);
   const pendingFirstMessageRef = useRef<string | null>(null);
@@ -494,8 +495,10 @@ export default function MainHome() {
                 setChatLog(mappedLog);
 
               }
+              setIsGreetingModeReady(true);
             } catch (err) {
               console.error('[History synchronization error]:', err);
+              setIsGreetingModeReady(true);
             }
           })();
 
@@ -1043,7 +1046,11 @@ export default function MainHome() {
       reader.releaseLock();
     }
 
-    setChatLog([{ role: "assistant", content: fullText }]);
+    setChatLog(prev => [
+      ...prev,
+      { role: "user", content: triggerText },
+      { role: "assistant", content: fullText },
+    ]);
     setChatProcessing(false);
 
     // あいさつ交換をDB会話履歴に記録
@@ -1729,7 +1736,7 @@ export default function MainHome() {
 
 
       {/* ===== CHAT ===== */}
-      {phase === "chat" && diagnosisModalState === "hidden" && (
+      {phase === "chat" && diagnosisModalState === "hidden" && isGreetingModeReady && (
         <ChatView
           lang={lang}
           assistantMessage={assistantMessage}

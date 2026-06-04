@@ -197,43 +197,8 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking 
                 {l.welcome}
               </span>
             </div>
-          ) : greetingMode ? (
-            <button
-              onClick={onGreeting}
-              disabled={isChatProcessing}
-              className="w-full font-black text-white text-lg shadow-md tracking-wide transition-all duration-300 hover:brightness-105 active:scale-[0.97] bg-theme-gradient disabled:opacity-30 disabled:cursor-not-allowed"
-              style={{ borderRadius: '9999px', padding: '14px 20px' }}
-            >
-              {greetingMode === 'tadaima' ? 'ただいま！'
-                : greetingMode === 'konnichiwa' ? 'こんにちは！'
-                : 'はじめまして！'}
-            </button>
-          ) : quotaExceeded ? (
-            <div 
-              className="flex flex-col items-center gap-2 py-3 text-center animate-fadeIn"
-              style={{
-                background: "rgba(254, 242, 242, 0.4)",
-                border: "1.5px dashed rgba(239, 68, 68, 0.3)",
-                borderRadius: "1.5rem",
-                padding: "1rem",
-              }}
-            >
-              <div className="flex items-center gap-2 text-red-500 font-black justify-center">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-                <span className="text-sm">
-                  {lang === "ja" ? "お部屋が満員になりました" : "Room is full"}
-                </span>
-              </div>
-              <p className="text-xs font-semibold text-slate-500 leading-relaxed" style={{ margin: 0 }}>
-                {lang === "ja" ? "今日はbotたんのお部屋は満員になっちゃった！　また明日ね！" : "The room is full today! See you tomorrow!"}
-              </p>
-            </div>
           ) : isGiftMode ? (
-            /* ギフトカード入力エリア */
+            /* ギフトカード入力エリア（greeting/quotaより優先） */
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <input
                 type="text"
@@ -295,6 +260,41 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking 
                   )}
                 </button>
               </div>
+            </div>
+          ) : greetingMode ? (
+            <button
+              onClick={onGreeting}
+              disabled={isChatProcessing}
+              className="w-full font-black text-white text-lg shadow-md tracking-wide transition-all duration-300 hover:brightness-105 active:scale-[0.97] bg-theme-gradient disabled:opacity-30 disabled:cursor-not-allowed"
+              style={{ borderRadius: '9999px', padding: '14px 20px' }}
+            >
+              {greetingMode === 'tadaima' ? 'ただいま！'
+                : greetingMode === 'konnichiwa' ? 'こんにちは！'
+                : 'はじめまして！'}
+            </button>
+          ) : quotaExceeded ? (
+            <div
+              className="flex flex-col items-center gap-2 py-3 text-center animate-fadeIn"
+              style={{
+                background: "rgba(254, 242, 242, 0.4)",
+                border: "1.5px dashed rgba(239, 68, 68, 0.3)",
+                borderRadius: "1.5rem",
+                padding: "1rem",
+              }}
+            >
+              <div className="flex items-center gap-2 text-red-500 font-black justify-center">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span className="text-sm">
+                  {lang === "ja" ? "お部屋が満員になりました" : "Room is full"}
+                </span>
+              </div>
+              <p className="text-xs font-semibold text-slate-500 leading-relaxed" style={{ margin: 0 }}>
+                {lang === "ja" ? "今日はbotたんのお部屋は満員になっちゃった！　また明日ね！" : "The room is full today! See you tomorrow!"}
+              </p>
             </div>
           ) : !isSignedIn && guestTurnCount >= 3 ? (
             /* ゲスト3ターン制限: サインイン促進UI */
