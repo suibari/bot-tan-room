@@ -42,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }),
       { expiresIn: 3600 }
     );
-    res.setHeader('X-VRM-URL-Debug', url.substring(0, 200));
+    res.setHeader('X-VRM-Checksum-Present', url.includes('x-amz-checksum-mode') ? 'YES' : 'NO');
     res.redirect(302, url);
   } catch {
     res.status(500).json({ error: 'Failed to generate model URL' });
