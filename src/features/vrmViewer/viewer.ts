@@ -52,9 +52,25 @@ export class Viewer {
 
     // gltf and vrm
     this.model = new Model(this._camera || new THREE.Object3D());
-    await this.model.loadVRM(url);
 
-    if (!this.model?.vrm) return;
+    const maxRetries = 3;
+    let lastError: unknown;
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        await this.model.loadVRM(url);
+        break;
+      } catch (e) {
+        lastError = e;
+        if (i < maxRetries - 1) {
+          await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
+        }
+      }
+    }
+
+    if (!this.model?.vrm) {
+      console.error("VRM load failed after retries:", lastError);
+      return;
+    }
 
     // Disable frustum culling
     this.model.vrm.scene.traverse((obj) => {
