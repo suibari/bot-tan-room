@@ -609,6 +609,7 @@ export default function MainHome() {
 
     const inviteEmoji = prefetchedMood ? getInteractEmoji(prefetchedMood.utilities, prefetchedMood.energy) : '🌸';
     try {
+      viewer.pauseHeadTracking(2000);
       viewer.playVrmaMotion(MOTION_URLS.invitation);
       setIsSpeaking(true);
       const talks = textsToScreenplay([`[neutral]${textJa}`], koeiroParam);
@@ -1096,7 +1097,7 @@ export default function MainHome() {
       setIsWaitingForVoice(true);
       safeSpeak(
         jaRawText,
-        () => { viewer.playVrmaMotion(MOTION_URLS.invitation); setIsWaitingForVoice(false); setIsSpeaking(true); setAssistantMessage(fullText); setBubbleEmoji(greetEmoji); setBubbleState('visible'); },
+        () => { viewer.pauseHeadTracking(2000); viewer.playVrmaMotion(MOTION_URLS.invitation); setIsWaitingForVoice(false); setIsSpeaking(true); setAssistantMessage(fullText); setBubbleEmoji(greetEmoji); setBubbleState('visible'); },
         () => { setIsSpeaking(false); setBubbleState('celebrating'); },
         () => { setIsWaitingForVoice(false); setIsSpeaking(false); setAssistantMessage(fullText); }
       );
@@ -1249,8 +1250,7 @@ export default function MainHome() {
     async (text: string) => {
       if (!text) return;
       sendGAEvent('event', 'gift_send');
-      setIsGiftProcessing(true);
-      setIsGiftMode(false);
+      setChatProcessing(true);
       setAssistantMessage("");
       // React に再レンダリングの機会を与えてスピナーを即表示する
       await new Promise<void>(resolve => setTimeout(resolve, 0));
@@ -1345,7 +1345,7 @@ export default function MainHome() {
         console.error('[handleGiftSend error]:', e);
         setAssistantMessage(lang === 'ja' ? '[sad]うまく届かなかったよ…もう一度試してみてね。' : '[sad]Something went wrong. Please try again.');
       } finally {
-        setIsGiftProcessing(false);
+        setChatProcessing(false);
       }
     },
     [lang, userName, safeSpeak, viewer, prefetchedMood]
@@ -1393,6 +1393,7 @@ export default function MainHome() {
       <div
         className="absolute z-30 flex items-start justify-between animate-fadeIn"
         style={{
+          display: isAuthChecking ? 'none' : undefined,
           top: "calc(max(1.5rem, env(safe-area-inset-top)))",
           left: "1.5rem",
           right: "1.5rem",

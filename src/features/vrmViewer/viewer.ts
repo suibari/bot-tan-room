@@ -23,6 +23,7 @@ export class Viewer {
   private _motionCameraZ = 2.0;
   private _cameraLerpT = 0;
   private _cameraTargetT = 0;
+  private _headTrackingPausedUntil = 0;
 
   constructor() {
     this.isReady = false;
@@ -192,6 +193,10 @@ export class Viewer {
    * 指定されたクライアント座標（clientX, clientY）において、
    * VRMモデルがクリックされたかどうかを判定します。
    */
+  public pauseHeadTracking(ms: number): void {
+    this._headTrackingPausedUntil = Date.now() + ms;
+  }
+
   public async playVrmaMotion(url: string): Promise<void> {
     if (!this.model) return;
     const vrma = await loadVRMAnimation(url);
@@ -236,8 +241,8 @@ export class Viewer {
       this.model.update(delta);
     }
 
-    // 頭ボーン位置に毎フレーム追従してキャラを常に中心に捉える
-    if (this.model?.vrm && this._cameraControls) {
+    // 頭ボーン位置に毎フレーム追従してキャラを常に中心に捉える（一時停止中はスキップ）
+    if (this.model?.vrm && this._cameraControls && Date.now() >= this._headTrackingPausedUntil) {
       const headNode = this.model.vrm.humanoid.getNormalizedBoneNode('head');
       if (headNode) {
         const headWPos = headNode.getWorldPosition(new THREE.Vector3());
