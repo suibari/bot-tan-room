@@ -174,6 +174,16 @@ export default function MainHome() {
   const [bubbleTrigger, setBubbleTrigger] = useState(0);
   const [isGiftMode, setIsGiftMode] = useState(false);
   const [isGiftProcessing, setIsGiftProcessing] = useState(false);
+  const [isMyPageOpen, setIsMyPageOpen] = useState(false);
+  const [myPageData, setMyPageData] = useState<any>(null);
+  const [myPageLoading, setMyPageLoading] = useState(false);
+  const [myPageSaving, setMyPageSaving] = useState(false);
+  const [myPageFreq, setMyPageFreq] = useState(100);
+  const [myPageIsU18, setMyPageIsU18] = useState(0);
+  const [myPageIsAiOnly, setMyPageIsAiOnly] = useState(0);
+  const [myPageAnnivName, setMyPageAnnivName] = useState("");
+  const [myPageAnnivMM, setMyPageAnnivMM] = useState("");
+  const [myPageAnnivDD, setMyPageAnnivDD] = useState("");
   const [showHelp, setShowHelp] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
 
@@ -1366,6 +1376,58 @@ export default function MainHome() {
     [lang, userName, safeSpeak, viewer, prefetchedMood]
   );
 
+  const handleOpenMyPage = useCallback(async () => {
+    const did = bskySessionRef.current?.did;
+    if (!did) return;
+    setMyPageLoading(true);
+    setIsMyPageOpen(true);
+    try {
+      const tokenSet = await (bskySessionRef.current as any)?.getTokenSet?.();
+      const token = tokenSet?.access_token ?? '';
+      const res = await fetch(`/api/user-settings?did=${encodeURIComponent(did)}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error('fetch failed');
+      const data = await res.json();
+      setMyPageData(data);
+      setMyPageFreq(data.reply_freq ?? 100);
+      setMyPageIsU18(data.is_u18 ?? 0);
+      setMyPageIsAiOnly(data.is_ai_only ?? 0);
+      setMyPageAnnivName(data.user_anniv_name ?? "");
+      const dateMatch = (data.user_anniv_date ?? "").match(/^--(\d{2})-(\d{2})$/);
+      setMyPageAnnivMM(dateMatch ? dateMatch[1] : "");
+      setMyPageAnnivDD(dateMatch ? dateMatch[2] : "");
+    } catch (e) {
+      console.error('[handleOpenMyPage error]:', e);
+    } finally {
+      setMyPageLoading(false);
+    }
+  }, []);
+
+  const handleSaveMyPage = useCallback(async () => {
+    const did = bskySessionRef.current?.did;
+    if (!did) return;
+    setMyPageSaving(true);
+    try {
+      const tokenSet = await (bskySessionRef.current as any)?.getTokenSet?.();
+      const token = tokenSet?.access_token ?? '';
+      const res = await fetch('/api/user-settings', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ did, reply_freq: myPageFreq, is_u18: myPageIsU18, is_ai_only: myPageIsAiOnly, user_anniv_name: myPageAnnivName.slice(0, 30) || null, user_anniv_date: (myPageAnnivMM && myPageAnnivDD) ? `--${myPageAnnivMM.padStart(2, '0')}-${myPageAnnivDD.padStart(2, '0')}` : null }),
+      });
+      if (!res.ok) throw new Error('save failed');
+      setIsMyPageOpen(false);
+    } catch (e) {
+      console.error('[handleSaveMyPage error]:', e);
+    } finally {
+      setMyPageSaving(false);
+    }
+  }, [myPageFreq, myPageIsU18, myPageIsAiOnly, myPageAnnivName, myPageAnnivMM, myPageAnnivDD]);
+
   // Dynamic OGP image URL
   const ogImageUrl =
     diagnosisModalState === "result" && fortune
@@ -1648,6 +1710,30 @@ export default function MainHome() {
                 )}
               </button>
             )}
+            {/* マイページ（サインイン+chatフェーズ時のみ） */}
+            {isSignedIn && phase === "chat" && (
+              <button
+                onClick={handleOpenMyPage}
+                title={lang === "ja" ? "マイページ" : "My Page"}
+                className="flex items-center gap-1.5 font-black text-xs tracking-wide transition-all hover:brightness-105 active:scale-95 shrink-0"
+                style={{
+                  borderRadius: "9999px",
+                  padding: "6px 12px",
+                  height: "34px",
+                  background: "rgba(255, 255, 255, 0.65)",
+                  backdropFilter: "blur(20px)",
+                  border: "1px solid rgba(255, 255, 255, 0.45)",
+                  color: "rgba(15, 32, 67, 0.75)",
+                  boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                {lang === "ja" ? "マイページ" : "My Page"}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1824,6 +1910,277 @@ export default function MainHome() {
         setShowHelp(false);
         window.localStorage.setItem('help_shown', '1');
       }} />}
+
+      {/* ===== MY PAGE OVERLAY ===== */}
+      {isMyPageOpen && (
+        <div
+          onClick={() => setIsMyPageOpen(false)}
+          className="absolute inset-0 z-50 flex items-center justify-center p-4 animate-fadeIn"
+          style={{ background: "rgba(15, 32, 67, 0.45)", backdropFilter: "blur(8px)" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-xl rounded-[2rem] shadow-2xl flex flex-col gap-3 animate-fadeIn"
+            style={{
+              padding: "1.25rem 1.75rem",
+              background: "rgba(255, 255, 255, 0.88)",
+              backdropFilter: "blur(30px) saturate(140%)",
+              border: "1.5px solid rgba(255, 255, 255, 0.65)",
+              boxShadow: "0 24px 64px -16px rgba(15, 32, 67, 0.18)",
+              maxHeight: "90dvh",
+              overflowY: "auto",
+            }}
+          >
+            {/* ヘッダー */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-slate-800 text-lg font-black tracking-wide">
+                {lang === "ja" ? "👤 マイページ" : "👤 My Page"}
+              </h2>
+              <button
+                onClick={() => setIsMyPageOpen(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all shrink-0"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            {/* ローディング */}
+            {myPageLoading && (
+              <div className="flex justify-center py-8">
+                <svg className="animate-spin" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(58,155,213,0.8)" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                </svg>
+              </div>
+            )}
+
+            {/* データ表示 */}
+            {!myPageLoading && myPageData && (() => {
+              const getHours = (d: string | null) => {
+                if (!d) return null;
+                return Math.floor((Date.now() - new Date(d).getTime()) / 3600000);
+              };
+              const getDays = (d: string | null) => {
+                if (!d) return null;
+                return Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+              };
+              const convCount = Array.isArray(myPageData.conv_history)
+                ? myPageData.conv_history.length
+                : (() => { try { return JSON.parse(myPageData.conv_history || "[]").length; } catch { return 0; } })();
+
+              const fortuneElapsed = getHours(myPageData.last_uranai_at);
+              const fortuneOk = fortuneElapsed === null || fortuneElapsed >= 8;
+              const fortuneRemain = fortuneOk ? null : 8 - fortuneElapsed!;
+
+              const analyzeElapsed = getHours(myPageData.last_analyze_at);
+              const analyzeOk = analyzeElapsed === null || analyzeElapsed >= 24;
+              const analyzeRemain = analyzeOk ? null : 24 - analyzeElapsed!;
+
+              const rowStyle: React.CSSProperties = {
+                display: "grid",
+                gridTemplateColumns: "1fr auto",
+                gap: "12px",
+                alignItems: "center",
+                padding: "5px 0",
+              };
+              const radioRowStyle: React.CSSProperties = {
+                display: "grid",
+                gridTemplateColumns: "1fr auto",
+                gap: "12px",
+                alignItems: "center",
+                padding: "8px 0",
+              };
+              const hrStyle: React.CSSProperties = { borderColor: "rgba(15, 32, 67, 0.08)" };
+
+              const annivDateError = (() => {
+                const hasMM = !!myPageAnnivMM;
+                const hasDD = !!myPageAnnivDD;
+                if ((hasMM && !hasDD) || (!hasMM && hasDD)) {
+                  return lang === "ja" ? "月と日の両方を選んでね" : "Please select both month and day";
+                }
+                if (!hasMM || !hasDD) return null;
+                const m = parseInt(myPageAnnivMM);
+                const d = parseInt(myPageAnnivDD);
+                const maxDays = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1];
+                if (d > maxDays) {
+                  return lang === "ja" ? `${m}月は最大${maxDays}日です` : `Month ${m} has at most ${maxDays} days`;
+                }
+                return null;
+              })();
+
+              const inputStyle: React.CSSProperties = {
+                background: "rgba(255,255,255,0.55)",
+                border: "1.5px solid rgba(58,155,213,0.2)",
+                borderRadius: "9999px",
+                padding: "6px 14px",
+                outline: "none",
+              };
+              const selectStyle: React.CSSProperties = {
+                ...inputStyle,
+                padding: "6px 10px",
+                cursor: "pointer",
+                appearance: "auto" as any,
+              };
+
+              const radioGroup = (
+                value: number,
+                onChange: (v: number) => void,
+                emoji: string,
+                label: string,
+              ) => (
+                <div style={radioRowStyle}>
+                  <span className="text-slate-500 font-semibold text-sm">{emoji} {label}</span>
+                  <div style={{ display: "flex", gap: "12px" }}>
+                    {([0, 1] as const).map((v) => (
+                      <label key={v} className="flex items-center gap-1.5 cursor-pointer select-none">
+                        <input
+                          type="radio"
+                          name={label}
+                          checked={value === v}
+                          onChange={() => onChange(v)}
+                          className="accent-theme-blue"
+                        />
+                        <span className={`font-bold text-sm ${value === v ? "text-slate-800" : "text-slate-400"}`}>
+                          {v === 0
+                            ? (lang === "ja" ? "していいよ" : "allow")
+                            : (lang === "ja" ? "しちゃだめ" : "disallow")}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              );
+
+              return (
+                <>
+                  {/* STATUS */}
+                  <hr style={hrStyle} />
+                  <div className="flex flex-col">
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest" style={{ marginBottom: "4px" }}>STATUS</p>
+                    <div style={rowStyle}>
+                      <span className="text-slate-500 font-semibold text-sm">🌸 {lang === "ja" ? "Blueskyでのつきあい" : "Companionship on Bluesky"}</span>
+                      <span className="font-bold text-sm text-right text-slate-700">{getDays(myPageData.created_at) ?? "?"}{lang === "ja" ? "日" : " days"}</span>
+                    </div>
+                    <div style={rowStyle}>
+                      <span className="text-slate-500 font-semibold text-sm">🔮 {lang === "ja" ? "占い" : "Fortune"}</span>
+                      <span className={`font-bold text-sm text-right ${!fortuneOk ? "text-rose-400" : "text-slate-700"}`}>
+                        {fortuneOk
+                          ? (lang === "ja" ? "いつでもOK!" : "ready!")
+                          : (lang === "ja" ? `ちょっと待ってね (解除: ${fortuneRemain}h後)` : `not yet (~${fortuneRemain}h)`)}
+                      </span>
+                    </div>
+                    <div style={rowStyle}>
+                      <span className="text-slate-500 font-semibold text-sm">🔍 {lang === "ja" ? "分析" : "Analyze"}</span>
+                      <span className={`font-bold text-sm text-right ${!analyzeOk ? "text-rose-400" : "text-slate-700"}`}>
+                        {analyzeOk
+                          ? (lang === "ja" ? "いつでもOK!" : "ready!")
+                          : (lang === "ja" ? `ちょっと待ってね (解除: ${analyzeRemain}h後)` : `not yet (~${analyzeRemain}h)`)}
+                      </span>
+                    </div>
+                    <div style={rowStyle}>
+                      <span className="text-slate-500 font-semibold text-sm">💬 {lang === "ja" ? "会話" : "Conversation"}</span>
+                      <span className="font-bold text-sm text-right text-slate-700">{convCount} {lang === "ja" ? "回" : "times"}</span>
+                    </div>
+                  </div>
+
+                  {/* SETTINGS */}
+                  <hr style={hrStyle} />
+                  <div className="flex flex-col">
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest" style={{ marginBottom: "4px" }}>SETTINGS</p>
+
+                    {/* リプライ頻度 */}
+                    <div style={{ padding: "5px 0", display: "flex", flexDirection: "column", gap: "5px" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "12px", alignItems: "center" }}>
+                        <span className="text-slate-500 font-semibold text-sm">🎲 {lang === "ja" ? "リプライ頻度" : "Reply Freq"}</span>
+                        <span className="font-black text-sm text-slate-700">{myPageFreq} %</span>
+                      </div>
+                      <input
+                        type="range" min={0} max={100} value={myPageFreq}
+                        onChange={(e) => setMyPageFreq(Number(e.target.value))}
+                        className="w-full accent-theme-blue"
+                      />
+                    </div>
+
+                    {/* AIリプライ */}
+                    {radioGroup(myPageIsU18, setMyPageIsU18, "🤖", lang === "ja" ? "AIリプライ" : "AI Reply")}
+
+                    {/* 定型文リプライ */}
+                    {radioGroup(myPageIsAiOnly, setMyPageIsAiOnly, "📝", lang === "ja" ? "定型文リプライ" : "Predefined Reply")}
+
+                    {/* ユーザ記念日 */}
+                    <div style={{ padding: "5px 0", display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <span className="text-slate-500 font-semibold text-sm">🎂 {lang === "ja" ? "ユーザ記念日" : "Anniversary"}</span>
+                      <div style={{ display: "grid", gridTemplateColumns: "5em 1fr", gap: "10px", alignItems: "center" }}>
+                        <span className="text-slate-400 text-xs font-semibold">{lang === "ja" ? "記念日の名前" : "Name"}</span>
+                        <input
+                          type="text"
+                          value={myPageAnnivName}
+                          onChange={(e) => setMyPageAnnivName(e.target.value)}
+                          placeholder={lang === "ja" ? "誕生日" : "Birthday"}
+                          maxLength={30}
+                          className="text-slate-800 placeholder-slate-400 text-sm font-semibold w-full"
+                          style={inputStyle}
+                          onFocus={(e) => { e.currentTarget.style.borderColor = "var(--theme-blue)"; }}
+                          onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(58,155,213,0.2)"; }}
+                        />
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "5em 1fr", gap: "10px", alignItems: "flex-start" }}>
+                        <span className="text-slate-400 text-xs font-semibold" style={{ paddingTop: "7px" }}>{lang === "ja" ? "日付" : "Date"}</span>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={myPageAnnivMM}
+                              onChange={(e) => setMyPageAnnivMM(e.target.value)}
+                              className="text-slate-800 text-sm font-semibold"
+                              style={selectStyle}
+                            >
+                              <option value="">--</option>
+                              {Array.from({ length: 12 }, (_, i) => {
+                                const m = String(i + 1).padStart(2, "0");
+                                return <option key={m} value={m}>{i + 1}{lang === "ja" ? "月" : ""}</option>;
+                              })}
+                            </select>
+                            <select
+                              value={myPageAnnivDD}
+                              onChange={(e) => setMyPageAnnivDD(e.target.value)}
+                              className="text-slate-800 text-sm font-semibold"
+                              style={selectStyle}
+                            >
+                              <option value="">--</option>
+                              {Array.from({ length: 31 }, (_, i) => {
+                                const d = String(i + 1).padStart(2, "0");
+                                return <option key={d} value={d}>{i + 1}{lang === "ja" ? "日" : ""}</option>;
+                              })}
+                            </select>
+                          </div>
+                          {annivDateError && (
+                            <p className="text-xs font-bold text-rose-400">{annivDateError}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* フッター */}
+                  <div className="flex justify-end pt-1">
+                    <button
+                      onClick={handleSaveMyPage}
+                      disabled={myPageSaving || !!annivDateError}
+                      className="font-black text-white text-sm shadow-md tracking-wider transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-theme-gradient"
+                      style={{ borderRadius: "9999px", padding: "8px 24px" }}
+                    >
+                      {myPageSaving
+                        ? (lang === "ja" ? "保存中…" : "Saving…")
+                        : (lang === "ja" ? "保存" : "Save")}
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
       {/* ===== SIGN-IN OVERLAY ===== */}
       {showSignInModal && (
