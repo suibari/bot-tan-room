@@ -2063,6 +2063,10 @@ export default function MainHome() {
                       <span className="font-bold text-sm text-right text-slate-700">{getDays(myPageData.created_at) ?? "?"}{lang === "ja" ? "日" : " days"}</span>
                     </div>
                     <div style={rowStyle}>
+                      <span className="text-slate-500 font-semibold text-sm">🏅 {lang === "ja" ? "お部屋での関係" : "Room Relationship"}</span>
+                      <span className="font-bold text-sm text-right text-slate-700">Lv {regularLevel}</span>
+                    </div>
+                    <div style={rowStyle}>
                       <span className="text-slate-500 font-semibold text-sm">🔮 {lang === "ja" ? "占い" : "Fortune"}</span>
                       <span className={`font-bold text-sm text-right ${!fortuneOk ? "text-rose-400" : "text-slate-700"}`}>
                         {fortuneOk
@@ -2081,6 +2085,10 @@ export default function MainHome() {
                     <div style={rowStyle}>
                       <span className="text-slate-500 font-semibold text-sm">💬 {lang === "ja" ? "会話" : "Conversation"}</span>
                       <span className="font-bold text-sm text-right text-slate-700">{convCount} {lang === "ja" ? "回" : "times"}</span>
+                    </div>
+                    <div style={rowStyle}>
+                      <span className="text-slate-500 font-semibold text-sm">🎁 {lang === "ja" ? "あげたプレゼントの数" : "Gifts Given"}</span>
+                      <span className="font-bold text-sm text-right text-slate-700">{myPageData.gift_count ?? 0} {lang === "ja" ? "個" : ""}</span>
                     </div>
                   </div>
 

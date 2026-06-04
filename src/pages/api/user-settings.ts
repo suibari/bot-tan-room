@@ -30,10 +30,16 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
   };
 
   try {
-    const dbRes = await fetch(
-      `${DB_URL}/followers?did=eq.${encodeURIComponent(did)}&select=created_at,reply_freq,is_u18,is_ai_only,last_uranai_at,last_analyze_at,last_cheer_at,conv_history,user_anniv_name,user_anniv_date`,
-      { headers: dbHeaders, keepalive: true }
-    );
+    const [dbRes, giftsRes] = await Promise.all([
+      fetch(
+        `${DB_URL}/followers?did=eq.${encodeURIComponent(did)}&select=created_at,reply_freq,is_u18,is_ai_only,last_uranai_at,last_analyze_at,last_cheer_at,conv_history,user_anniv_name,user_anniv_date`,
+        { headers: dbHeaders, keepalive: true }
+      ),
+      fetch(
+        `${DB_URL}/gifts?did=eq.${encodeURIComponent(did)}&select=id`,
+        { headers: dbHeaders, keepalive: true }
+      ),
+    ]);
     if (!dbRes.ok) {
       throw new Error(`DB fetch failed with status ${dbRes.status}`);
     }
@@ -42,7 +48,9 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     if (!row) {
       return res.status(404).json({ message: 'User not found' });
     }
-    return res.status(200).json(row);
+    const giftsArr = giftsRes.ok ? await giftsRes.json() : [];
+    const giftCount = Array.isArray(giftsArr) ? giftsArr.length : 0;
+    return res.status(200).json({ ...row, gift_count: giftCount });
   } catch (e) {
     console.error('[API user-settings GET error]:', e);
     return res.status(500).json({ message: 'Internal Server Error' });
