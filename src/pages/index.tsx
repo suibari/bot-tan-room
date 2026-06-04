@@ -254,7 +254,7 @@ export default function MainHome() {
    * 21:00【04:59 → nightFace（眠そうな夜）
    */
   const getTimeBasedExpression = useCallback((): AnyExpressionKey => {
-    const hour = new Date().getHours();
+    const hour = getJSTHour();
     if (hour >= 5 && hour < 11) return 'morningFace';
     if (hour >= 11 && hour < 17) return 'afternoonFace';
     if (hour >= 17 && hour < 21) return 'eveningFace';
@@ -991,7 +991,7 @@ export default function MainHome() {
     setAssistantMessage("");
 
     const h = getJSTHour();
-    const tod = h >= 5 && h < 11 ? '朝' : h < 17 ? '昼' : h < 21 ? '夕方' : '夜';
+    const tod = h < 5 ? '夜' : h < 11 ? '朝' : h < 17 ? '昼' : h < 21 ? '夕方' : '夜';
 
     let elapsedDesc = '';
     if (mode === 'tadaima' && greetingElapsedMsRef.current !== null) {
