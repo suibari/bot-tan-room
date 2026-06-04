@@ -11,6 +11,9 @@ const r2 = new S3Client({
     accessKeyId: process.env.CF_R2_ACCESS_KEY_ID!,
     secretAccessKey: process.env.CF_R2_SECRET_ACCESS_KEY!,
   },
+  // Cloudflare R2 does not support x-amz-checksum-mode=ENABLED (added by SDK v3.600+)
+  requestChecksumCalculation: "WHEN_REQUIRED",
+  responseChecksumValidation: "WHEN_REQUIRED",
 });
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
