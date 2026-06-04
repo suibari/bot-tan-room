@@ -2067,7 +2067,7 @@ export default function MainHome() {
                       <span className="font-bold text-sm text-right text-slate-700">Lv {regularLevel}</span>
                     </div>
                     <div style={rowStyle}>
-                      <span className="text-slate-500 font-semibold text-sm">🔮 {lang === "ja" ? "占い" : "Fortune"}</span>
+                      <span className="text-slate-500 font-semibold text-sm">🔮 {lang === "ja" ? "占った回数" : "Fortune Told"}</span>
                       <span className={`font-bold text-sm text-right ${!fortuneOk ? "text-rose-400" : "text-slate-700"}`}>
                         {fortuneOk
                           ? (lang === "ja" ? "いつでもOK!" : "ready!")
@@ -2075,7 +2075,7 @@ export default function MainHome() {
                       </span>
                     </div>
                     <div style={rowStyle}>
-                      <span className="text-slate-500 font-semibold text-sm">🔍 {lang === "ja" ? "分析" : "Analyze"}</span>
+                      <span className="text-slate-500 font-semibold text-sm">🔍 {lang === "ja" ? "分析した回数" : "Analyzed"}</span>
                       <span className={`font-bold text-sm text-right ${!analyzeOk ? "text-rose-400" : "text-slate-700"}`}>
                         {analyzeOk
                           ? (lang === "ja" ? "いつでもOK!" : "ready!")
@@ -2083,7 +2083,7 @@ export default function MainHome() {
                       </span>
                     </div>
                     <div style={rowStyle}>
-                      <span className="text-slate-500 font-semibold text-sm">💬 {lang === "ja" ? "会話" : "Conversation"}</span>
+                      <span className="text-slate-500 font-semibold text-sm">💬 {lang === "ja" ? "会話した回数" : "Conversations"}</span>
                       <span className="font-bold text-sm text-right text-slate-700">{convCount} {lang === "ja" ? "回" : "times"}</span>
                     </div>
                     <div style={rowStyle}>
