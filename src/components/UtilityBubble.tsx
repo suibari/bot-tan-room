@@ -7,6 +7,7 @@ interface Props {
   emoji: string;
   pos: { x: number; y: number } | null;
   onHide: () => void;
+  enableParty?: boolean;
 }
 
 const HEART_DIRECTIONS = [0, 1, 2, 3, 4, 5];
@@ -17,7 +18,7 @@ export function CrayonFilterDef() {
   return null;
 }
 
-export default function UtilityBubble({ state, emoji, pos, onHide }: Props) {
+export default function UtilityBubble({ state, emoji, pos, onHide, enableParty = true }: Props) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -45,6 +46,7 @@ export default function UtilityBubble({ state, emoji, pos, onHide }: Props) {
   const top  = pos ? pos.y - offsetY : window.innerHeight * 0.08;
 
   const isCelebrating = state === 'celebrating';
+  const showParty = isCelebrating && enableParty;
 
   return (
     <div
@@ -95,10 +97,10 @@ export default function UtilityBubble({ state, emoji, pos, onHide }: Props) {
         }} />
 
         {/* 絵文字 */}
-        <span role="img">{isCelebrating ? '😍' : emoji}</span>
+        <span role="img">{showParty ? '😍' : emoji}</span>
 
-        {/* ハートパーティクル（celebrating 時のみ） */}
-        {isCelebrating && HEART_DIRECTIONS.map((i) => (
+        {/* ハートパーティクル（celebrating かつ enableParty 時のみ） */}
+        {showParty && HEART_DIRECTIONS.map((i) => (
           <span
             key={i}
             role="img"

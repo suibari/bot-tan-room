@@ -178,6 +178,7 @@ export default function MainHome() {
   const [prefetchedMood, setPrefetchedMood] = useState<{ mood: string; mood_en: string; status: string; energy: number; utilities: Record<string, number> } | null>(null);
   type BubbleState = 'hidden' | 'visible' | 'celebrating';
   const [bubbleState, setBubbleState] = useState<BubbleState>('hidden');
+  const [bubblePartyEnabled, setBubblePartyEnabled] = useState(false);
   const [bubbleEmoji, setBubbleEmoji] = useState('🌸');
   const [bubblePos, setBubblePos] = useState<{ x: number; y: number } | null>(null);
   const [displayedMoodContext, setDisplayedMoodContext] = useState<{ moodJa: string; moodEn: string; emotionTag: string } | null>(null);
@@ -997,6 +998,8 @@ export default function MainHome() {
         setBubbleEmoji(clickEmoji);
         setBubbleState('visible');
       });
+      // ハートパーティクルと🥰はenergy増加時（サインイン時）のみ
+      setBubblePartyEnabled(!!clickDid);
       setBubbleState('celebrating');
     } catch (err) {
       console.error("[Mood playback error]:", err);
@@ -1007,6 +1010,7 @@ export default function MainHome() {
       // 音声なしでもバブルは表示する（800ms後にcelebrating）
       setBubbleEmoji(clickEmoji);
       setBubbleState('visible');
+      setBubblePartyEnabled(!!clickDid);
       setTimeout(() => setBubbleState('celebrating'), 800);
     } finally {
       setIsSpeaking(false);
@@ -1312,7 +1316,7 @@ export default function MainHome() {
             setBubbleEmoji(chatEmoji);
             setBubbleState('visible');
           },
-          () => { setIsSpeaking(false); setBubbleState('celebrating'); },
+          () => { setIsSpeaking(false); setBubblePartyEnabled(!!bskySessionRef.current?.did); setBubbleState('celebrating'); },
           () => {
             console.warn("[handleSendChat] VoiceVox request rejected or failed.");
             setIsWaitingForVoice(false);
@@ -1507,6 +1511,7 @@ export default function MainHome() {
         emoji={bubbleEmoji}
         pos={bubblePos}
         onHide={() => setBubbleState('hidden')}
+        enableParty={bubblePartyEnabled}
       />
       <Head>
         <title>{t("meta.title")}</title>
