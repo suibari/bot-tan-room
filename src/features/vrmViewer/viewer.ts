@@ -25,7 +25,7 @@ export class Viewer {
   private _cameraTargetT = 0;
   private _headTrackingPausedUntil = 0;
   private _lastFrameTime = 0;
-  private static readonly TARGET_FRAME_INTERVAL = 1000 / 30; // 30fps cap
+  private _targetFrameInterval = 1000 / 30; // デフォルト30fps
 
   // --- パフォーマンス計測 (開発用) ---
   private _perfFrameTimes: number[] = [];
@@ -219,6 +219,10 @@ export class Viewer {
     this.model?.setMuted(muted);
   }
 
+  public setFpsCap(enabled: boolean): void {
+    this._targetFrameInterval = enabled ? 1000 / 30 : 0;
+  }
+
   public async playVrmaMotion(url: string): Promise<void> {
     if (!this.model) return;
     const vrma = await loadVRMAnimation(url);
@@ -253,8 +257,8 @@ export class Viewer {
     const frameStart = performance.now();
     requestAnimationFrame(this.update);
 
-    // 30fpsキャップ: 前フレームから33ms未満ならスキップして次のRAFに委ねる
-    if (frameStart - this._lastFrameTime < Viewer.TARGET_FRAME_INTERVAL) return;
+    // fpsキャップ: 設定間隔未満ならスキップ（0は無制限）
+    if (this._targetFrameInterval > 0 && frameStart - this._lastFrameTime < this._targetFrameInterval) return;
     this._lastFrameTime = frameStart;
 
     const delta = this._clock.getDelta();
