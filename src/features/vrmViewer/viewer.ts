@@ -24,6 +24,13 @@ export class Viewer {
   private _cameraLerpT = 0;
   private _cameraTargetT = 0;
   private _headTrackingPausedUntil = 0;
+  private _lastFrameTime = 0;
+  private _targetFrameInterval = 1000 / 30; // デフォルト30fps
+
+  // --- パフォーマンス計測 (開発用) ---
+  private _perfFrameTimes: number[] = [];
+  private _perfLastLogTime = 0;
+  private static readonly PERF_LOG_INTERVAL = 5000; // 5秒ごとにログ出力
 
   // --- パフォーマンス計測 (開発用) ---
   private _perfFrameTimes: number[] = [];
@@ -77,11 +84,6 @@ export class Viewer {
       return;
     }
 
-    // Disable frustum culling
-    this.model.vrm.scene.traverse((obj) => {
-      obj.frustumCulled = false;
-    });
-
     this._scene.add(this.model.vrm.scene);
 
     const vrma = await loadVRMAnimation(buildUrl("/idle_loop.vrma"));
@@ -122,7 +124,7 @@ export class Viewer {
     });
     this._renderer.outputEncoding = THREE.sRGBEncoding;
     this._renderer.setSize(width, height);
-    this._renderer.setPixelRatio(window.devicePixelRatio);
+    this._renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
     // camera
     const isMobile = width < 768;
@@ -160,7 +162,7 @@ export class Viewer {
     const width = parentElement.clientWidth;
     const height = parentElement.clientHeight;
 
-    this._renderer.setPixelRatio(window.devicePixelRatio);
+    this._renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this._renderer.setSize(width, height);
 
     if (!this._camera) return;
@@ -222,6 +224,10 @@ export class Viewer {
     this.model?.setMuted(muted);
   }
 
+  public setFpsCap(enabled: boolean): void {
+    this._targetFrameInterval = enabled ? 1000 / 30 : 0;
+  }
+
   public async playVrmaMotion(url: string): Promise<void> {
     if (!this.model) return;
     const vrma = await loadVRMAnimation(url);
@@ -255,6 +261,11 @@ export class Viewer {
   public update = () => {
     const frameStart = performance.now();
     requestAnimationFrame(this.update);
+
+    // fpsキャップ: 設定間隔未満ならスキップ（0は無制限）
+    if (this._targetFrameInterval > 0 && frameStart - this._lastFrameTime < this._targetFrameInterval) return;
+    this._lastFrameTime = frameStart;
+
     const delta = this._clock.getDelta();
 
     // モーション再生中はカメラをなめらかに引き、終わったら戻す

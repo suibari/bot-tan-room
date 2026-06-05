@@ -142,6 +142,15 @@ export default function MainHome() {
     });
   }, [viewer]);
 
+  const toggleFpsCap = useCallback(() => {
+    setIsFpsCapped(prev => {
+      const next = !prev;
+      localStorage.setItem('chatVRM_fpsCapped', String(next));
+      viewer.setFpsCap(next);
+      return next;
+    });
+  }, [viewer]);
+
   // --- chat state (preserved from original) ---
   const [systemPrompt] = useState(SYSTEM_PROMPT);
   const [userName, setUserName] = useState("");
@@ -186,6 +195,7 @@ export default function MainHome() {
   const [myPageAnnivDD, setMyPageAnnivDD] = useState("");
   const [showHelp, setShowHelp] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [isFpsCapped, setIsFpsCapped] = useState(true);
 
   useEffect(() => {
     const alreadyShown = window.localStorage.getItem('help_shown');
@@ -198,6 +208,13 @@ export default function MainHome() {
   useEffect(() => {
     setIsMuted(localStorage.getItem('chatVRM_muted') === 'true');
   }, []);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('chatVRM_fpsCapped');
+    const capped = saved === null ? true : saved === 'true';
+    setIsFpsCapped(capped);
+    viewer.setFpsCap(capped);
+  }, [viewer]);
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [diagnosisModalState, setDiagnosisModalState] = useState<DiagnosisModalState>("hidden");
   const [diagnosisNameInput, setDiagnosisNameInput] = useState("");
@@ -300,17 +317,16 @@ export default function MainHome() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefetchedMood]);
 
-  // UtilityBubble: bubbleState が visible/celebrating の間 head スクリーン座標を毎フレーム更新
+  // UtilityBubble: bubbleState が visible/celebrating の間 head スクリーン座標を10Hzで更新
   useEffect(() => {
     if (bubbleState === 'hidden') return;
-    let raf: number;
     const update = () => {
       const pos = viewer.getHeadScreenPosition();
       if (pos) setBubblePos(pos);
-      raf = requestAnimationFrame(update);
     };
-    raf = requestAnimationFrame(update);
-    return () => cancelAnimationFrame(raf);
+    update();
+    const id = setInterval(update, 100);
+    return () => clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bubbleState, viewer]);
 
@@ -1591,6 +1607,40 @@ export default function MainHome() {
           <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end" }}>
             {/* ミュート + 言語トグル 横並び */}
             <div style={{ display: "flex", flexDirection: "row", gap: "6px", alignItems: "center" }}>
+              {/* FPSキャップ切り替えボタン */}
+              <button
+                onClick={toggleFpsCap}
+                title={isFpsCapped
+                  ? (lang === "ja" ? "高品質モードに切り替え" : "Switch to high quality")
+                  : (lang === "ja" ? "省エネモードに切り替え" : "Switch to eco mode")}
+                className="transition-all hover:brightness-105 active:scale-95 shrink-0"
+                style={{
+                  borderRadius: "9999px",
+                  width: "40px",
+                  height: "40px",
+                  background: "rgba(255, 255, 255, 0.65)",
+                  backdropFilter: "blur(20px)",
+                  border: "1px solid rgba(255, 255, 255, 0.45)",
+                  boxShadow: "0 4px 12px rgba(15, 32, 67, 0.04)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                  stroke={isFpsCapped ? "rgba(15, 32, 67, 0.45)" : "#f59e0b"}
+                  strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                >
+                  <path d="M12 2a10 10 0 0 1 7.38 16.75" />
+                  <path d="M12 2a10 10 0 0 0-7.38 16.75" />
+                  {isFpsCapped ? (
+                    <line x1="12" y1="12" x2="8" y2="16" />
+                  ) : (
+                    <line x1="12" y1="12" x2="16" y2="8" />
+                  )}
+                  <circle cx="12" cy="12" r="1.5" fill={isFpsCapped ? "rgba(15, 32, 67, 0.45)" : "#f59e0b"} stroke="none" />
+                </svg>
+              </button>
               {/* ミュートボタン */}
               <button
                 onClick={toggleMute}
