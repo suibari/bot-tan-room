@@ -44,7 +44,7 @@ function getInteractEmoji(utilities: Record<string, number>, energy: number): st
 }
 
 type AnswerItem = { question: string; answer: string };
-type Phase = "landing" | "chat";
+type Phase = "door" | "landing" | "chat";
 type DiagnosisModalState = "hidden" | "name" | "questions" | "loading" | "result";
 type GreetingMode = 'tadaima' | 'konnichiwa' | 'hajimemashite' | null;
 
@@ -196,14 +196,7 @@ export default function MainHome() {
   const [showHelp, setShowHelp] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isFpsCapped, setIsFpsCapped] = useState(true);
-
-  useEffect(() => {
-    const alreadyShown = window.localStorage.getItem('help_shown');
-    const signedIn = window.localStorage.getItem('bsky_handle');
-    if (!alreadyShown && !signedIn) {
-      setShowHelp(true);
-    }
-  }, []);
+  const [doorAnimating, setDoorAnimating] = useState(false);
 
   useEffect(() => {
     setIsMuted(localStorage.getItem('chatVRM_muted') === 'true');
@@ -571,16 +564,34 @@ export default function MainHome() {
             .catch((e: unknown) => console.error('[bsky getProfile]', e));
         } else {
           const h = window.localStorage.getItem("bsky_handle");
-          if (h) setIsSignedIn(true);
-          setIsAuthChecking(false);
+          if (h) {
+            setIsSignedIn(true);
+            setIsAuthChecking(false);
+          } else {
+            const doorOpened = window.localStorage.getItem("doorOpened");
+            const justSignedOut = window.sessionStorage.getItem("justSignedOut");
+            if (!doorOpened && !justSignedOut) {
+              setPhase("door");
+            }
+            setIsAuthChecking(false);
+          }
         }
       })
       .catch((e: unknown) => {
         if (e instanceof Error && e.message.includes('Redirecting')) return;
         console.error('[Bluesky OAuth init]', e);
         const h = window.localStorage.getItem("bsky_handle");
-        if (h) setIsSignedIn(true);
-        setIsAuthChecking(false);
+        if (h) {
+          setIsSignedIn(true);
+          setIsAuthChecking(false);
+        } else {
+          const doorOpened = window.localStorage.getItem("doorOpened");
+          const justSignedOut = window.sessionStorage.getItem("justSignedOut");
+          if (!doorOpened && !justSignedOut) {
+            setPhase("door");
+          }
+          setIsAuthChecking(false);
+        }
       });
   }, []);
 
@@ -859,6 +870,7 @@ export default function MainHome() {
       console.error('[Bluesky signOut]', e);
     }
     bskySessionRef.current = null;
+    window.sessionStorage.setItem("justSignedOut", "1");
     window.localStorage.removeItem('bsky_handle');
     window.localStorage.removeItem('chatVRM_userName');
     setIsSignedIn(false);
@@ -872,6 +884,26 @@ export default function MainHome() {
     setDiagnosisNameInput("");
     setIsGiftMode(false);
   }, []);
+
+  const handleDoorOpen = useCallback(() => {
+    if (doorAnimating) return;
+    setDoorAnimating(true);
+    window.localStorage.setItem("doorOpened", "1");
+    setTimeout(() => {
+      setDoorAnimating(false);
+      setPhase("landing");
+      const text = "[happy]来てくれてありがとう！　ゆっくりしてってね";
+      setAssistantMessage(text);
+      setBubbleTrigger((n) => n + 1);
+      setIsSpeaking(true);
+      safeSpeak(
+        text,
+        undefined,
+        () => setIsSpeaking(false),
+        () => setIsSpeaking(false),
+      );
+    }, 900);
+  }, [doorAnimating, safeSpeak]);
 
   /**
    * キャラクター（botたん）がクリックされた時の処理
@@ -1480,7 +1512,7 @@ export default function MainHome() {
       <BackgroundPosts />
 
       {/* VRM viewer — always rendered */}
-      <VrmViewer onClickCharacter={handleCharacterClick} />
+      <VrmViewer onClickCharacter={handleCharacterClick} isVisible={phase !== "door"} />
 
       {/* トップバー — 左: りれき / 右: 2行レイアウト */}
       <div
@@ -1787,6 +1819,37 @@ export default function MainHome() {
           </div>
         </div>
       </div>
+
+      {/* ===== DOOR ===== */}
+      {phase === "door" && !isAuthChecking && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-6 animate-fadeIn">
+          <div style={{ perspective: "800px", filter: "drop-shadow(0 12px 32px rgba(15, 32, 67, 0.18))" }}>
+            <div
+              className={doorAnimating ? "door-opening" : "door-idle"}
+              style={{
+                fontSize: "8rem",
+                lineHeight: 1,
+                transformOrigin: "left center",
+                display: "inline-block",
+                userSelect: "none",
+                cursor: doorAnimating ? "default" : "pointer",
+              }}
+              onClick={!doorAnimating ? handleDoorOpen : undefined}
+            >
+              🚪
+            </div>
+          </div>
+          {!doorAnimating && (
+            <button
+              className="font-bold text-sm text-white tracking-wide bg-theme-gradient shadow-lg transition-all hover:brightness-105 active:scale-[0.97]"
+              style={{ padding: "12px 28px" }}
+              onClick={handleDoorOpen}
+            >
+              ドアをノックしてみる
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ===== LANDING ===== */}
       {phase === "landing" && !isAuthChecking && !quotaExceeded && diagnosisModalState === "hidden" && (

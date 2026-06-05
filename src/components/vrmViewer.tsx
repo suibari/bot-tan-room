@@ -4,9 +4,10 @@ import { buildUrl } from "@/utils/buildUrl";
 
 type Props = {
   onClickCharacter?: () => void;
+  isVisible?: boolean;
 };
 
-export default function VrmViewer({ onClickCharacter }: Props) {
+export default function VrmViewer({ onClickCharacter, isVisible }: Props) {
   const { viewer } = useContext(ViewerContext);
   const [isLoaded, setIsLoaded] = useState(false);
   const [pointerStart, setPointerStart] = useState<{ x: number; y: number } | null>(null);
@@ -55,7 +56,7 @@ export default function VrmViewer({ onClickCharacter }: Props) {
   return (
     <div
       className={`absolute top-0 left-0 w-screen h-[100svh] z-0 transition-opacity duration-1000 ease-in-out ${
-        isLoaded ? "opacity-100" : "opacity-0"
+        isLoaded && isVisible !== false ? "opacity-100" : "opacity-0"
       }`}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}

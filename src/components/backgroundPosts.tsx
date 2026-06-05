@@ -29,7 +29,7 @@ function restartCloudAnimation(el: HTMLSpanElement, delay: number) {
   const x = 2 + Math.random() * 84;
   const y = 2 + Math.random() * 78;
   const size = 11 + Math.random() * 8;
-  const blur = Math.random() * 1.0;
+  const blur = 1.0 + Math.random() * 1.5;
   const duration = 15000 + Math.random() * 10000;
   const safeDelay = Math.max(delay, 800); // 最低 800ms: opacity:0 フラッシュを防ぐ
 
@@ -123,13 +123,10 @@ export function BackgroundPosts() {
             style={{
               // 初期は非表示（posts ロード後に restartCloudAnimation が設定する）
               opacity: 0,
-              color: 'rgba(24, 43, 73, 0.85)',
-              background: 'rgba(255, 255, 255, 0.52)',
-              backdropFilter: 'blur(12px)',
-              border: '1.5px solid rgba(255, 255, 255, 0.45)',
-              borderRadius: '9999px',
-              padding: '0.45em 1.1em',
-              boxShadow: '0 8px 32px -4px rgba(31, 76, 107, 0.05)',
+              color: 'rgba(255, 255, 255, 0.75)',
+              background: 'none',
+              border: 'none',
+              padding: '0.25em 0.5em',
               willChange: 'opacity, transform',
             }}
           />
@@ -143,8 +140,8 @@ export function BackgroundPosts() {
         }
         @keyframes cloud-fade {
           0%   { opacity: 0;    transform: translateY(12px) scale(0.95); }
-          22%  { opacity: 0.85; transform: translateY(0) scale(1); }
-          78%  { opacity: 0.85; transform: translateY(0) scale(1); }
+          22%  { opacity: 0.35; transform: translateY(0) scale(1); }
+          78%  { opacity: 0.35; transform: translateY(0) scale(1); }
           100% { opacity: 0;    transform: translateY(-12px) scale(0.95); }
         }
       `}</style>
