@@ -24,6 +24,8 @@ export class Viewer {
   private _cameraLerpT = 0;
   private _cameraTargetT = 0;
   private _headTrackingPausedUntil = 0;
+  private _lastFrameTime = 0;
+  private static readonly TARGET_FRAME_INTERVAL = 1000 / 30; // 30fps cap
 
   // --- パフォーマンス計測 (開発用) ---
   private _perfFrameTimes: number[] = [];
@@ -250,6 +252,11 @@ export class Viewer {
   public update = () => {
     const frameStart = performance.now();
     requestAnimationFrame(this.update);
+
+    // 30fpsキャップ: 前フレームから33ms未満ならスキップして次のRAFに委ねる
+    if (frameStart - this._lastFrameTime < Viewer.TARGET_FRAME_INTERVAL) return;
+    this._lastFrameTime = frameStart;
+
     const delta = this._clock.getDelta();
 
     // モーション再生中はカメラをなめらかに引き、終わったら戻す
@@ -282,14 +289,14 @@ export class Viewer {
     const now = performance.now();
     if (now - this._perfLastLogTime >= Viewer.PERF_LOG_INTERVAL) {
       const times = this._perfFrameTimes;
+      const elapsed = now - this._perfLastLogTime;
+      const displayFps = times.length / (elapsed / 1000); // 実際の表示レート
       const avgMs = times.reduce((a, b) => a + b, 0) / times.length;
       const maxMs = Math.max(...times);
-      const minMs = Math.min(...times);
-      const avgFps = 1000 / avgMs;
       const pixelRatio = this._renderer?.getPixelRatio() ?? 0;
       console.log(
-        `[Perf] frames=${times.length} | avg=${avgFps.toFixed(1)}fps (${avgMs.toFixed(2)}ms)` +
-        ` | max_ft=${maxMs.toFixed(2)}ms | min_ft=${minMs.toFixed(2)}ms | pixelRatio=${pixelRatio}`
+        `[Perf] display=${displayFps.toFixed(1)}fps | frames=${times.length} | avg_ft=${avgMs.toFixed(2)}ms` +
+        ` | max_ft=${maxMs.toFixed(2)}ms | pixelRatio=${pixelRatio}`
       );
       this._perfFrameTimes = [];
       this._perfLastLogTime = now;
