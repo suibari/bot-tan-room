@@ -30,6 +30,7 @@ import { ConvHistoryPanel } from "@/components/ConvHistoryPanel";
 import { HelpModal } from "@/components/HelpModal";
 import { MOTION_URLS, getRandomClickMotion } from "@/features/vrmViewer/motionConfig";
 import UtilityBubble, { CrayonFilterDef } from "@/components/UtilityBubble";
+import { GUEST_TEMPLATES, SIGNED_IN_TEMPLATES, pickTemplatePair } from "@/data/templateMessages";
 
 function getInteractEmoji(utilities: Record<string, number>, energy: number): string {
   const entries = Object.entries(utilities);
@@ -213,6 +214,9 @@ export default function MainHome() {
   const [diagnosisNameInput, setDiagnosisNameInput] = useState("");
   const [guestTurnCount, setGuestTurnCount] = useState(0);
   const [landingMessage, setLandingMessage] = useState("");
+  const [landingTemplatePair, setLandingTemplatePair] = useState<[number, number]>(() =>
+    pickTemplatePair(GUEST_TEMPLATES, [])
+  );
   const [greetingMode, setGreetingMode] = useState<GreetingMode>(null);
   const [isGreetingModeReady, setIsGreetingModeReady] = useState(false);
   const [regularLevel, setRegularLevel] = useState(0);
@@ -696,10 +700,17 @@ export default function MainHome() {
     setUserName(lang === "ja" ? "ユーザーさん" : "User");
     pendingFirstMessageRef.current = text.trim();
     setLandingMessage("");
+    setIsGreetingModeReady(true);
     setPhase("chat");
     setDisplayedMoodContext(null);
     setAssistantMessage("");
   }, [lang]);
+
+  const handleLandingTemplateClick = useCallback((text: string) => {
+    const pool = isSignedIn ? SIGNED_IN_TEMPLATES : GUEST_TEMPLATES;
+    setLandingTemplatePair(prev => pickTemplatePair(pool, prev));
+    handleLandingSubmit(text);
+  }, [isSignedIn, handleLandingSubmit]);
 
   const handleDiagnose = useCallback(async (answers: AnswerItem[]) => {
     setIsWaitingForVoice(true);
@@ -1880,44 +1891,81 @@ export default function MainHome() {
             <p className="text-slate-600 text-sm font-bold text-center leading-relaxed" style={{ margin: 0 }}>
               {lang === "ja" ? "ただいまって言える、あなたとのお部屋" : "A room where you can always come home"}
             </p>
-            {/* チャット入力 + 送信ボタン */}
-            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-              <input
-                type="text"
-                value={landingMessage}
-                onChange={(e) => setLandingMessage(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.nativeEvent.isComposing) handleLandingSubmit(landingMessage);
-                }}
-                placeholder={lang === "ja" ? "メッセージを入力..." : "Type a message..."}
-                className="flex-1 text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
-                style={{
-                  height: "48px",
-                  background: "rgba(255, 255, 255, 0.55)",
-                  border: "1.5px solid rgba(58, 155, 213, 0.25)",
-                  borderRadius: "9999px",
-                  padding: "0 20px",
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = "var(--theme-blue)";
-                  e.currentTarget.style.boxShadow = "0 0 0 4px rgba(58, 155, 213, 0.15)";
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(58, 155, 213, 0.25)";
-                  e.currentTarget.style.boxShadow = "none";
-                }}
-              />
-              <button
-                onClick={() => handleLandingSubmit(landingMessage)}
-                disabled={!landingMessage.trim()}
-                aria-label="send"
-                className="shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed bg-theme-gradient shadow-md"
-                style={{ width: "48px", height: "48px", borderRadius: "9999px" }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
-                  <path d="M2 21l21-9L2 3v7l15 2-15 2z" />
-                </svg>
-              </button>
+            {/* チャット入力 + 送信ボタン + 定型文 */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <input
+                  type="text"
+                  value={landingMessage}
+                  onChange={(e) => setLandingMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.nativeEvent.isComposing) handleLandingSubmit(landingMessage);
+                  }}
+                  placeholder={lang === "ja" ? "メッセージを入力..." : "Type a message..."}
+                  className="flex-1 text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
+                  style={{
+                    height: "48px",
+                    background: "rgba(255, 255, 255, 0.55)",
+                    border: "1.5px solid rgba(58, 155, 213, 0.25)",
+                    borderRadius: "9999px",
+                    padding: "0 20px",
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "var(--theme-blue)";
+                    e.currentTarget.style.boxShadow = "0 0 0 4px rgba(58, 155, 213, 0.15)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(58, 155, 213, 0.25)";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                />
+                <button
+                  onClick={() => handleLandingSubmit(landingMessage)}
+                  disabled={!landingMessage.trim()}
+                  aria-label="send"
+                  className="shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed bg-theme-gradient shadow-md"
+                  style={{ width: "48px", height: "48px", borderRadius: "9999px" }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
+                    <path d="M2 21l21-9L2 3v7l15 2-15 2z" />
+                  </svg>
+                </button>
+              </div>
+              {/* 定型文おすすめボタン */}
+              {(() => {
+                const pool = isSignedIn ? SIGNED_IN_TEMPLATES : GUEST_TEMPLATES;
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(58,155,213,0.5)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                      {lang === 'ja' ? 'おすすめ' : 'Try'}
+                    </span>
+                    {landingTemplatePair.map((idx, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleLandingTemplateClick(pool[idx][lang])}
+                        className="transition-all duration-150 hover:brightness-105 active:scale-95"
+                        style={{
+                          flex: 1,
+                          height: '30px',
+                          borderRadius: '9999px',
+                          background: 'rgba(58,155,213,0.07)',
+                          border: '1px solid rgba(58,155,213,0.2)',
+                          color: 'rgba(58,155,213,0.85)',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          padding: '0 10px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {pool[idx][lang]}
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
             {/* 展開式サインイン（旧 Fortune カード下部と同等） */}
             {!isSignedIn && (

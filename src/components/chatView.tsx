@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { AssistantBubble } from "./assistantBubble";
+import { GUEST_TEMPLATES, SIGNED_IN_TEMPLATES, pickTemplatePair } from "../data/templateMessages";
 
 type Props = {
   lang: "ja" | "en";
@@ -39,6 +40,15 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking 
   const [speechRecognition, setSpeechRecognition] = useState<SpeechRecognition>();
   const [isMicRecording, setIsMicRecording] = useState(false);
 
+  const templatePool = isSignedIn ? SIGNED_IN_TEMPLATES : GUEST_TEMPLATES;
+  const [templatePair, setTemplatePair] = useState<[number, number]>(() =>
+    pickTemplatePair(templatePool, [])
+  );
+
+  useEffect(() => {
+    setTemplatePair(pickTemplatePair(isSignedIn ? SIGNED_IN_TEMPLATES : GUEST_TEMPLATES, []));
+  }, [isSignedIn]);
+
   // 音声認識の結果を処理
   const handleRecognitionResult = useCallback(
     (event: SpeechRecognitionEvent) => {
@@ -68,6 +78,12 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking 
     if (!text || isChatProcessing) return;
     onSend(text);
   }, [userMessage, isChatProcessing, onSend]);
+
+  const handleTemplateClick = useCallback((text: string) => {
+    if (isChatProcessing) return;
+    onSend(text);
+    setTemplatePair(prev => pickTemplatePair(templatePool, prev));
+  }, [isChatProcessing, onSend, templatePool]);
 
   const handleGiftSend = useCallback(() => {
     const text = giftMessage.trim();
@@ -312,65 +328,98 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking 
             </div>
           ) : (
             /* チャット入力エリア */
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <input
-                type="text"
-                value={userMessage}
-                onChange={(e) => setUserMessage(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.nativeEvent.isComposing && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend();
-                  }
-                }}
-                placeholder={l.placeholder}
-                disabled={isChatProcessing}
-                className="flex-1 text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
-                style={{
-                  height: "48px",
-                  background: "rgba(255, 255, 255, 0.55)",
-                  border: "1.5px solid rgba(58, 155, 213, 0.25)",
-                  borderRadius: "9999px",
-                  padding: "0 20px",
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--theme-blue)';
-                  e.currentTarget.style.boxShadow = '0 0 0 4px rgba(58, 155, 213, 0.15)';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(58, 155, 213, 0.25)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              />
-              {/* 送信ボタン */}
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <button
-                  onClick={handleSend}
-                  disabled={isChatProcessing || !userMessage.trim()}
-                  aria-label="send"
-                  className="shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed bg-theme-gradient shadow-md"
-                  style={{
-                    width: "48px",
-                    height: "48px",
-                    borderRadius: "9999px",
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  value={userMessage}
+                  onChange={(e) => setUserMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.nativeEvent.isComposing && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
                   }}
-                >
-                  {isChatProcessing ? (
-                    <span
-                      className="block w-4 h-4"
-                      style={{
-                        border: "2px solid rgba(255,255,255,0.3)",
-                        borderTopColor: "#fff",
-                        animation: "chat-spin 0.75s linear infinite",
-                        borderRadius: "50%",
-                      }}
-                    />
-                  ) : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
-                      <path d="M2 21l21-9L2 3v7l15 2-15 2z" />
-                    </svg>
-                  )}
-                </button>
+                  placeholder={l.placeholder}
+                  disabled={isChatProcessing}
+                  className="flex-1 text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
+                  style={{
+                    height: "48px",
+                    background: "rgba(255, 255, 255, 0.55)",
+                    border: "1.5px solid rgba(58, 155, 213, 0.25)",
+                    borderRadius: "9999px",
+                    padding: "0 20px",
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--theme-blue)';
+                    e.currentTarget.style.boxShadow = '0 0 0 4px rgba(58, 155, 213, 0.15)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(58, 155, 213, 0.25)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                />
+                {/* 送信ボタン */}
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <button
+                    onClick={handleSend}
+                    disabled={isChatProcessing || !userMessage.trim()}
+                    aria-label="send"
+                    className="shrink-0 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed bg-theme-gradient shadow-md"
+                    style={{
+                      width: "48px",
+                      height: "48px",
+                      borderRadius: "9999px",
+                    }}
+                  >
+                    {isChatProcessing ? (
+                      <span
+                        className="block w-4 h-4"
+                        style={{
+                          border: "2px solid rgba(255,255,255,0.3)",
+                          borderTopColor: "#fff",
+                          animation: "chat-spin 0.75s linear infinite",
+                          borderRadius: "50%",
+                        }}
+                      />
+                    ) : (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
+                        <path d="M2 21l21-9L2 3v7l15 2-15 2z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+              {/* 定型文おすすめボタン */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(58,155,213,0.5)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  {lang === 'ja' ? 'おすすめ' : 'Try'}
+                </span>
+                {templatePair.map((idx, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleTemplateClick(templatePool[idx][lang])}
+                    disabled={isChatProcessing}
+                    className="transition-all duration-150 hover:brightness-105 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                    style={{
+                      flex: 1,
+                      height: '30px',
+                      borderRadius: '9999px',
+                      background: 'rgba(58,155,213,0.07)',
+                      border: '1px solid rgba(58,155,213,0.2)',
+                      color: 'rgba(58,155,213,0.85)',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      padding: '0 10px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {templatePool[idx][lang]}
+                  </button>
+                ))}
               </div>
             </div>
           )}
