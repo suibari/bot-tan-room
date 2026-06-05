@@ -32,11 +32,6 @@ export class Viewer {
   private _perfLastLogTime = 0;
   private static readonly PERF_LOG_INTERVAL = 5000; // 5秒ごとにログ出力
 
-  // --- パフォーマンス計測 (開発用) ---
-  private _perfFrameTimes: number[] = [];
-  private _perfLastLogTime = 0;
-  private static readonly PERF_LOG_INTERVAL = 5000; // 5秒ごとにログ出力
-
   constructor() {
     this.isReady = false;
 
