@@ -25,6 +25,11 @@ export class Viewer {
   private _cameraTargetT = 0;
   private _headTrackingPausedUntil = 0;
 
+  // --- パフォーマンス計測 (開発用) ---
+  private _perfFrameTimes: number[] = [];
+  private _perfLastLogTime = 0;
+  private static readonly PERF_LOG_INTERVAL = 5000; // 5秒ごとにログ出力
+
   constructor() {
     this.isReady = false;
 
@@ -243,6 +248,7 @@ export class Viewer {
   }
 
   public update = () => {
+    const frameStart = performance.now();
     requestAnimationFrame(this.update);
     const delta = this._clock.getDelta();
 
@@ -268,6 +274,25 @@ export class Viewer {
 
     if (this._renderer && this._camera) {
       this._renderer.render(this._scene, this._camera);
+    }
+
+    // パフォーマンス統計を5秒ごとにコンソール出力
+    const frameTime = performance.now() - frameStart;
+    this._perfFrameTimes.push(frameTime);
+    const now = performance.now();
+    if (now - this._perfLastLogTime >= Viewer.PERF_LOG_INTERVAL) {
+      const times = this._perfFrameTimes;
+      const avgMs = times.reduce((a, b) => a + b, 0) / times.length;
+      const maxMs = Math.max(...times);
+      const minMs = Math.min(...times);
+      const avgFps = 1000 / avgMs;
+      const pixelRatio = this._renderer?.getPixelRatio() ?? 0;
+      console.log(
+        `[Perf] frames=${times.length} | avg=${avgFps.toFixed(1)}fps (${avgMs.toFixed(2)}ms)` +
+        ` | max_ft=${maxMs.toFixed(2)}ms | min_ft=${minMs.toFixed(2)}ms | pixelRatio=${pixelRatio}`
+      );
+      this._perfFrameTimes = [];
+      this._perfLastLogTime = now;
     }
   };
 }
