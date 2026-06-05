@@ -1,6 +1,6 @@
 import { LipSyncAnalyzeResult } from "./lipSyncAnalyzeResult";
 
-const TIME_DOMAIN_DATA_LENGTH = 2048;
+const TIME_DOMAIN_DATA_LENGTH = 512;
 
 export class LipSync {
   public readonly audio: AudioContext;
@@ -15,6 +15,7 @@ export class LipSync {
     this.audio = audio;
 
     this.analyser = audio.createAnalyser();
+    this.analyser.fftSize = TIME_DOMAIN_DATA_LENGTH;
     this.gainNode = audio.createGain();
     this.analyser.connect(this.gainNode);
     this.gainNode.connect(audio.destination);

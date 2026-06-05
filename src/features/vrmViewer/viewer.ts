@@ -72,11 +72,6 @@ export class Viewer {
       return;
     }
 
-    // Disable frustum culling
-    this.model.vrm.scene.traverse((obj) => {
-      obj.frustumCulled = false;
-    });
-
     this._scene.add(this.model.vrm.scene);
 
     const vrma = await loadVRMAnimation(buildUrl("/idle_loop.vrma"));
@@ -117,7 +112,7 @@ export class Viewer {
     });
     this._renderer.outputEncoding = THREE.sRGBEncoding;
     this._renderer.setSize(width, height);
-    this._renderer.setPixelRatio(window.devicePixelRatio);
+    this._renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
     // camera
     const isMobile = width < 768;
@@ -155,7 +150,7 @@ export class Viewer {
     const width = parentElement.clientWidth;
     const height = parentElement.clientHeight;
 
-    this._renderer.setPixelRatio(window.devicePixelRatio);
+    this._renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this._renderer.setSize(width, height);
 
     if (!this._camera) return;

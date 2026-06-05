@@ -300,17 +300,16 @@ export default function MainHome() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefetchedMood]);
 
-  // UtilityBubble: bubbleState が visible/celebrating の間 head スクリーン座標を毎フレーム更新
+  // UtilityBubble: bubbleState が visible/celebrating の間 head スクリーン座標を10Hzで更新
   useEffect(() => {
     if (bubbleState === 'hidden') return;
-    let raf: number;
     const update = () => {
       const pos = viewer.getHeadScreenPosition();
       if (pos) setBubblePos(pos);
-      raf = requestAnimationFrame(update);
     };
-    raf = requestAnimationFrame(update);
-    return () => cancelAnimationFrame(raf);
+    update();
+    const id = setInterval(update, 100);
+    return () => clearInterval(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bubbleState, viewer]);
 
