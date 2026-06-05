@@ -1091,8 +1091,7 @@ export default function MainHome() {
       }
     }
 
-    const triggerText = mode === 'tadaima' ? 'ただいま！'
-      : mode === 'konnichiwa' ? 'こんにちは！' : 'はじめまして！';
+    const triggerText = mode === 'tadaima' ? 'ただいま！' : 'こんにちは！';
 
     const messages: Message[] = [
       { role: "system", content: systemPrompt + greetingCtx + LANG_DIRECTIVE },
