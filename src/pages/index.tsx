@@ -222,6 +222,8 @@ export default function MainHome() {
   const [isGreetingModeReady, setIsGreetingModeReady] = useState(false);
   const [regularLevel, setRegularLevel] = useState(0);
   const greetingElapsedMsRef = useRef<number | null>(null);
+  const lastVisibilityCheckRef = useRef<number>(0);    // 最後に再チェックした時刻
+  const hiddenSinceRef = useRef<number | null>(null);  // タブが最後に非表示になった時刻
   const pendingFirstMessageRef = useRef<string | null>(null);
   const prefetchedMoodAudioRef = useRef<Promise<ArrayBuffer | null>>(Promise.resolve(null));
   const pendingAudioRef = useRef<Promise<ArrayBuffer | null>>(Promise.resolve(null));
@@ -599,6 +601,72 @@ export default function MainHome() {
         }
       });
   }, []);
+
+  // タブがバックグラウンドから復帰した際、/api/visit を再実行して
+  // 新しい elapsedMs を取得し、'tadaima' 判定を再評価する
+  // （マウント時の判定は1回限りのため、長時間バックグラウンドに置いたまま
+  //   復帰しても再判定されずリロードが必要、という不具合への対処）
+  useEffect(() => {
+    const MIN_HIDDEN_MS = 60 * 60 * 1000;          // 1時間以上隠れていた場合のみ再チェック
+    const MIN_RECHECK_INTERVAL_MS = 5 * 60 * 1000; // 再チェックの最小間隔（5分）
+
+    const handleVisibilityChange = async () => {
+      if (document.hidden) {
+        hiddenSinceRef.current = Date.now();
+        return;
+      }
+
+      const now = Date.now();
+
+      // サインイン済み・セッションあり・初期グリーティング判定完了・
+      // 既に挨拶モードが立っていない・招待モードでない・チャット処理中でない場合のみ
+      if (!isSignedIn || !bskySessionRef.current) return;
+      if (!isGreetingModeReady || greetingMode !== null) return;
+      if (isInvitationMode) return;
+      if (chatProcessing) return;
+
+      const hiddenSince = hiddenSinceRef.current;
+      if (hiddenSince === null || (now - hiddenSince) < MIN_HIDDEN_MS) return;
+      if ((now - lastVisibilityCheckRef.current) < MIN_RECHECK_INTERVAL_MS) return;
+
+      // ガードを通過 → タイムスタンプを更新（awaitの前に行い、競合を防ぐ）
+      lastVisibilityCheckRef.current = now;
+      hiddenSinceRef.current = null;
+
+      try {
+        const did = bskySessionRef.current?.did;
+        if (!did) return;
+        const tokenSet = await (bskySessionRef.current as any)?.getTokenSet?.();
+        const token = tokenSet?.access_token;
+
+        const visitRes = await fetch('/api/visit/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ did }),
+        });
+
+        if (!visitRes.ok) return; // 429やエラーは静かに無視（バックグラウンドの機会的チェックのため）
+
+        const visitData = await visitRes.json();
+        const elapsedMs: number | null = visitData?.elapsedMs ?? null;
+
+        // 'tadaima' のみ再評価する（konnichiwa/hajimemashite は elapsedMs === null
+        // ＝初回来訪時のみのモードで、初回来訪でDBレコードが作られた後は再現しない）
+        if (elapsedMs !== null && elapsedMs >= 60 * 60 * 1000) {
+          greetingElapsedMsRef.current = elapsedMs;
+          setGreetingMode('tadaima');
+        }
+      } catch (err) {
+        console.error('[visibilitychange tadaima recheck error]:', err);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isSignedIn, isGreetingModeReady, greetingMode, isInvitationMode, chatProcessing]);
 
   // 質問専用スピーカー: キューを使わず直接再生。新しい呼び出しで前の音声を中断する
   const speakQuestion = useCallback(async (text: string) => {
