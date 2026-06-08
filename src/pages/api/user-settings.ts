@@ -32,7 +32,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
   try {
     const [dbRes, giftsRes] = await Promise.all([
       fetch(
-        `${DB_URL}/followers?did=eq.${encodeURIComponent(did)}&select=created_at,reply_freq,is_u18,is_ai_only,last_uranai_at,last_analyze_at,last_cheer_at,conv_history,user_anniv_name,user_anniv_date`,
+        `${DB_URL}/followers?did=eq.${encodeURIComponent(did)}&select=created_at,reply_freq,is_u18,is_ai_only,is_diary,last_uranai_at,last_analyze_at,last_cheer_at,conv_history,user_anniv_name,user_anniv_date`,
         { headers: dbHeaders, keepalive: true }
       ),
       fetch(
@@ -58,7 +58,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function handlePatch(req: NextApiRequest, res: NextApiResponse) {
-  const { did, reply_freq, is_u18, is_ai_only, user_anniv_name, user_anniv_date } = req.body;
+  const { did, reply_freq, is_u18, is_ai_only, is_diary, user_anniv_name, user_anniv_date } = req.body;
 
   if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
     return res.status(400).json({ message: 'Invalid or missing DID' });
@@ -79,6 +79,9 @@ async function handlePatch(req: NextApiRequest, res: NextApiResponse) {
   }
   if (is_ai_only !== 0 && is_ai_only !== 1) {
     return res.status(400).json({ message: 'is_ai_only must be 0 or 1' });
+  }
+  if (is_diary !== 0 && is_diary !== 1) {
+    return res.status(400).json({ message: 'is_diary must be 0 or 1' });
   }
   if (user_anniv_name !== null && user_anniv_name !== undefined) {
     if (typeof user_anniv_name !== 'string' || user_anniv_name.length > 30) {
@@ -113,7 +116,7 @@ async function handlePatch(req: NextApiRequest, res: NextApiResponse) {
       {
         method: 'PATCH',
         headers: dbHeaders,
-        body: JSON.stringify({ reply_freq, is_u18, is_ai_only, user_anniv_name: user_anniv_name ?? null, user_anniv_date: user_anniv_date ?? null }),
+        body: JSON.stringify({ reply_freq, is_u18, is_ai_only, is_diary, user_anniv_name: user_anniv_name ?? null, user_anniv_date: user_anniv_date ?? null }),
         keepalive: true,
       }
     );

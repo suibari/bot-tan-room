@@ -13,6 +13,7 @@ import { SYSTEM_PROMPT } from "@/features/constants/systemPromptConstants";
 import { KoeiroParam, DEFAULT_PARAM } from "@/features/constants/koeiroParam";
 import { getGeminiResponseStream } from "@/features/chat/geminiChat";
 import { ChatView } from "@/components/chatView";
+import { DiaryTooltip } from "@/components/DiaryTooltip";
 import { AssistantBubble } from "@/components/assistantBubble";
 import { GetStaticProps } from "next";
 import { useRouter } from "next/router";
@@ -118,6 +119,7 @@ function LandingInfoTooltip({ lang }: { lang: "ja" | "en" }) {
   );
 }
 
+
 // OAuthSession 型は @atproto/oauth-client の exports 解決問題で直接 import できないため
 // BrowserOAuthClient.init() の戻り値から導出する
 type BskyOAuthClient = import('@atproto/oauth-client-browser').BrowserOAuthClient;
@@ -192,6 +194,7 @@ export default function MainHome() {
   const [myPageFreq, setMyPageFreq] = useState(100);
   const [myPageIsU18, setMyPageIsU18] = useState(0);
   const [myPageIsAiOnly, setMyPageIsAiOnly] = useState(0);
+  const [myPageIsDiary, setMyPageIsDiary] = useState(0);
   const [myPageAnnivName, setMyPageAnnivName] = useState("");
   const [myPageAnnivMM, setMyPageAnnivMM] = useState("");
   const [myPageAnnivDD, setMyPageAnnivDD] = useState("");
@@ -570,28 +573,9 @@ export default function MainHome() {
             })
             .catch((e: unknown) => console.error('[bsky getProfile]', e));
         } else {
-          const h = window.localStorage.getItem("bsky_handle");
-          if (h) {
-            setIsSignedIn(true);
-            setIsAuthChecking(false);
-          } else {
-            const doorOpened = window.localStorage.getItem("doorOpened");
-            const justSignedOut = window.sessionStorage.getItem("justSignedOut");
-            if (!doorOpened && !justSignedOut) {
-              setPhase("door");
-            }
-            setIsAuthChecking(false);
-          }
-        }
-      })
-      .catch((e: unknown) => {
-        if (e instanceof Error && e.message.includes('Redirecting')) return;
-        console.error('[Bluesky OAuth init]', e);
-        const h = window.localStorage.getItem("bsky_handle");
-        if (h) {
-          setIsSignedIn(true);
-          setIsAuthChecking(false);
-        } else {
+          // セッションなし = OAuth トークン失効 → stale な localStorage を削除してサインアウト状態に戻す
+          window.localStorage.removeItem("bsky_handle");
+          window.localStorage.removeItem("chatVRM_userName");
           const doorOpened = window.localStorage.getItem("doorOpened");
           const justSignedOut = window.sessionStorage.getItem("justSignedOut");
           if (!doorOpened && !justSignedOut) {
@@ -599,6 +583,19 @@ export default function MainHome() {
           }
           setIsAuthChecking(false);
         }
+      })
+      .catch((e: unknown) => {
+        if (e instanceof Error && e.message.includes('Redirecting')) return;
+        console.error('[Bluesky OAuth init]', e);
+        // catch でもセッション取得失敗 = stale な localStorage を削除してサインアウト状態に戻す
+        window.localStorage.removeItem("bsky_handle");
+        window.localStorage.removeItem("chatVRM_userName");
+        const doorOpened = window.localStorage.getItem("doorOpened");
+        const justSignedOut = window.sessionStorage.getItem("justSignedOut");
+        if (!doorOpened && !justSignedOut) {
+          setPhase("door");
+        }
+        setIsAuthChecking(false);
       });
   }, []);
 
@@ -1523,6 +1520,7 @@ export default function MainHome() {
       setMyPageFreq(data.reply_freq ?? 100);
       setMyPageIsU18(data.is_u18 ?? 0);
       setMyPageIsAiOnly(data.is_ai_only ?? 0);
+      setMyPageIsDiary(1 - (data.is_diary ?? 0)); // DB: 1=有効(していいよ) ↔ UI: 0=していいよ
       setMyPageAnnivName(data.user_anniv_name ?? "");
       const dateMatch = (data.user_anniv_date ?? "").match(/^--(\d{2})-(\d{2})$/);
       setMyPageAnnivMM(dateMatch ? dateMatch[1] : "");
@@ -1547,7 +1545,7 @@ export default function MainHome() {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ did, reply_freq: myPageFreq, is_u18: myPageIsU18, is_ai_only: myPageIsAiOnly, user_anniv_name: myPageAnnivName.slice(0, 30) || null, user_anniv_date: (myPageAnnivMM && myPageAnnivDD) ? `--${myPageAnnivMM.padStart(2, '0')}-${myPageAnnivDD.padStart(2, '0')}` : null }),
+        body: JSON.stringify({ did, reply_freq: myPageFreq, is_u18: myPageIsU18, is_ai_only: myPageIsAiOnly, is_diary: 1 - myPageIsDiary, user_anniv_name: myPageAnnivName.slice(0, 30) || null, user_anniv_date: (myPageAnnivMM && myPageAnnivDD) ? `--${myPageAnnivMM.padStart(2, '0')}-${myPageAnnivDD.padStart(2, '0')}` : null }),
       });
       if (!res.ok) throw new Error('save failed');
       setIsMyPageOpen(false);
@@ -1556,7 +1554,7 @@ export default function MainHome() {
     } finally {
       setMyPageSaving(false);
     }
-  }, [myPageFreq, myPageIsU18, myPageIsAiOnly, myPageAnnivName, myPageAnnivMM, myPageAnnivDD]);
+  }, [myPageFreq, myPageIsU18, myPageIsAiOnly, myPageIsDiary, myPageAnnivName, myPageAnnivMM, myPageAnnivDD]);
 
   // Dynamic OGP image URL
   const ogImageUrl =
@@ -2260,16 +2258,17 @@ export default function MainHome() {
                 value: number,
                 onChange: (v: number) => void,
                 emoji: string,
-                label: string,
+                label: React.ReactNode,
+                id?: string,
               ) => (
                 <div style={radioRowStyle}>
-                  <span className="text-slate-500 font-semibold text-sm">{emoji} {label}</span>
+                  <span className="text-slate-500 font-semibold text-sm" style={{ display: "flex", alignItems: "center", gap: "4px" }}>{emoji} {label}</span>
                   <div style={{ display: "flex", gap: "12px" }}>
                     {([0, 1] as const).map((v) => (
                       <label key={v} className="flex items-center gap-1.5 cursor-pointer select-none">
                         <input
                           type="radio"
-                          name={label}
+                          name={id ?? (typeof label === "string" ? label : id ?? "radio")}
                           checked={value === v}
                           onChange={() => onChange(v)}
                           className="accent-theme-blue"
@@ -2285,7 +2284,7 @@ export default function MainHome() {
                 </div>
               );
 
-              return (
+return (
                 <>
                   {/* STATUS */}
                   <hr style={hrStyle} />
@@ -2348,6 +2347,9 @@ export default function MainHome() {
 
                     {/* 定型文リプライ */}
                     {radioGroup(myPageIsAiOnly, setMyPageIsAiOnly, "📝", lang === "ja" ? "定型文リプライ" : "Predefined Reply")}
+
+                    {/* 日記 */}
+                    {radioGroup(myPageIsDiary, setMyPageIsDiary, "📓", <>{lang === "ja" ? "日記" : "Diary"}<DiaryTooltip lang={lang} /></>, "diary")}
 
                     {/* ユーザ記念日 */}
                     <div style={{ padding: "5px 0", display: "flex", flexDirection: "column", gap: "6px" }}>
