@@ -5,7 +5,47 @@ type Props = {
   onClose: () => void;
 };
 
+const LABELS = {
+  ja: {
+    title: "ヘルプ",
+    soundWarning: "botたんがしゃべる際に音が出ます！",
+    greetingTitle: "👋 あいさつ機能",
+    greetingDesc: "サインイン後、ページを開いたときに時間帯などに応じてbotたんが特別なあいさつをしてくれます。",
+    bioTitle: "💖 バイオリズム機能",
+    bioDesc: "クリックなどのさまざまなアクションでBlueskyのbotたんを元気づけられます。元気になると、たくさんポストするかも！",
+    giftTitle: "🎁 プレゼント機能",
+    giftDesc: "サインイン後、画面右上の 🎁 ボタンからbotたんにプレゼントを贈れます。1日1回まで。Bluesky上のbotたんが反応してくれるかも？",
+    historyTitle: "📋 会話りれき",
+    historyDesc: "Blueskyのbotたんをフォローしているユーザーは、チャットの履歴が記録されます。左上の時計アイコンからいつでも振り返れます。",
+    diagTitle: "✨ 全肯定診断",
+    diagDesc: "右上の「診断」ボタンから、botたんがあなたの性格を分析します。結果はBlueskyでシェアできます。",
+    inviteTitle: "💌 あなたへの特別なメッセージ",
+    inviteDesc: "数日後、Bluesky上のbotたんがあなただけへの特別なメッセージを用意してお部屋に招待します。お誘いが届いたら、またお部屋に来てね。",
+    analytics: "このアプリはサービス改善のため Google Analytics を使用しています。",
+    close: "とじる",
+  },
+  en: {
+    title: "Help",
+    soundWarning: "Sound plays when bot-tan speaks!",
+    greetingTitle: "👋 Greeting",
+    greetingDesc: "After signing in, bot-tan greets you with a special message based on the time of day and other factors when you open the page.",
+    bioTitle: "💖 Biorhythm",
+    bioDesc: "Various actions like clicking can cheer up bot-tan on Bluesky. When bot-tan gets energized, they might post more!",
+    giftTitle: "🎁 Gift Feature",
+    giftDesc: "After signing in, tap the 🎁 button (top-right) to send bot-tan a gift. Once per day. Bot-tan might react on Bluesky!",
+    historyTitle: "📋 Chat History",
+    historyDesc: "Users who follow bot-tan on Bluesky have their chat history saved. Tap the clock icon (top-left) to review past conversations.",
+    diagTitle: "✨ Personality Diagnosis",
+    diagDesc: "Tap the \"Diagnosis\" button (top-right) to have bot-tan analyze your personality. You can share the result on Bluesky.",
+    inviteTitle: "💌 A special message just for you",
+    inviteDesc: "A few days after your visit, bot-tan will prepare a special personal message and invite you back to the room on Bluesky. Come back when the invitation arrives!",
+    analytics: "This app uses Google Analytics for service improvement.",
+    close: "Close",
+  },
+};
+
 export function HelpModal({ lang, onClose }: Props) {
+  const l = LABELS[lang];
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -38,7 +78,7 @@ export function HelpModal({ lang, onClose }: Props) {
               <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
               <line x1="12" y1="17" x2="12.01" y2="17" />
             </svg>
-            {lang === "ja" ? "ヘルプ" : "Help"}
+            {l.title}
           </h2>
           <button
             onClick={onClose}
@@ -93,89 +133,73 @@ export function HelpModal({ lang, onClose }: Props) {
             style={{ background: "rgba(251, 191, 36, 0.15)", border: "1.5px solid rgba(251, 191, 36, 0.5)", color: "#92400e" }}>
             <span style={{ fontSize: "1rem" }}>⚠️</span>
             <span>
-              {lang === "ja"
-                ? "botたんがしゃべる際に音が出ます！"
-                : "Sound plays when bot-tan speaks!"}
+              {l.soundWarning}
             </span>
           </div>
 
           {/* あいさつ機能 */}
           <div className="space-y-1">
             <h3 className="font-extrabold text-base flex items-center gap-1.5" style={{ color: "#0085ff" }}>
-              {lang === "ja" ? "👋 あいさつ機能" : "👋 Greeting"}
+              {l.greetingTitle}
             </h3>
             <p className="text-slate-600 text-xs pl-0">
-              {lang === "ja"
-                ? "サインイン後、ページを開いたときに時間帯などに応じてbotたんが特別なあいさつをしてくれます。"
-                : "After signing in, bot-tan greets you with a special message based on the time of day and other factors when you open the page."}
+              {l.greetingDesc}
             </p>
           </div>
 
           {/* バイオリズム機能 */}
           <div className="space-y-1">
             <h3 className="font-extrabold text-base flex items-center gap-1.5" style={{ color: "#0085ff" }}>
-              {lang === "ja" ? "💖 バイオリズム機能" : "💖 Biorhythm"}
+              {l.bioTitle}
             </h3>
             <p className="text-slate-600 text-xs pl-0">
-              {lang === "ja"
-                ? "クリックなどのさまざまなアクションでBlueskyのbotたんを元気づけられます。元気になると、たくさんポストするかも！"
-                : "Various actions like clicking can cheer up bot-tan on Bluesky. When bot-tan gets energized, they might post more!"}
+              {l.bioDesc}
             </p>
           </div>
 
           {/* プレゼント機能 */}
           <div className="space-y-1">
             <h3 className="font-extrabold text-base flex items-center gap-1.5" style={{ color: "#0085ff" }}>
-              {lang === "ja" ? "🎁 プレゼント機能" : "🎁 Gift Feature"}
+              {l.giftTitle}
             </h3>
             <p className="text-slate-600 text-xs pl-0">
-              {lang === "ja"
-                ? "サインイン後、画面右上の 🎁 ボタンからbotたんにプレゼントを贈れます。1日1回まで。Bluesky上のbotたんが反応してくれるかも？"
-                : "After signing in, tap the 🎁 button (top-right) to send bot-tan a gift. Once per day. Bot-tan might react on Bluesky!"}
+              {l.giftDesc}
             </p>
           </div>
 
           {/* りれき */}
           <div className="space-y-1">
             <h3 className="font-extrabold text-base flex items-center gap-1.5" style={{ color: "#0085ff" }}>
-              {lang === "ja" ? "📋 会話りれき" : "📋 Chat History"}
+              {l.historyTitle}
             </h3>
             <p className="text-slate-600 text-xs pl-0">
-              {lang === "ja"
-                ? "Blueskyのbotたんをフォローしているユーザーは、チャットの履歴が記録されます。左上の時計アイコンからいつでも振り返れます。"
-                : "Users who follow bot-tan on Bluesky have their chat history saved. Tap the clock icon (top-left) to review past conversations."}
+              {l.historyDesc}
             </p>
           </div>
 
           {/* 全肯定診断 */}
           <div className="space-y-1">
             <h3 className="font-extrabold text-base flex items-center gap-1.5" style={{ color: "#0085ff" }}>
-              {lang === "ja" ? "✨ 全肯定診断" : "✨ Personality Diagnosis"}
+              {l.diagTitle}
             </h3>
             <p className="text-slate-600 text-xs pl-0">
-              {lang === "ja"
-                ? "右上の「診断」ボタンから、botたんがあなたの性格を分析します。結果はBlueskyでシェアできます。"
-                : "Tap the \"Diagnosis\" button (top-right) to have bot-tan analyze your personality. You can share the result on Bluesky."}
+              {l.diagDesc}
             </p>
           </div>
 
           {/* 特別なメッセージ */}
           <div className="space-y-1">
             <h3 className="font-extrabold text-base flex items-center gap-1.5" style={{ color: "#0085ff" }}>
-              {lang === "ja" ? "💌 あなたへの特別なメッセージ" : "💌 A special message just for you"}
+              {l.inviteTitle}
             </h3>
             <p className="text-slate-600 text-xs pl-0">
-              {lang === "ja"
-                ? "数日後、Bluesky上のbotたんがあなただけへの特別なメッセージを用意してお部屋に招待します。お誘いが届いたら、またお部屋に来てね。"
-                : "A few days after your visit, bot-tan will prepare a special personal message and invite you back to the room on Bluesky. Come back when the invitation arrives!"}
+              {l.inviteDesc}
             </p>
           </div>
 
           {/* アナリティクス */}
           <p className="text-slate-400 text-xs pt-1">
-            {lang === "ja"
-              ? "このアプリはサービス改善のため Google Analytics を使用しています。"
-              : "This app uses Google Analytics for service improvement."}
+            {l.analytics}
           </p>
 
         </div>
@@ -191,7 +215,7 @@ export function HelpModal({ lang, onClose }: Props) {
               borderRadius: "9999px",
             }}
           >
-            {lang === "ja" ? "とじる" : "Close"}
+            {l.close}
           </button>
         </div>
       </div>

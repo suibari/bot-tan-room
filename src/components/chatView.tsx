@@ -22,8 +22,28 @@ type Props = {
 };
 
 const LABELS = {
-  ja: { placeholder: "メッセージを入力...", name: "botたん", welcome: "✨ botたんからのお迎えメッセージ...", tadaima: "ただいま！", konnichiwa: "こんにちは！", hajimemashite: "はじめまして！" },
-  en: { placeholder: "Type a message...", name: "bot-tan", welcome: "✨ Special Welcome from bot-tan...", tadaima: "I'm home!", konnichiwa: "Hello!", hajimemashite: "Nice to meet you!" },
+  ja: {
+    placeholder: "メッセージを入力...", name: "botたん", welcome: "✨ botたんからのお迎えメッセージ...", tadaima: "ただいま！", konnichiwa: "こんにちは！", hajimemashite: "はじめまして！",
+    giftLabel: 'プレゼント', chatLabel: 'チャット',
+    giftTooltip: 'botたんに1日1回プレゼントをあげよう！\nBlueskyで見せてくれるかも？',
+    giftPlaceholder: 'プレゼントの名前をいれてね',
+    roomFullTitle: 'お部屋が満員になりました',
+    roomFullMsg: '今日はbotたんのお部屋は満員になっちゃった！　また明日ね！',
+    signInPrompt: '続きを話すにはサインインしてね',
+    signInBtn: 'Blueskyでサインイン',
+    suggest: 'おすすめ',
+  },
+  en: {
+    placeholder: "Type a message...", name: "bot-tan", welcome: "✨ Special Welcome from bot-tan...", tadaima: "I'm home!", konnichiwa: "Hello!", hajimemashite: "Nice to meet you!",
+    giftLabel: 'Gift', chatLabel: 'Chat',
+    giftTooltip: 'Give bot-tan a gift once a day!\nBot-tan might show it on Bluesky!',
+    giftPlaceholder: "What's the gift?",
+    roomFullTitle: 'Room is full',
+    roomFullMsg: 'The room is full today! See you tomorrow!',
+    signInPrompt: 'Sign in to keep chatting',
+    signInBtn: 'Sign in with Bluesky',
+    suggest: 'Try',
+  },
 };
 
 /**
@@ -144,9 +164,7 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking 
               fontWeight: 700,
               color: isGiftMode ? 'rgba(200, 60, 100, 0.85)' : 'rgba(58, 155, 213, 0.85)',
             }}>
-              {isGiftMode
-                ? (lang === 'ja' ? 'プレゼント' : 'Gift')
-                : (lang === 'ja' ? 'チャット' : 'Chat')}
+              {isGiftMode ? l.giftLabel : l.chatLabel}
             </span>
             {isGiftMode && (
               <div style={{ position: 'relative' }}>
@@ -188,10 +206,11 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking 
                     fontWeight: 600,
                     width: '200px',
                     lineHeight: 1.6,
+                    whiteSpace: 'pre-line',
                     boxShadow: '0 4px 16px rgba(200, 60, 100, 0.15)',
                     zIndex: 20,
                   }}>
-                    botたんに1日1回プレゼントをあげよう！<br/>Blueskyで見せてくれるかも？
+                    {l.giftTooltip}
                   </div>
                 )}
               </div>
@@ -226,7 +245,7 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking 
                     handleGiftSend();
                   }
                 }}
-                placeholder={lang === "ja" ? "プレゼントの名前をいれてね" : "What's the gift?"}
+                placeholder={l.giftPlaceholder}
                 disabled={isGiftProcessing}
                 className="flex-1 text-slate-800 placeholder-slate-400 outline-none text-base font-semibold shadow-inner transition-all duration-200"
                 style={{
@@ -305,25 +324,25 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking 
                   <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
                 <span className="text-sm">
-                  {lang === "ja" ? "お部屋が満員になりました" : "Room is full"}
+                  {l.roomFullTitle}
                 </span>
               </div>
               <p className="text-xs font-semibold text-slate-500 leading-relaxed" style={{ margin: 0 }}>
-                {lang === "ja" ? "今日はbotたんのお部屋は満員になっちゃった！　また明日ね！" : "The room is full today! See you tomorrow!"}
+                {l.roomFullMsg}
               </p>
             </div>
           ) : !isSignedIn && guestTurnCount >= 3 ? (
             /* ゲスト3ターン制限: サインイン促進UI */
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center' }}>
               <p style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(58, 155, 213, 0.9)', textAlign: 'center', margin: 0 }}>
-                {lang === 'ja' ? '続きを話すにはサインインしてね' : 'Sign in to keep chatting'}
+                {l.signInPrompt}
               </p>
               <button
                 onClick={onRequestSignIn}
                 className="w-full font-black text-white text-sm shadow-md tracking-wide transition-all duration-300 hover:brightness-105 active:scale-[0.97] bg-theme-gradient"
                 style={{ borderRadius: '9999px', padding: '10px 20px' }}
               >
-                {lang === 'ja' ? 'Blueskyでサインイン' : 'Sign in with Bluesky'}
+                {l.signInBtn}
               </button>
             </div>
           ) : (
@@ -393,7 +412,7 @@ export function ChatView({ lang, assistantMessage, isChatProcessing, isSpeaking 
               {/* 定型文おすすめボタン */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(58,155,213,0.5)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  {lang === 'ja' ? 'おすすめ' : 'Try'}
+                  {l.suggest}
                 </span>
                 {templatePair.map((idx, i) => (
                   <button

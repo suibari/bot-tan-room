@@ -1438,6 +1438,7 @@ export default function MainHome() {
             { role: "user" as const, content: giftEntry, userName },
             { role: "assistant" as const, content: thankYou },
           ]);
+          setIsGiftMode(false);
 
           // DB会話履歴にも記録
           if (did) {
@@ -1500,7 +1501,7 @@ export default function MainHome() {
         setChatProcessing(false);
       }
     },
-    [lang, userName, safeSpeak, viewer, prefetchedMood]
+    [lang, userName, safeSpeak, viewer, prefetchedMood, setIsGiftMode]
   );
 
   const handleOpenMyPage = useCallback(async () => {
