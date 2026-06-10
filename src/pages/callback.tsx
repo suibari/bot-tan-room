@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
 import { GetStaticProps } from 'next';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import { getJSTHour, interpolateBackground } from '@/utils/timeBasedBackground';
 
 export default function CallbackPage() {
-  const router = useRouter();
   const [gradient, setGradient] = useState<string>(
     'linear-gradient(180deg, #3a9bd5 0%, #74c0e8 45%, #b0ddf5 100%)'
   );
@@ -21,15 +19,16 @@ export default function CallbackPage() {
     import('@/features/auth/bskyOAuth')
       .then(({ getBskyOAuthClient }) => getBskyOAuthClient().init())
       .then(() => {
-        router.replace('/');
+        // フルページリロードで遷移することでシングルトンを再生成し、
+        // ホームページの init() がセッションを正しく取得できるようにする
+        window.location.replace('/');
       })
       .catch((e: unknown) => {
         // ライブラリが自身でリダイレクト処理中の場合は干渉しない
         if (e instanceof Error && e.message.includes('Redirecting')) return;
         console.error('[callback] OAuth init error:', e);
-        router.replace('/');
+        window.location.replace('/');
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
