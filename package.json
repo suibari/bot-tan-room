@@ -9,7 +9,7 @@
     "export": "next export",
     "lint": "next lint",
     "generate-icons": "node scripts/generate-pwa-icons.mjs",
-    "pages:build": "next build && npx @cloudflare/next-on-pages",
+    "pages:build": "next build && npx @cloudflare/next-on-pages && rm -rf .next/cache",
     "pages:preview": "npx wrangler pages dev .vercel/output/static",
     "pages:deploy": "npx wrangler pages deploy .vercel/output/static --project-name room-bot-tan"
   },
