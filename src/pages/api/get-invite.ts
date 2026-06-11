@@ -1,6 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { verifyAtprotoToken } from '@/lib/jwtVerifier';
-import { createClient } from '@vercel/kv';
+import { Redis } from '@upstash/redis/cloudflare';
+
+export const runtime = 'edge';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -21,23 +23,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    const kv = createClient({
-      url: process.env.VRM_BOT_KV_REST_API_URL,
-      token: process.env.VRM_BOT_KV_REST_API_TOKEN,
+    const redis = new Redis({
+      url: process.env.VRM_BOT_KV_REST_API_URL!,
+      token: process.env.VRM_BOT_KV_REST_API_TOKEN!,
     });
 
     const key = `invite:${did}`;
-    const invite: { textJa?: string; textEn?: string; text?: string } | null = await kv.get(key);
+    const invite: { textJa?: string; textEn?: string; text?: string } | null = await redis.get(key);
 
     if (!invite) {
       return res.status(200).json({ hasInvite: false });
     }
 
-    // 1回限りのお迎え表示・再生とするため、KVから該当キーを即時削除する
     console.log(`[API get-invite] Found invite for DID: ${did}, deleting key from KV`);
-    await kv.del(key);
+    await redis.del(key);
 
-    // 後方互換性のために、もし textJa/textEn がなければ単一の text からフォールバックする
     const textJa = invite.textJa || invite.text || '';
     const textEn = invite.textEn || invite.text || '';
 

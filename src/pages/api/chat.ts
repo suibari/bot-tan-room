@@ -1,38 +1,38 @@
 import { GoogleGenAI } from "@google/genai";
 import { GEMINI_MODELS } from "@/features/constants/aiModels";
-import type { NextApiRequest, NextApiResponse } from "next";
+import type { NextRequest } from "next/server";
 import { checkAndIncrementDailyLimit, checkRateLimit } from "@/lib/rateLimit";
 import { withGeminiRetry } from "@/lib/geminiRetry";
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export const runtime = 'edge';
+
+export default async function handler(req: NextRequest): Promise<Response> {
   if (req.method !== 'POST') {
-    res.status(405).json({ message: 'Method Not Allowed' });
-    return;
+    return new Response(JSON.stringify({ message: 'Method Not Allowed' }), {
+      status: 405, headers: { 'Content-Type': 'application/json' },
+    });
   }
 
   // 1日あたりのGeminiリクエスト制限チェック
   const rateLimit = await checkAndIncrementDailyLimit();
   if (!rateLimit.allowed) {
     console.warn(`[API chat] Daily Gemini request limit reached (${rateLimit.count}/${rateLimit.limit}). Blocking request.`);
-    return res.status(429).json({
+    return new Response(JSON.stringify({
       error: 'quota_exceeded',
       message: '今日はbotたんのお部屋は満員になっちゃった！　また明日ね！',
-    });
+    }), { status: 429, headers: { 'Content-Type': 'application/json' } });
   }
 
   // IP-based Rate Limit Check
-  const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'anonymous';
-  const clientIp = ip.split(',')[0].trim();
+  const forwardedFor = req.headers.get('x-forwarded-for') ?? 'anonymous';
+  const clientIp = forwardedFor.split(',')[0].trim();
 
   // 10 seconds frequency limit (max 5 requests)
   const ipSecLimit = await checkRateLimit(`ip_sec:${clientIp}`, 5, 10);
   if (!ipSecLimit.allowed) {
     console.warn(`[API chat] IP frequency limit hit for ${clientIp}. Blocking request.`);
-    return res.status(429).json({
-      message: 'そんなに連打しちゃうとbotたん疲れちゃう！　少し待ってね。'
+    return new Response(JSON.stringify({ message: 'そんなに連打しちゃうとbotたん疲れちゃう！　少し待ってね。' }), {
+      status: 429, headers: { 'Content-Type': 'application/json' },
     });
   }
 
@@ -40,24 +40,34 @@ export default async function handler(
   const ipHourLimit = await checkRateLimit(`ip_hour:${clientIp}`, 100, 3600);
   if (!ipHourLimit.allowed) {
     console.warn(`[API chat] IP hourly limit hit for ${clientIp}. Blocking request.`);
-    return res.status(429).json({
-      message: '少しお話しすぎちゃったかも！　1時間後にまたお話ししようね。'
+    return new Response(JSON.stringify({ message: '少しお話しすぎちゃったかも！　1時間後にまたお話ししようね。' }), {
+      status: 429, headers: { 'Content-Type': 'application/json' },
     });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
-
   if (!apiKey) {
     console.error("GEMINI_API_KEY is not set");
-    res.status(500).json({ message: "API Key not set in environment" });
-    return;
+    return new Response(JSON.stringify({ message: "API Key not set in environment" }), {
+      status: 500, headers: { 'Content-Type': 'application/json' },
+    });
   }
 
-  const { messages, lang, regularLevel, userName } = req.body;
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ message: "Invalid JSON body" }), {
+      status: 400, headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const { messages, lang, regularLevel, userName } = body;
 
   if (!messages || !Array.isArray(messages)) {
-    res.status(400).json({ message: "Invalid messages format" });
-    return;
+    return new Response(JSON.stringify({ message: "Invalid messages format" }), {
+      status: 400, headers: { 'Content-Type': 'application/json' },
+    });
   }
 
   const client = new GoogleGenAI({ apiKey });
@@ -66,10 +76,8 @@ export default async function handler(
   const { maxSentences, maxChars } = getLengthConstraint(level);
   const intimacyInstruction = getIntimacyInstruction(level, typeof userName === 'string' ? userName.trim() : '');
 
-  // System prompt logic
   let systemInstruction = messages.find((m: any) => m.role === 'system')?.content;
   if (systemInstruction) {
-    // 確実に出力を抑制するための最重要指示を末尾に追加
     systemInstruction +=
       "\n\n[最重要：出力の制限ルール]\n" +
       `1. あなたの返答は、${maxSentences}文・${maxChars}文字以内を上限とし、自然な範囲で返答してください。長文や要約、解説は禁止です。\n` +
@@ -86,33 +94,31 @@ export default async function handler(
     }));
 
   const lastMessage = history.pop();
-
   if (!lastMessage) {
-    res.status(400).json({ message: "No user message found" });
-    return;
+    return new Response(JSON.stringify({ message: "No user message found" }), {
+      status: 400, headers: { 'Content-Type': 'application/json' },
+    });
   }
 
   // ユーザーメッセージの文字数制限（100文字）バリデーションとサニタイズ
   if (lastMessage.parts && lastMessage.parts[0] && typeof lastMessage.parts[0].text === 'string') {
     let userMsgText = lastMessage.parts[0].text;
 
-    // 1. 文字数制限
     if (userMsgText.length > 100) {
-      res.status(400).json({ message: "メッセージは100文字以内で入力してください。" });
-      return;
+      return new Response(JSON.stringify({ message: "メッセージは100文字以内で入力してください。" }), {
+        status: 400, headers: { 'Content-Type': 'application/json' },
+      });
     }
 
-    // 2. サニタイズ (HTMLタグ除去)
     userMsgText = sanitizeInput(userMsgText);
     lastMessage.parts[0].text = userMsgText;
 
-    // 3. プロンプトインジェクション検知
     if (detectPromptInjection(userMsgText)) {
       console.warn(`[API chat] Prompt injection detected from IP ${clientIp}: "${userMsgText}"`);
-      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-      res.write("[ja][happy]あえっ？なんだか難しいことを言ってるね！botたんはあなたと普通におしゃべりしたいなー♪[en][happy]Huh? That sounds a bit too complicated for me! I just want to have a fun and normal chat with you!♪");
-      res.end();
-      return;
+      return new Response(
+        "[ja][happy]あえっ？なんだか難しいことを言ってるね！botたんはあなたと普通におしゃべりしたいなー♪[en][happy]Huh? That sounds a bit too complicated for me! I just want to have a fun and normal chat with you!♪",
+        { headers: { 'Content-Type': 'text/plain; charset=utf-8' } }
+      );
     }
   }
 
@@ -130,24 +136,18 @@ export default async function handler(
     history.pop();
   }
 
-  // 最後のユーザー発言の末尾に、強力なフォーマット制約をインジェクションして出力崩れと長文化を完全に防ぐ
   if (lastMessage.parts && lastMessage.parts[0] && typeof lastMessage.parts[0].text === 'string') {
     const rawText = lastMessage.parts[0].text;
-    
-    // システムの返答ルールをモデルに強制的に意識させるための割り込み命令
     const constraintSuffix =
       `\n\n(※システムルール遵守：絶対に太字(**)やイタリック(*)、箇条書きなどのマークダウン装飾を使用せず、${maxSentences}文・${maxChars}文字以内を上限として自然なプレーンテキストで、改行を使わずに1段落で返答してください。過去の会話全体の要約や振り返りは絶対に禁止です。${intimacyInstruction ? ` また、${intimacyInstruction}` : ''})`;
-    
     lastMessage.parts[0].text = rawText + constraintSuffix;
   }
 
-  let fullResponse = "";
-  let streamStarted = false; // 最初のチャンク出力後は true（以降フォールバック不可）
+  const chatModels = GEMINI_MODELS;
   let lastErr: unknown = null;
   let isQuotaExceeded = false;
 
-  // 会話機能には Gemini 2.5 Flash Lite を使用
-  const chatModels = GEMINI_MODELS;
+  // 会話機能には Gemini 2.5 Flash Lite を使用、フォールバックあり
   for (const model of chatModels) {
     try {
       const streamResult = await withGeminiRetry(() => client.models.generateContentStream({
@@ -155,72 +155,61 @@ export default async function handler(
         config: {
           systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
         },
-        contents: [
-          ...history,
-          lastMessage
-        ]
+        contents: [...history, lastMessage],
       }));
 
-      for await (const chunk of streamResult) {
-        const chunkText = chunk.text;
-        if (chunkText) {
-          if (!streamStarted) {
-            // 最初の有効チャンクが来たタイミングでヘッダーを送る
-            res.writeHead(200, {
-              'Content-Type': 'text/plain; charset=utf-8',
-              'Transfer-Encoding': 'chunked',
-              'Cache-Control': 'no-cache, no-transform',
-              'X-Accel-Buffering': 'no', // プロキシのバッファリングを無効化
-            });
-            res.flushHeaders?.();
-            streamStarted = true;
+      const encoder = new TextEncoder();
+      const readable = new ReadableStream({
+        async start(controller) {
+          try {
+            for await (const chunk of streamResult) {
+              const chunkText = chunk.text;
+              if (chunkText) {
+                controller.enqueue(encoder.encode(chunkText));
+              }
+            }
+          } catch (e) {
+            // すでにストリーム開始後のエラーは中断のみ
+            console.error(`[API chat] Stream error for model ${model}:`, e);
           }
-          res.write(chunkText);
-          // 圧縮ミドルウェア等が挟まる場合に備えて即時フラッシュ
-          (res as unknown as { flush?: () => void }).flush?.();
-          fullResponse += chunkText;
-        }
-      }
+          controller.close();
+        },
+      });
 
-      lastErr = null;
-      break; // このモデルで正常に完走
+      return new Response(readable, {
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Cache-Control': 'no-cache, no-transform',
+          'X-Accel-Buffering': 'no',
+        },
+      });
     } catch (error) {
       console.error(`Gemini API Error (model: ${model}):`, error);
       lastErr = error;
       if (isQuotaExceededError(error)) {
         isQuotaExceeded = true;
       }
-      // すでにクライアントへ書き込み中なら途中で別モデルに切り替えられないので中断
-      if (streamStarted) break;
-      // まだヘッダー未送信なら次のモデルへフォールバック
+      // まだ Response 未返却なので次のモデルへフォールバック
     }
   }
 
-  // 全モデルが出力前に失敗した場合
-  if (!streamStarted) {
-    console.error("All Gemini models failed:", lastErr);
-    if (!res.headersSent) {
-      if (isQuotaExceeded || isQuotaExceededError(lastErr)) {
-        res.status(429).json({
-          error: 'quota_exceeded',
-          message: '今日はbotたんのお部屋は満員になっちゃった！　また明日ね！',
-        });
-      } else {
-        res.status(500).json({ message: "AI応答の生成に失敗しました。しばらくしてからもう一度お試しください。" });
-      }
-    }
-    return;
+  // 全モデルが失敗した場合
+  console.error("All Gemini models failed:", lastErr);
+  if (isQuotaExceeded || isQuotaExceededError(lastErr)) {
+    return new Response(JSON.stringify({
+      error: 'quota_exceeded',
+      message: '今日はbotたんのお部屋は満員になっちゃった！　また明日ね！',
+    }), { status: 429, headers: { 'Content-Type': 'application/json' } });
   }
-
-  res.end();
+  return new Response(JSON.stringify({ message: "AI応答の生成に失敗しました。しばらくしてからもう一度お試しください。" }), {
+    status: 500, headers: { 'Content-Type': 'application/json' },
+  });
 }
 
 function isQuotaExceededError(err: any): boolean {
   if (!err) return false;
   const status = err.status ?? err.statusCode ?? err.status_code;
-  if (status === 429 || status === 403) {
-    return true;
-  }
+  if (status === 429 || status === 403) return true;
   const errString = String(err.message ?? err.stack ?? err.toString() ?? "").toLowerCase();
   return (
     errString.includes("429") ||
@@ -236,7 +225,6 @@ function isQuotaExceededError(err: any): boolean {
 
 function sanitizeInput(text: string): string {
   if (!text) return "";
-  // Strip HTML tags using regex
   return text.replace(/<[^>]*>/g, "").trim();
 }
 
@@ -282,4 +270,3 @@ function getLengthConstraint(level: number): { maxSentences: number; maxChars: n
   if (level <= 94) return { maxSentences: 6, maxChars: 480 };
   return           { maxSentences: 6, maxChars: 500 };
 }
-

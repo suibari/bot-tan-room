@@ -1,14 +1,10 @@
-import { createClient } from '@vercel/kv';
+import { Redis } from '@upstash/redis/cloudflare';
 
-// Initialize Vercel KV client using custom variables VRM_BOT_* configured in the project
-const kv = createClient({
-  url: process.env.VRM_BOT_KV_REST_API_URL,
-  token: process.env.VRM_BOT_KV_REST_API_TOKEN,
+const redis = new Redis({
+  url: process.env.VRM_BOT_KV_REST_API_URL!,
+  token: process.env.VRM_BOT_KV_REST_API_TOKEN!,
 });
 
-/**
- * Gets the current date string formatted as 'YYYY-MM-DD' in Asia/Tokyo (JST) timezone.
- */
 function getJstDateString(): string {
   const formatter = new Intl.DateTimeFormat('ja-JP', {
     timeZone: 'Asia/Tokyo',
@@ -16,8 +12,6 @@ function getJstDateString(): string {
     month: '2-digit',
     day: '2-digit',
   });
-  
-  // ja-JP formatter outputs "YYYY/MM/DD", convert to "YYYY-MM-DD"
   return formatter.format(new Date()).replace(/\//g, '-');
 }
 
@@ -27,10 +21,6 @@ interface RateLimitResult {
   limit: number;
 }
 
-/**
- * Increments the daily request counter in Vercel KV and checks against the daily limit.
- * If KV errors or is unreachable, it fails open (returns allowed: true) to avoid total downtime.
- */
 export async function checkAndIncrementDailyLimit(): Promise<RateLimitResult> {
   const limitStr = process.env.DAILY_GEMINI_REQUEST_LIMIT || '500';
   const limit = parseInt(limitStr, 10);
@@ -39,27 +29,18 @@ export async function checkAndIncrementDailyLimit(): Promise<RateLimitResult> {
   const key = `gemini_req_count:${jstDate}`;
 
   try {
-    // Increment atomically
-    const count = await kv.incr(key);
-
-    // If it's a newly created key, set expiration TTL (36 hours) for automatic cleanup
+    const count = await redis.incr(key);
     if (count === 1) {
-      await kv.expire(key, 36 * 60 * 60);
+      await redis.expire(key, 36 * 60 * 60);
     }
-
     const allowed = count <= limit;
     return { allowed, count, limit };
   } catch (error) {
-    // Fail open: log the error, but let the user proceed rather than hard crashing
-    console.error('[RateLimit] Vercel KV connection error, failing open:', error);
+    console.error('[RateLimit] Redis connection error, failing open:', error);
     return { allowed: true, count: 0, limit };
   }
 }
 
-/**
- * Checks the daily request status in Vercel KV WITHOUT incrementing it.
- * If KV errors or is unreachable, it fails open (returns allowed: true).
- */
 export async function getDailyLimitStatus(): Promise<RateLimitResult> {
   const limitStr = process.env.DAILY_GEMINI_REQUEST_LIMIT || '500';
   const limit = parseInt(limitStr, 10);
@@ -68,20 +49,16 @@ export async function getDailyLimitStatus(): Promise<RateLimitResult> {
   const key = `gemini_req_count:${jstDate}`;
 
   try {
-    const countVal = await kv.get<number>(key);
+    const countVal = await redis.get<number>(key);
     const count = countVal || 0;
     const allowed = count < limit;
     return { allowed, count, limit };
   } catch (error) {
-    console.error('[RateLimit] Vercel KV connection error, failing open:', error);
+    console.error('[RateLimit] Redis connection error, failing open:', error);
     return { allowed: true, count: 0, limit };
   }
 }
 
-/**
- * Checks and increments a custom sliding-window rate limit key (e.g., IP or DID) in Vercel KV.
- * Fails open in case of network/KV errors to prevent service disruption.
- */
 export async function checkRateLimit(
   key: string,
   limit: number,
@@ -89,9 +66,9 @@ export async function checkRateLimit(
 ): Promise<RateLimitResult> {
   const redisKey = `ratelimit:${key}`;
   try {
-    const count = await kv.incr(redisKey);
+    const count = await redis.incr(redisKey);
     if (count === 1) {
-      await kv.expire(redisKey, windowSeconds);
+      await redis.expire(redisKey, windowSeconds);
     }
     const allowed = count <= limit;
     return { allowed, count, limit };
@@ -100,4 +77,3 @@ export async function checkRateLimit(
     return { allowed: true, count: 0, limit };
   }
 }
-

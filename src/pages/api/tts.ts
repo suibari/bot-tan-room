@@ -1,6 +1,7 @@
 import { koeiromapFreeV1 } from "@/features/koeiromap/koeiromap";
-
 import type { NextApiRequest, NextApiResponse } from "next";
+
+export const runtime = 'edge';
 
 type Data = {
   audio: string;

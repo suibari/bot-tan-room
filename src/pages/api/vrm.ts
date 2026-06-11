@@ -1,8 +1,8 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import fs from 'fs';
-import path from 'path';
 import type { NextApiRequest, NextApiResponse } from 'next';
+
+export const runtime = 'edge';
 
 const r2 = new S3Client({
   region: "auto",
@@ -11,28 +11,11 @@ const r2 = new S3Client({
     accessKeyId: process.env.CF_R2_ACCESS_KEY_ID!,
     secretAccessKey: process.env.CF_R2_SECRET_ACCESS_KEY!,
   },
-  // Cloudflare R2 does not support x-amz-checksum-mode=ENABLED (added by SDK v3.600+)
   requestChecksumCalculation: "WHEN_REQUIRED",
   responseChecksumValidation: "WHEN_REQUIRED",
 });
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Dev: serve local file directly to avoid CORS issues with localhost
-  if (process.env.NODE_ENV === 'development') {
-    const filePath = path.join(process.cwd(), 'models', 'bot-tan.vrm');
-    if (!fs.existsSync(filePath)) {
-      res.status(404).json({ error: 'Model not found' });
-      return;
-    }
-    const stat = fs.statSync(filePath);
-    res.writeHead(200, {
-      'Content-Type': 'application/octet-stream',
-      'Content-Length': stat.size,
-    });
-    fs.createReadStream(filePath).pipe(res);
-    return;
-  }
-
   try {
     const url = await getSignedUrl(
       r2,

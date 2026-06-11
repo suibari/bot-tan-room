@@ -1,5 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import type { NextApiRequest, NextApiResponse } from 'next';
+
+export const runtime = 'edge';
 import { GEMINI_MODELS } from '@/features/constants/aiModels';
 import { checkAndIncrementDailyLimit, checkRateLimit } from '@/lib/rateLimit';
 import { withGeminiRetry } from '@/lib/geminiRetry';
@@ -120,7 +122,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // IP-based Rate Limit Check
-  const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'anonymous';
+  const ip = (req.headers['x-forwarded-for'] as string) || 'anonymous';
   const clientIp = ip.split(',')[0].trim();
 
   // 10 seconds frequency limit (max 5 requests)

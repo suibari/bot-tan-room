@@ -1,4 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+
+export const runtime = 'edge';
 import { verifyAtprotoToken } from '@/lib/jwtVerifier';
 
 const VALID_AMOUNTS = new Set([10, 20]);

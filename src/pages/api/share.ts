@@ -1,11 +1,11 @@
-import { createClient } from '@vercel/kv';
+import { Redis } from '@upstash/redis/cloudflare';
 import type { NextApiRequest, NextApiResponse } from 'next';
-import crypto from 'crypto';
 
-// ユーザー指定の環境変数 VRM_BOT_* を使って KV クライアントを初期化
-const kv = createClient({
-  url: process.env.VRM_BOT_KV_REST_API_URL,
-  token: process.env.VRM_BOT_KV_REST_API_TOKEN,
+export const runtime = 'edge';
+
+const redis = new Redis({
+  url: process.env.VRM_BOT_KV_REST_API_URL!,
+  token: process.env.VRM_BOT_KV_REST_API_TOKEN!,
 });
 
 type Comparison = {
@@ -29,7 +29,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       lang?: 'ja' | 'en';
     };
 
-    // 入力の基本バリデーション
     if (!name || typeof name !== 'string') {
       return res.status(400).json({ message: 'Invalid or missing name' });
     }
@@ -56,12 +55,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    // ランダムなID (UUID v4) を生成
     const id = crypto.randomUUID();
-
-    // Vercel KVに保存。有効期限は30日間（TTL: 30 days in seconds = 2,592,000秒）
     const key = `share:${id}`;
-    await kv.set(
+    await redis.set(
       key,
       {
         name: safeName,
@@ -70,9 +66,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         comparisons: safeComparisons,
         lang: safeLang,
       },
-      {
-        ex: 30 * 24 * 60 * 60, // 30 days
-      }
+      { ex: 30 * 24 * 60 * 60 },
     );
 
     console.log(`[API share] Saved share data to KV with key: ${key}`);

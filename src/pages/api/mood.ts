@@ -1,4 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+
+export const runtime = 'edge';
 import { getUtilities } from '@/utils/utilityAI';
 
 /**

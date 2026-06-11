@@ -1,6 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { verifyAtprotoToken } from '@/lib/jwtVerifier';
 import { GoogleGenAI } from "@google/genai";
+
+export const runtime = 'edge';
 import { GEMINI_MODEL } from "@/features/constants/aiModels";
 import { BOTTAN_CHARACTER_SETTINGS } from "@/features/constants/bottanCharacterSettings";
 import { withGeminiRetry } from '@/lib/geminiRetry';

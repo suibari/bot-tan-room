@@ -1,6 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { verifyAtprotoToken } from '@/lib/jwtVerifier';
 
+export const runtime = 'edge';
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const DB_URL = process.env.DB_URL ?? 'https://db.suibari.com';
   const CF_ID = process.env.CF_ACCESS_CLIENT_ID_DB;

@@ -1,4 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+
+export const runtime = 'edge';
 import { verifyAtprotoToken } from '@/lib/jwtVerifier';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

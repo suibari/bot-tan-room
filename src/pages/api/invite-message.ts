@@ -1,12 +1,13 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { createClient } from '@vercel/kv';
+import { Redis } from '@upstash/redis/cloudflare';
+
+export const runtime = 'edge';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
-  // 1. Secret Key authentication
   const secretKey = process.env.INVITE_SECRET_KEY;
   if (!secretKey) {
     console.error('[API invite-message error]: INVITE_SECRET_KEY is not configured in environment variables.');
@@ -14,7 +15,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const authHeader = req.headers['authorization'];
-  // 'Bearer ' から始まる場合のみ、その後のトークン文字列（7文字目以降）を抽出
   const clientKey = authHeader && authHeader.startsWith('Bearer ')
     ? authHeader.substring(7)
     : null;
@@ -24,7 +24,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ message: 'Unauthorized' });
   }
 
-  // 2. Validate input parameters
   const { did, textJa, textEn } = req.body;
   if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
     return res.status(400).json({ message: 'Invalid or missing DID' });
@@ -37,16 +36,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
-    // 3. TTS省略: テキストのみKVに保存し即座に200を返す
-    //    音声生成はフロントエンドが /api/generate-audio (Edge) で行う
-
-    // 4. テキストのみVercel KVに保存
-    const kv = createClient({
-      url: process.env.VRM_BOT_KV_REST_API_URL,
-      token: process.env.VRM_BOT_KV_REST_API_TOKEN,
+    const redis = new Redis({
+      url: process.env.VRM_BOT_KV_REST_API_URL!,
+      token: process.env.VRM_BOT_KV_REST_API_TOKEN!,
     });
 
-    await kv.set(
+    await redis.set(
       `invite:${did}`,
       {
         textJa: textJa.trim(),
