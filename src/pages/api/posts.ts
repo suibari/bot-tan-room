@@ -1,10 +1,13 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+
+export default async function handler(req: NextRequest): Promise<Response> {
   if (req.method !== 'GET') {
-    return res.status(405).json({ message: 'Method Not Allowed' });
+    return json({ message: 'Method Not Allowed' }, 405);
   }
 
   const DB_URL = process.env.DB_URL ?? 'https://db.suibari.com';
@@ -13,11 +16,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!CF_ID || !CF_SECRET) {
     console.error('[API posts error]: Cloudflare Access Client ID_DB/Secret_DB not configured in environment variables.');
-    return res.status(500).json({ message: 'Server Configuration Error' });
+    return json({ message: 'Server Configuration Error' }, 500);
   }
-
-  // 安全に環境変数の読み込み状況と文字数を確認するためのログ（値自体は漏洩させない）
-  // console.log(`[API posts debug]: DB_URL="${DB_URL}", CF_ID=${CF_ID ? 'Configured (length=' + CF_ID.length + ')' : 'Missing'}, CF_SECRET=${CF_SECRET ? 'Configured (length=' + CF_SECRET.length + ')' : 'Missing'}`);
 
   const headers: HeadersInit = {
     'Accept-Profile': 'affirmative_bot',
@@ -58,13 +58,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const merged = [
       ...posts.map((p) => ({ text: p.post, created_at: p.created_at })),
       ...replies.map((r) => ({ text: r.reply, created_at: r.created_at })),
-    ].sort(() => Math.random() - 0.5); // シャッフルして背景表示用に返す
+    ].sort(() => Math.random() - 0.5);
 
-    res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate');
-    return res.status(200).json(merged);
+    return new Response(JSON.stringify(merged), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 's-maxage=300, stale-while-revalidate',
+      },
+    });
   } catch (e) {
     console.error('posts API error:', e);
-    return res.status(500).json({ message: 'Internal Server Error' });
+    return json({ message: 'Internal Server Error' }, 500);
   }
 }
-

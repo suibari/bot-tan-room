@@ -1,38 +1,41 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextRequest } from 'next/server';
 import { Redis } from '@upstash/redis/cloudflare';
 
 export const runtime = 'edge';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+
+export default async function handler(req: NextRequest): Promise<Response> {
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method Not Allowed' });
+    return json({ message: 'Method Not Allowed' }, 405);
   }
 
   const secretKey = process.env.INVITE_SECRET_KEY;
   if (!secretKey) {
     console.error('[API invite-message error]: INVITE_SECRET_KEY is not configured in environment variables.');
-    return res.status(500).json({ message: 'Server Configuration Error' });
+    return json({ message: 'Server Configuration Error' }, 500);
   }
 
-  const authHeader = req.headers['authorization'];
+  const authHeader = req.headers.get('authorization');
   const clientKey = authHeader && authHeader.startsWith('Bearer ')
     ? authHeader.substring(7)
     : null;
 
   if (clientKey !== secretKey) {
     console.warn('[API invite-message] Rejected unauthorized access attempt');
-    return res.status(401).json({ message: 'Unauthorized' });
+    return json({ message: 'Unauthorized' }, 401);
   }
 
-  const { did, textJa, textEn } = req.body;
+  const { did, textJa, textEn } = await req.json();
   if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
-    return res.status(400).json({ message: 'Invalid or missing DID' });
+    return json({ message: 'Invalid or missing DID' }, 400);
   }
   if (!textJa || typeof textJa !== 'string' || textJa.trim().length === 0) {
-    return res.status(400).json({ message: 'Invalid or missing textJa' });
+    return json({ message: 'Invalid or missing textJa' }, 400);
   }
   if (!textEn || typeof textEn !== 'string' || textEn.trim().length === 0) {
-    return res.status(400).json({ message: 'Invalid or missing textEn' });
+    return json({ message: 'Invalid or missing textEn' }, 400);
   }
 
   try {
@@ -50,9 +53,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     );
 
-    return res.status(200).json({ success: true });
+    return json({ success: true });
   } catch (e) {
     console.error('[API invite-message error]:', e);
-    return res.status(500).json({ message: 'Internal Server Error' });
+    return json({ message: 'Internal Server Error' }, 500);
   }
 }

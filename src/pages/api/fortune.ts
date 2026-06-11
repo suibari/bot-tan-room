@@ -1,13 +1,11 @@
 import { GoogleGenAI } from '@google/genai';
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 import { GEMINI_MODELS } from '@/features/constants/aiModels';
 import { checkAndIncrementDailyLimit, checkRateLimit } from '@/lib/rateLimit';
 import { withGeminiRetry } from '@/lib/geminiRetry';
 
-// 1回の生成で日英両方を出力する。トグルは ja/en を出し分けるだけ（追加リクエストなし）。
-// 発話（VoiceVox）は常に analysis_ja を使う。
 type Comparison = {
   category_ja: string;
   value_ja: string;
@@ -42,8 +40,6 @@ const COMPARISON_CATEGORIES: CategoryDef[] = [
   { ja: '食べ物', en: 'Food', example_ja: '焼き立ての温かいアップルパイ', example_en: 'A freshly baked warm apple pie' }
 ];
 
-// 統合プロンプト: 常に日本語・英語の両方を1回のリクエストで生成する
-// VoiceVox発話には analysis_ja のみ使用。表示は lang に応じて切り替え。
 const INTEGRATED_PROMPT = (name: string, answers: AnswerItem[], categories: CategoryDef[]) => `
 You are "bot-tan" (botたん). You are a warm, cheerful teenage girl who fully embraces and validates everything the user shares.
 Japanese style: casual, endings like 「～だよ」「～だね」「～よ」, no formal language, call the user「${name}ちゃん」.
@@ -106,74 +102,66 @@ Output in EXACTLY this structure (do NOT use placeholders, output actual generat
 }
 `;
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+
+export default async function handler(req: NextRequest): Promise<Response> {
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method Not Allowed' });
+    return json({ message: 'Method Not Allowed' }, 405);
   }
 
-  // 1日あたりのGeminiリクエスト制限チェック
   const rateLimit = await checkAndIncrementDailyLimit();
   if (!rateLimit.allowed) {
     console.warn(`[API fortune] Daily Gemini request limit reached (${rateLimit.count}/${rateLimit.limit}). Blocking request.`);
-    return res.status(429).json({
+    return json({
       error: 'quota_exceeded',
       message: '今日はbotたんのお部屋は満員になっちゃった！　また明日ね！',
-    });
+    }, 429);
   }
 
-  // IP-based Rate Limit Check
-  const ip = (req.headers['x-forwarded-for'] as string) || 'anonymous';
+  const ip = req.headers.get('x-forwarded-for') || 'anonymous';
   const clientIp = ip.split(',')[0].trim();
 
-  // 10 seconds frequency limit (max 5 requests)
   const ipSecLimit = await checkRateLimit(`ip_sec:${clientIp}`, 5, 10);
   if (!ipSecLimit.allowed) {
     console.warn(`[API fortune] IP frequency limit hit for ${clientIp}. Blocking request.`);
-    return res.status(429).json({
-      message: 'そんなに連打しちゃうとbotたん疲れちゃう！　少し待ってね。'
-    });
+    return json({ message: 'そんなに連打しちゃうとbotたん疲れちゃう！　少し待ってね。' }, 429);
   }
 
-  // 1 hour volume limit (max 100 requests)
   const ipHourLimit = await checkRateLimit(`ip_hour:${clientIp}`, 100, 3600);
   if (!ipHourLimit.allowed) {
     console.warn(`[API fortune] IP hourly limit hit for ${clientIp}. Blocking request.`);
-    return res.status(429).json({
-      message: '少しお話しすぎちゃったかも！　1時間後にまたお話ししようね。'
-    });
+    return json({ message: '少しお話しすぎちゃったかも！　1時間後にまたお話ししようね。' }, 429);
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ message: 'API Key not configured' });
+    return json({ message: 'API Key not configured' }, 500);
   }
 
-  const { name, answers } = req.body as {
+  const { name, answers } = await req.json() as {
     name?: string;
     lang?: 'ja' | 'en';
     answers?: AnswerItem[];
   };
 
-  // 1. 文字数制限バリデーション
   if (name && name.length > 30) {
-    return res.status(400).json({ message: "名前は30文字以内で入力してください。" });
+    return json({ message: "名前は30文字以内で入力してください。" }, 400);
   }
   if (Array.isArray(answers)) {
     for (const a of answers) {
       if (a && a.answer && a.answer.length > 500) {
-        return res.status(400).json({ message: "回答は500文字以内で入力してください。" });
+        return json({ message: "回答は500文字以内で入力してください。" }, 400);
       }
     }
   }
 
-  // 2. サニタイズ
   const safeName = sanitizeInput(name ?? 'you').slice(0, 30);
   const safeAnswers = (answers ?? []).slice(0, 3).map(a => ({
     question: sanitizeInput(a.question ?? '').slice(0, 200),
     answer: sanitizeInput(a.answer ?? '').slice(0, 500)
   }));
 
-  // 3. プロンプトインジェクション検知
   let hasInjection = detectPromptInjection(safeName);
   for (const a of safeAnswers) {
     if (detectPromptInjection(a.answer)) {
@@ -192,19 +180,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         { category_ja: "飲み物", value_ja: "しゅわしゅわのソーダ水", category_en: "Drink", value_en: "Sparkling soda water" }
       ]
     };
-    return res.status(200).json(mockResult);
+    return json(mockResult);
   }
 
-  // ランダムに3つのカテゴリを選択する
   const shuffled = [...COMPARISON_CATEGORIES].sort(() => 0.5 - Math.random());
   const selectedCategories = shuffled.slice(0, 3);
 
-  // 統合プロンプト: 言語選択に関係なく常に日英両方を生成
   const prompt = INTEGRATED_PROMPT(safeName, safeAnswers, selectedCategories);
 
   const client = new GoogleGenAI({ apiKey });
 
-  // 診断機能には Gemini 2.5 Flash Lite を使用
   const fortuneModels = GEMINI_MODELS;
   let parsedJson: any = null;
   let lastErr: unknown = null;
@@ -223,7 +208,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         console.warn(`[API fortune] Empty response from model ${model}. Full result:`, JSON.stringify(result));
       }
 
-      // JSONブロックの抽出 (堅牢なフォールバックパース)
       const jsonStart = text.indexOf('{');
       const jsonEnd = text.lastIndexOf('}');
       if (jsonStart !== -1 && jsonEnd !== -1) {
@@ -244,15 +228,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!parsedJson) {
     console.error('fortune API: all models failed', lastErr);
     if (isQuotaExceeded || isQuotaExceededError(lastErr)) {
-      return res.status(429).json({
+      return json({
         error: 'quota_exceeded',
         message: '今日はbotたんのお部屋は満員になっちゃった！　また明日ね！',
-      });
+      }, 429);
     }
-    return res.status(500).json({ message: 'Failed to generate diagnosis' });
+    return json({ message: 'Failed to generate diagnosis' }, 500);
   }
 
-  // 統合プロンプトで日英両方が生成される。そのままマッピングして返す。
   const finalResult: DiagnosisResult = {
     analysis_ja: parsedJson.analysis_ja ?? '',
     analysis_en: parsedJson.analysis_en ?? parsedJson.analysis_ja ?? '',
@@ -272,7 +255,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })).slice(0, 3) as [Comparison, Comparison, Comparison];
   }
 
-  return res.status(200).json(finalResult);
+  return json(finalResult);
 }
 
 function isQuotaExceededError(err: any): boolean {
@@ -296,7 +279,6 @@ function isQuotaExceededError(err: any): boolean {
 
 function sanitizeInput(text: string): string {
   if (!text) return "";
-  // Strip HTML tags using regex
   return text.replace(/<[^>]*>/g, "").trim();
 }
 
@@ -310,4 +292,3 @@ function detectPromptInjection(text: string): boolean {
   const lower = text.toLowerCase();
   return PROMPT_INJECTION_KEYWORDS.some(keyword => lower.includes(keyword));
 }
-

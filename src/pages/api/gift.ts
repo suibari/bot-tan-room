@@ -1,4 +1,4 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextRequest } from 'next/server';
 import { verifyAtprotoToken } from '@/lib/jwtVerifier';
 import { GoogleGenAI } from "@google/genai";
 
@@ -9,17 +9,21 @@ import { withGeminiRetry } from '@/lib/geminiRetry';
 
 const GIFT_MAX_CHARS = 30;
 
-async function handleGet(req: NextApiRequest, res: NextApiResponse) {
-  const { did } = req.query;
-  if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
-    return res.status(400).json({ message: 'Invalid or missing DID' });
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+
+async function handleGet(req: NextRequest): Promise<Response> {
+  const { searchParams } = new URL(req.url);
+  const did = searchParams.get('did');
+  if (!did || !did.startsWith('did:')) {
+    return json({ message: 'Invalid or missing DID' }, 400);
   }
 
-  const authHeader = req.headers.authorization;
+  const authHeader = req.headers.get('authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : '';
   const verification = await verifyAtprotoToken(token, did);
   if (!verification.verified) {
-    return res.status(401).json({ message: 'Unauthorized session' });
+    return json({ message: 'Unauthorized session' }, 401);
   }
 
   const DB_URL = process.env.DB_URL ?? 'https://db.suibari.com';
@@ -27,7 +31,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
   const CF_SECRET = process.env.CF_ACCESS_CLIENT_SECRET_DB;
 
   if (!CF_ID || !CF_SECRET) {
-    return res.status(500).json({ message: 'Server Configuration Error' });
+    return json({ message: 'Server Configuration Error' }, 500);
   }
 
   const dbHeaders: HeadersInit = {
@@ -46,19 +50,19 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
       throw new Error(`DB fetch failed with status ${giftsRes.status}`);
     }
     const gifts = await giftsRes.json();
-    return res.status(200).json({ gifts });
+    return json({ gifts });
   } catch (e) {
     console.error('[API gift GET error]:', e);
-    return res.status(500).json({ message: 'Internal Server Error' });
+    return json({ message: 'Internal Server Error' }, 500);
   }
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextRequest): Promise<Response> {
   if (req.method === 'GET') {
-    return handleGet(req, res);
+    return handleGet(req);
   }
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method Not Allowed' });
+    return json({ message: 'Method Not Allowed' }, 405);
   }
 
   const DB_URL = process.env.DB_URL ?? 'https://db.suibari.com';
@@ -68,31 +72,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!CF_ID || !CF_SECRET) {
     console.error('[API gift] Cloudflare Access credentials not configured');
-    return res.status(500).json({ message: 'Server Configuration Error' });
+    return json({ message: 'Server Configuration Error' }, 500);
   }
   if (!apiKey) {
-    return res.status(500).json({ message: 'API Key not configured' });
+    return json({ message: 'API Key not configured' }, 500);
   }
 
-  const { did, content, lang, userName } = req.body;
+  const { did, content, lang, userName } = await req.json();
 
   if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
-    return res.status(400).json({ message: 'Invalid or missing DID' });
+    return json({ message: 'Invalid or missing DID' }, 400);
   }
   if (!content || typeof content !== 'string' || content.trim().length === 0) {
-    return res.status(400).json({ message: 'Invalid content' });
+    return json({ message: 'Invalid content' }, 400);
   }
   if (content.length > GIFT_MAX_CHARS) {
-    return res.status(400).json({ message: `Content exceeds ${GIFT_MAX_CHARS} characters` });
+    return json({ message: `Content exceeds ${GIFT_MAX_CHARS} characters` }, 400);
   }
 
-  // Auth
-  const authHeader = req.headers.authorization;
+  const authHeader = req.headers.get('authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : '';
   const verification = await verifyAtprotoToken(token, did);
   if (!verification.verified) {
     console.warn(`[API gift] Unauthorized attempt for DID: ${did}. Reason: ${verification.reason}`);
-    return res.status(401).json({ message: 'Unauthorized session' });
+    return json({ message: 'Unauthorized session' }, 401);
   }
 
   const dbHeaders: HeadersInit = {
@@ -104,7 +107,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   };
 
-  // 1日1回チェック（UTC基準で当日00:00:00以降）
   const todayUtc = new Date();
   todayUtc.setUTCHours(0, 0, 0, 0);
   const todayIso = todayUtc.toISOString();
@@ -120,17 +122,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const msg = lang === 'en'
           ? 'You can only send one gift per day! See you tomorrow!'
           : 'プレゼントは1日1回までだよ！また明日ね！';
-        return res.status(429).json({ message: msg });
+        return json({ message: msg }, 429);
       }
     }
   } catch (e) {
     console.error('[API gift] Daily check error:', e);
-    return res.status(500).json({ message: 'Internal Server Error' });
+    return json({ message: 'Internal Server Error' }, 500);
   }
 
   const gemini = new GoogleGenAI({ apiKey });
 
-  // コンテンツ審査
   try {
     const moderationRes = await withGeminiRetry(() => gemini.models.generateContent({
       model: GEMINI_MODEL,
@@ -148,16 +149,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const msg = lang === 'en'
           ? `Sorry, I can't accept that gift. ${reason}`
           : `そのプレゼントは受け取れないよ。${reason}`;
-        return res.status(400).json({ message: msg });
+        return json({ message: msg }, 400);
       }
     }
   } catch (e) {
     console.error('[API gift] Moderation error:', e);
-    // 審査失敗時は安全のため拒否
-    return res.status(500).json({ message: 'Content moderation failed' });
+    return json({ message: 'Content moderation failed' }, 500);
   }
 
-  // DBに保存
   try {
     const insertRes = await fetch(`${DB_URL}/gifts`, {
       method: 'POST',
@@ -173,10 +172,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   } catch (e) {
     console.error('[API gift] DB insert error:', e);
-    return res.status(500).json({ message: 'Internal Server Error' });
+    return json({ message: 'Internal Server Error' }, 500);
   }
 
-  // プレゼントインタラクション: +100 (fire-and-forget)
+  // fire-and-forget
   (async () => {
     try {
       const getRes = await fetch(
@@ -197,7 +196,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   })();
 
-  // botたんキャラの感謝メッセージ生成
   const callerName = typeof userName === 'string' && userName.trim() ? userName.trim() : null;
   const nameInstruction = callerName
     ? `相手の名前は「${callerName}」です。必ず名前を呼んで感謝してください。`
@@ -221,13 +219,12 @@ ${nameInstruction}
       config: { systemInstruction },
     }));
     const thankYou = thankYouRes.text?.trim() ?? '';
-    return res.status(200).json({ thankYou });
+    return json({ thankYou });
   } catch (e) {
     console.error('[API gift] Thank-you generation error:', e);
-    // 生成失敗時はフォールバックメッセージ
     const fallback = lang === 'en'
       ? '[en][halfHappy]Thank you so much for the gift! I\'m really happy!'
       : '[ja][halfHappy]プレゼントありがとう！すっごく嬉しいよ！[en][halfHappy]Thank you so much for the gift! I\'m really happy!';
-    return res.status(200).json({ thankYou: fallback });
+    return json({ thankYou: fallback });
   }
 }

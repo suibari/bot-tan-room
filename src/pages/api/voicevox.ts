@@ -1,17 +1,16 @@
-import type { NextApiRequest, NextApiResponse } from "next";
+import type { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 
-type VoicevoxErrorResponse = {
-  error: string;
-};
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 
 const VOICEVOX_API_KEY   = process.env.VOICEVOX_API_KEY ?? "";
 const VOICEVOX_DOMAIN    = process.env.VOICEVOX_DOMAIN ?? "";
 const CF_ID_VOICEVOX     = process.env.CF_ACCESS_CLIENT_ID_VOICEVOX;
 const CF_SECRET_VOICEVOX = process.env.CF_ACCESS_CLIENT_SECRET_VOICEVOX;
 
-async function tryPrimaryVoicevox(text: string, speaker: string): Promise<Buffer | null> {
+async function tryPrimaryVoicevox(text: string, speaker: string): Promise<ArrayBuffer | null> {
   if (!VOICEVOX_DOMAIN || !CF_ID_VOICEVOX || !CF_SECRET_VOICEVOX) {
     console.warn("[/api/voicevox] Primary not configured, skipping");
     return null;
@@ -23,7 +22,6 @@ async function tryPrimaryVoicevox(text: string, speaker: string): Promise<Buffer
     "cf-access-client-secret": CF_SECRET_VOICEVOX,
   };
 
-  // Step 1: audio_query
   let audioQuery: unknown;
   try {
     const queryParams = new URLSearchParams({ speaker, text });
@@ -41,7 +39,6 @@ async function tryPrimaryVoicevox(text: string, speaker: string): Promise<Buffer
     return null;
   }
 
-  // Step 2: synthesis
   try {
     const synthParams = new URLSearchParams({ speaker });
     const synthRes = await fetch(`${baseUrl}/synthesis?${synthParams.toString()}`, {
@@ -53,14 +50,14 @@ async function tryPrimaryVoicevox(text: string, speaker: string): Promise<Buffer
       console.error(`[/api/voicevox] Primary synthesis failed: ${synthRes.status}`);
       return null;
     }
-    return Buffer.from(await synthRes.arrayBuffer());
+    return synthRes.arrayBuffer();
   } catch (e) {
     console.error("[/api/voicevox] Primary synthesis error:", e);
     return null;
   }
 }
 
-async function tryFallbackVoicevox(text: string, speaker: string): Promise<{ buf: Buffer; status: number } | null> {
+async function tryFallbackVoicevox(text: string, speaker: string): Promise<{ buf: ArrayBuffer; status: number } | null> {
   const params = new URLSearchParams({
     speaker,
     text,
@@ -76,7 +73,7 @@ async function tryFallbackVoicevox(text: string, speaker: string): Promise<{ buf
   }
 
   if (upstream.status === 429) {
-    return { buf: Buffer.alloc(0), status: 429 };
+    return { buf: new ArrayBuffer(0), status: 429 };
   }
 
   if (!upstream.ok) {
@@ -104,52 +101,53 @@ async function tryFallbackVoicevox(text: string, speaker: string): Promise<{ buf
       console.error(`[/api/voicevox] Fallback MP3 fetch failed: ${mp3Res.status}`);
       return null;
     }
-    return { buf: Buffer.from(await mp3Res.arrayBuffer()), status: 200 };
+    return { buf: await mp3Res.arrayBuffer(), status: 200 };
   } catch (e) {
     console.error("[/api/voicevox] Fallback MP3 fetch error:", e);
     return null;
   }
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<VoicevoxErrorResponse | never>
-) {
+export default async function handler(req: NextRequest): Promise<Response> {
   if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" });
+    return json({ error: "Method not allowed" }, 405);
   }
 
-  const { speaker, text } = req.query;
+  const { searchParams } = new URL(req.url);
+  const speaker = searchParams.get('speaker');
+  const text = searchParams.get('text');
   if (!text || !speaker) {
-    return res.status(400).json({ error: "Missing required params: speaker, text" });
+    return json({ error: "Missing required params: speaker, text" }, 400);
   }
 
-  const speakerStr = String(speaker);
-  const textStr = String(text);
-
-  // Primary: self-hosted VoiceVox
-  const wavBuf = await tryPrimaryVoicevox(textStr, speakerStr);
+  const wavBuf = await tryPrimaryVoicevox(text, speaker);
   if (wavBuf !== null) {
     console.log(`[/api/voicevox] Primary succeeded (${wavBuf.byteLength} bytes)`);
-    res.setHeader("Content-Type", "audio/wav");
-    res.setHeader("Content-Length", wavBuf.byteLength);
-    res.status(200).send(wavBuf as never);
-    return;
+    return new Response(wavBuf, {
+      status: 200,
+      headers: {
+        "Content-Type": "audio/wav",
+        "Content-Length": String(wavBuf.byteLength),
+      },
+    });
   }
 
   console.warn("[/api/voicevox] Primary failed or skipped, trying fallback");
 
-  // Fallback: api.tts.quest
-  const fallback = await tryFallbackVoicevox(textStr, speakerStr);
+  const fallback = await tryFallbackVoicevox(text, speaker);
   if (!fallback) {
-    return res.status(502).json({ error: "All VoiceVox sources failed" });
+    return json({ error: "All VoiceVox sources failed" }, 502);
   }
   if (fallback.status === 429) {
-    return res.status(429).json({ error: "VoiceVox API rate limit exceeded" });
+    return json({ error: "VoiceVox API rate limit exceeded" }, 429);
   }
 
   console.log(`[/api/voicevox] Fallback succeeded (${fallback.buf.byteLength} bytes)`);
-  res.setHeader("Content-Type", "audio/mpeg");
-  res.setHeader("Content-Length", fallback.buf.byteLength);
-  res.status(200).send(fallback.buf as never);
+  return new Response(fallback.buf, {
+    status: 200,
+    headers: {
+      "Content-Type": "audio/mpeg",
+      "Content-Length": String(fallback.buf.byteLength),
+    },
+  });
 }

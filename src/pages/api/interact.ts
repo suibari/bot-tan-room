@@ -1,29 +1,32 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 import { verifyAtprotoToken } from '@/lib/jwtVerifier';
 
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+
 const VALID_AMOUNTS = new Set([10, 20]);
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextRequest): Promise<Response> {
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method Not Allowed' });
+    return json({ message: 'Method Not Allowed' }, 405);
   }
 
-  const { did, amount } = req.body;
+  const { did, amount } = await req.json();
 
   if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
-    return res.status(400).json({ message: 'Invalid or missing DID' });
+    return json({ message: 'Invalid or missing DID' }, 400);
   }
   if (typeof amount !== 'number' || !VALID_AMOUNTS.has(amount)) {
-    return res.status(400).json({ message: 'Invalid amount' });
+    return json({ message: 'Invalid amount' }, 400);
   }
 
-  const authHeader = req.headers.authorization;
+  const authHeader = req.headers.get('authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : '';
   const verification = await verifyAtprotoToken(token, did);
   if (!verification.verified) {
-    return res.status(401).json({ message: 'Unauthorized session', reason: verification.reason });
+    return json({ message: 'Unauthorized session', reason: verification.reason }, 401);
   }
 
   const DB_URL = process.env.DB_URL ?? 'https://db.suibari.com';
@@ -31,7 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const CF_SECRET = process.env.CF_ACCESS_CLIENT_SECRET_DB;
 
   if (!CF_ID || !CF_SECRET) {
-    return res.status(500).json({ message: 'Server Configuration Error' });
+    return json({ message: 'Server Configuration Error' }, 500);
   }
 
   const dbHeaders: HeadersInit = {
@@ -43,7 +46,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   };
 
-  // DB更新を先に完了させてからレスポンスを返す
   try {
     const getRes = await fetch(
       `${DB_URL}/followers?did=eq.${encodeURIComponent(did)}&select=room_interaction_count`,
@@ -62,5 +64,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.warn('[interact] room_interaction update failed:', e);
   }
 
-  return res.status(200).json({ success: true });
+  return json({ success: true });
 }

@@ -1,22 +1,21 @@
-import type { NextApiRequest, NextApiResponse } from "next";
+import type { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 import { getDailyLimitStatus } from "@/lib/rateLimit";
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+
+export default async function handler(req: NextRequest): Promise<Response> {
   if (req.method !== 'GET') {
-    res.status(405).json({ message: 'Method Not Allowed' });
-    return;
+    return json({ message: 'Method Not Allowed' }, 405);
   }
 
   try {
     const rateLimit = await getDailyLimitStatus();
-    return res.status(200).json(rateLimit);
+    return json(rateLimit);
   } catch (error) {
     console.error("[API quota] Error getting rate limit status:", error);
-    return res.status(500).json({ allowed: true, count: 0, limit: 500, error: String(error) });
+    return json({ allowed: true, count: 0, limit: 500, error: String(error) }, 500);
   }
 }

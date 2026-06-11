@@ -1,25 +1,29 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextRequest } from 'next/server';
 import { verifyAtprotoToken } from '@/lib/jwtVerifier';
 import { Redis } from '@upstash/redis/cloudflare';
 
 export const runtime = 'edge';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+
+export default async function handler(req: NextRequest): Promise<Response> {
   if (req.method !== 'GET') {
-    return res.status(405).json({ message: 'Method Not Allowed' });
+    return json({ message: 'Method Not Allowed' }, 405);
   }
 
-  const { did } = req.query;
-  if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
-    return res.status(400).json({ message: 'Invalid or missing DID' });
+  const { searchParams } = new URL(req.url);
+  const did = searchParams.get('did');
+  if (!did || !did.startsWith('did:')) {
+    return json({ message: 'Invalid or missing DID' }, 400);
   }
 
-  const authHeader = req.headers.authorization;
+  const authHeader = req.headers.get('authorization');
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
   const verification = await verifyAtprotoToken(token, did);
   if (!verification.verified) {
     console.warn(`[API get-invite GET] Blocked unauthorized attempt for DID: ${did}. Reason: ${verification.reason}`);
-    return res.status(401).json({ message: 'Unauthorized session', reason: verification.reason });
+    return json({ message: 'Unauthorized session', reason: verification.reason }, 401);
   }
 
   try {
@@ -32,7 +36,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const invite: { textJa?: string; textEn?: string; text?: string } | null = await redis.get(key);
 
     if (!invite) {
-      return res.status(200).json({ hasInvite: false });
+      return json({ hasInvite: false });
     }
 
     console.log(`[API get-invite] Found invite for DID: ${did}, deleting key from KV`);
@@ -41,13 +45,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const textJa = invite.textJa || invite.text || '';
     const textEn = invite.textEn || invite.text || '';
 
-    return res.status(200).json({
-      hasInvite: true,
-      textJa,
-      textEn,
-    });
+    return json({ hasInvite: true, textJa, textEn });
   } catch (e) {
     console.error('[API get-invite error]:', e);
-    return res.status(500).json({ message: 'Internal Server Error' });
+    return json({ message: 'Internal Server Error' }, 500);
   }
 }

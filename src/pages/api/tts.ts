@@ -1,29 +1,20 @@
 import { koeiromapFreeV1 } from "@/features/koeiromap/koeiromap";
-import type { NextApiRequest, NextApiResponse } from "next";
+import type { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 
-type Data = {
-  audio: string;
-};
+export default async function handler(req: NextRequest): Promise<Response> {
+  const body = await req.json();
+  const message = body.message;
+  const speakerX = body.speakerX;
+  const speakerY = body.speakerY;
+  const style = body.style;
+  const apiKey = body.apiKey;
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<Data>
-) {
-  const message = req.body.message;
-  const speakerX = req.body.speakerX;
-  const speakerY = req.body.speakerY;
-  const style = req.body.style;
-  const apiKey = req.body.apiKey;
+  const voice = await koeiromapFreeV1(message, speakerX, speakerY, style, apiKey);
 
-  const voice = await koeiromapFreeV1(
-    message,
-    speakerX,
-    speakerY,
-    style,
-    apiKey
-  );
-
-  res.status(200).json(voice);
+  return new Response(JSON.stringify(voice), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
 }

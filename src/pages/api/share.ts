@@ -1,5 +1,5 @@
 import { Redis } from '@upstash/redis/cloudflare';
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 
@@ -15,13 +15,16 @@ type Comparison = {
   value_en: string;
 };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+
+export default async function handler(req: NextRequest): Promise<Response> {
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method Not Allowed' });
+    return json({ message: 'Method Not Allowed' }, 405);
   }
 
   try {
-    const { name, analysis_ja, analysis_en, comparisons, lang } = req.body as {
+    const { name, analysis_ja, analysis_en, comparisons, lang } = await req.json() as {
       name?: string;
       analysis_ja?: string;
       analysis_en?: string;
@@ -30,10 +33,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     };
 
     if (!name || typeof name !== 'string') {
-      return res.status(400).json({ message: 'Invalid or missing name' });
+      return json({ message: 'Invalid or missing name' }, 400);
     }
     if ((!analysis_ja || typeof analysis_ja !== 'string') && (!analysis_en || typeof analysis_en !== 'string')) {
-      return res.status(400).json({ message: 'Invalid or missing analysis content' });
+      return json({ message: 'Invalid or missing analysis content' }, 400);
     }
 
     const safeName = name.slice(0, 30);
@@ -71,9 +74,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     console.log(`[API share] Saved share data to KV with key: ${key}`);
 
-    return res.status(200).json({ id });
+    return json({ id });
   } catch (error) {
     console.error('[API share] Error saving share data:', error);
-    return res.status(500).json({ message: 'Internal Server Error' });
+    return json({ message: 'Internal Server Error' }, 500);
   }
 }

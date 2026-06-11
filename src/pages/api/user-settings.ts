@@ -1,19 +1,23 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 import { verifyAtprotoToken } from '@/lib/jwtVerifier';
 
-async function handleGet(req: NextApiRequest, res: NextApiResponse) {
-  const { did } = req.query;
-  if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
-    return res.status(400).json({ message: 'Invalid or missing DID' });
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+
+async function handleGet(req: NextRequest): Promise<Response> {
+  const { searchParams } = new URL(req.url);
+  const did = searchParams.get('did');
+  if (!did || !did.startsWith('did:')) {
+    return json({ message: 'Invalid or missing DID' }, 400);
   }
 
-  const authHeader = req.headers.authorization;
+  const authHeader = req.headers.get('authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : '';
   const verification = await verifyAtprotoToken(token, did);
   if (!verification.verified) {
-    return res.status(401).json({ message: 'Unauthorized session' });
+    return json({ message: 'Unauthorized session' }, 401);
   }
 
   const DB_URL = process.env.DB_URL ?? 'https://db.suibari.com';
@@ -21,7 +25,7 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
   const CF_SECRET = process.env.CF_ACCESS_CLIENT_SECRET_DB;
 
   if (!CF_ID || !CF_SECRET) {
-    return res.status(500).json({ message: 'Server Configuration Error' });
+    return json({ message: 'Server Configuration Error' }, 500);
   }
 
   const dbHeaders: HeadersInit = {
@@ -48,51 +52,51 @@ async function handleGet(req: NextApiRequest, res: NextApiResponse) {
     const rows = await dbRes.json();
     const row = Array.isArray(rows) ? rows[0] : null;
     if (!row) {
-      return res.status(404).json({ message: 'User not found' });
+      return json({ message: 'User not found' }, 404);
     }
     const giftsArr = giftsRes.ok ? await giftsRes.json() : [];
     const giftCount = Array.isArray(giftsArr) ? giftsArr.length : 0;
-    return res.status(200).json({ ...row, gift_count: giftCount });
+    return json({ ...row, gift_count: giftCount });
   } catch (e) {
     console.error('[API user-settings GET error]:', e);
-    return res.status(500).json({ message: 'Internal Server Error' });
+    return json({ message: 'Internal Server Error' }, 500);
   }
 }
 
-async function handlePatch(req: NextApiRequest, res: NextApiResponse) {
-  const { did, reply_freq, is_u18, is_ai_only, is_diary, user_anniv_name, user_anniv_date } = req.body;
+async function handlePatch(req: NextRequest): Promise<Response> {
+  const { did, reply_freq, is_u18, is_ai_only, is_diary, user_anniv_name, user_anniv_date } = await req.json();
 
   if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
-    return res.status(400).json({ message: 'Invalid or missing DID' });
+    return json({ message: 'Invalid or missing DID' }, 400);
   }
 
-  const authHeader = req.headers.authorization;
+  const authHeader = req.headers.get('authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : '';
   const verification = await verifyAtprotoToken(token, did);
   if (!verification.verified) {
-    return res.status(401).json({ message: 'Unauthorized session' });
+    return json({ message: 'Unauthorized session' }, 401);
   }
 
   if (typeof reply_freq !== 'number' || !Number.isInteger(reply_freq) || reply_freq < 0 || reply_freq > 100) {
-    return res.status(400).json({ message: 'reply_freq must be an integer between 0 and 100' });
+    return json({ message: 'reply_freq must be an integer between 0 and 100' }, 400);
   }
   if (is_u18 !== 0 && is_u18 !== 1) {
-    return res.status(400).json({ message: 'is_u18 must be 0 or 1' });
+    return json({ message: 'is_u18 must be 0 or 1' }, 400);
   }
   if (is_ai_only !== 0 && is_ai_only !== 1) {
-    return res.status(400).json({ message: 'is_ai_only must be 0 or 1' });
+    return json({ message: 'is_ai_only must be 0 or 1' }, 400);
   }
   if (is_diary !== 0 && is_diary !== 1) {
-    return res.status(400).json({ message: 'is_diary must be 0 or 1' });
+    return json({ message: 'is_diary must be 0 or 1' }, 400);
   }
   if (user_anniv_name !== null && user_anniv_name !== undefined) {
     if (typeof user_anniv_name !== 'string' || user_anniv_name.length > 30) {
-      return res.status(400).json({ message: 'user_anniv_name must be a string of max 30 chars' });
+      return json({ message: 'user_anniv_name must be a string of max 30 chars' }, 400);
     }
   }
   if (user_anniv_date !== null && user_anniv_date !== undefined) {
     if (typeof user_anniv_date !== 'string' || !/^--\d{2}-\d{2}$/.test(user_anniv_date)) {
-      return res.status(400).json({ message: 'user_anniv_date must be in --MM-DD format' });
+      return json({ message: 'user_anniv_date must be in --MM-DD format' }, 400);
     }
   }
 
@@ -101,7 +105,7 @@ async function handlePatch(req: NextApiRequest, res: NextApiResponse) {
   const CF_SECRET = process.env.CF_ACCESS_CLIENT_SECRET_DB;
 
   if (!CF_ID || !CF_SECRET) {
-    return res.status(500).json({ message: 'Server Configuration Error' });
+    return json({ message: 'Server Configuration Error' }, 500);
   }
 
   const dbHeaders: HeadersInit = {
@@ -125,15 +129,15 @@ async function handlePatch(req: NextApiRequest, res: NextApiResponse) {
     if (!dbRes.ok) {
       throw new Error(`DB patch failed with status ${dbRes.status}`);
     }
-    return res.status(200).json({ success: true });
+    return json({ success: true });
   } catch (e) {
     console.error('[API user-settings PATCH error]:', e);
-    return res.status(500).json({ message: 'Internal Server Error' });
+    return json({ message: 'Internal Server Error' }, 500);
   }
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method === 'GET') return handleGet(req, res);
-  if (req.method === 'PATCH') return handlePatch(req, res);
-  return res.status(405).json({ message: 'Method Not Allowed' });
+export default async function handler(req: NextRequest): Promise<Response> {
+  if (req.method === 'GET') return handleGet(req);
+  if (req.method === 'PATCH') return handlePatch(req);
+  return json({ message: 'Method Not Allowed' }, 405);
 }

@@ -1,16 +1,19 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextRequest } from 'next/server';
 import { verifyAtprotoToken } from '@/lib/jwtVerifier';
 
 export const runtime = 'edge';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+
+export default async function handler(req: NextRequest): Promise<Response> {
   const DB_URL = process.env.DB_URL ?? 'https://db.suibari.com';
   const CF_ID = process.env.CF_ACCESS_CLIENT_ID_DB;
   const CF_SECRET = process.env.CF_ACCESS_CLIENT_SECRET_DB;
 
   if (!CF_ID || !CF_SECRET) {
     console.error('Cloudflare Access Client ID/Secret not configured');
-    return res.status(500).json({ message: 'Server Configuration Error' });
+    return json({ message: 'Server Configuration Error' }, 500);
   }
 
   const headers: HeadersInit = {
@@ -23,17 +26,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   };
 
   if (req.method === 'GET') {
-    const { did } = req.query;
-    if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
-      return res.status(400).json({ message: 'Invalid or missing DID' });
+    const { searchParams } = new URL(req.url);
+    const did = searchParams.get('did');
+    if (!did || !did.startsWith('did:')) {
+      return json({ message: 'Invalid or missing DID' }, 400);
     }
 
-    const authHeader = req.headers.authorization;
+    const authHeader = req.headers.get('authorization');
     const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
     const verification = await verifyAtprotoToken(token, did);
     if (!verification.verified) {
       console.warn(`[API history GET] Blocked unauthorized attempt for DID: ${did}. Reason: ${verification.reason}`);
-      return res.status(401).json({ message: 'Unauthorized session', reason: verification.reason });
+      return json({ message: 'Unauthorized session', reason: verification.reason }, 401);
     }
 
     try {
@@ -48,40 +52,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       const records = await response.json();
       if (!Array.isArray(records) || records.length === 0) {
-        return res.status(200).json({ isFollower: false });
+        return json({ isFollower: false });
       }
 
       const follower = records[0];
       const conv_history = follower.conv_history ?? [];
       const regular_level = follower.regular_level ?? 0;
 
-      return res.status(200).json({
-        isFollower: true,
-        conv_history,
-        regular_level,
-      });
+      return json({ isFollower: true, conv_history, regular_level });
     } catch (e) {
       console.error('[API history GET error]:', e);
-      return res.status(500).json({ message: 'Internal Server Error' });
+      return json({ message: 'Internal Server Error' }, 500);
     }
-  } else if (req.method === 'POST') {
-    const { did, conv_history } = req.body;
+  }
+
+  if (req.method === 'POST') {
+    const { did, conv_history } = await req.json();
     if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
-      return res.status(400).json({ message: 'Invalid or missing DID' });
+      return json({ message: 'Invalid or missing DID' }, 400);
     }
     if (!Array.isArray(conv_history)) {
-      return res.status(400).json({ message: 'Invalid conv_history format' });
+      return json({ message: 'Invalid conv_history format' }, 400);
     }
 
-    const authHeader = req.headers.authorization;
+    const authHeader = req.headers.get('authorization');
     const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
     const verification = await verifyAtprotoToken(token, did);
     if (!verification.verified) {
       console.warn(`[API history POST] Blocked unauthorized attempt to overwrite history for DID: ${did}. Reason: ${verification.reason}`);
-      return res.status(401).json({ message: 'Unauthorized session', reason: verification.reason });
+      return json({ message: 'Unauthorized session', reason: verification.reason }, 401);
     }
 
-    // Safety validation of conv_history items
     for (const msg of conv_history) {
       if (
         !msg ||
@@ -89,12 +90,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         (msg.role !== 'user' && msg.role !== 'model') ||
         !Array.isArray(msg.parts)
       ) {
-        return res.status(400).json({ message: 'Invalid conv_history messages structure' });
+        return json({ message: 'Invalid conv_history messages structure' }, 400);
       }
     }
 
     try {
-      // Perform PATCH to update only conv_history for this DID
       const response = await fetch(
         `${DB_URL}/followers?did=eq.${encodeURIComponent(did)}`,
         {
@@ -109,13 +109,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         throw new Error(`DB update failed with status ${response.status}`);
       }
 
-      return res.status(200).json({ success: true });
+      return json({ success: true });
     } catch (e) {
       console.error('[API history POST/PATCH error]:', e);
-      return res.status(500).json({ message: 'Internal Server Error' });
+      return json({ message: 'Internal Server Error' }, 500);
     }
-  } else {
-    return res.status(405).json({ message: 'Method Not Allowed' });
   }
-}
 
+  return json({ message: 'Method Not Allowed' }, 405);
+}

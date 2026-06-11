@@ -1,14 +1,14 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 import { getUtilities } from '@/utils/utilityAI';
 
-/**
- * DBからbotたんのバイオリズム（気分や状態など）を取得するAPI
- */
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+
+export default async function handler(req: NextRequest): Promise<Response> {
   if (req.method !== 'GET') {
-    return res.status(405).json({ message: 'Method Not Allowed' });
+    return json({ message: 'Method Not Allowed' }, 405);
   }
 
   const DB_URL = process.env.DB_URL ?? 'https://db.suibari.com';
@@ -17,10 +17,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!CF_ID || !CF_SECRET) {
     console.error('[API mood error]: Cloudflare Access Client ID_DB/Secret_DB not configured in environment variables.');
-    return res.status(500).json({ message: 'Server Configuration Error' });
+    return json({ message: 'Server Configuration Error' }, 500);
   }
 
-  // Cloudflare Access および Postgrest 用のヘッダー設定
   const headers: HeadersInit = {
     'Accept-Profile': 'affirmative_bot',
     'cf-access-client-id': CF_ID,
@@ -29,7 +28,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   };
 
   try {
-    // bot_state テーブルから biorhythm データを取得
     const response = await fetch(
       `${DB_URL}/bot_state?key=eq.biorhythm`,
       { headers, keepalive: true }
@@ -45,10 +43,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const data = await response.json();
     if (!data || data.length === 0) {
-      return res.status(404).json({ message: 'Biorhythm not found' });
+      return json({ message: 'Biorhythm not found' }, 404);
     }
 
-    // valueカラムが文字列として格納されている場合を考慮してパースする
     let valueObj = data[0].value;
     if (typeof valueObj === 'string') {
       try {
@@ -58,27 +55,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    // bot_state の energy は 0〜10000 スケールで保存されているため、getUtilities が期待する 0〜100 に変換する
     const energy: number = (valueObj?.energy ?? 10000) / 100;
 
-    // Utility計算（JST基準）
     const jstNow = new Date(Date.now() + 9 * 3600_000);
     const jstHour = jstNow.getUTCHours();
     const jstDay = jstNow.getUTCDay();
     const utilities = getUtilities({ hour: jstHour, isWeekend: jstDay === 0 || jstDay === 6, energy });
 
-    // mood（気分）、status（状態）、energy（エネルギー）などを返却
-    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate');
-    return res.status(200).json({
+    return new Response(JSON.stringify({
       mood:       valueObj?.mood    ?? 'わたしは、今日もおつかれさま！',
       mood_en:    valueObj?.mood_en ?? '',
       energy,
       status:     valueObj?.status  ?? 'FreeTime',
       utilities,
       updated_at: data[0].updated_at,
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 's-maxage=60, stale-while-revalidate',
+      },
     });
   } catch (e) {
     console.error('mood API error:', e);
-    return res.status(500).json({ message: 'Internal Server Error' });
+    return json({ message: 'Internal Server Error' }, 500);
   }
 }

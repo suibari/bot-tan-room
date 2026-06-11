@@ -1,24 +1,27 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import type { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 import { verifyAtprotoToken } from '@/lib/jwtVerifier';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+const json = (data: unknown, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+
+export default async function handler(req: NextRequest): Promise<Response> {
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method Not Allowed' });
+    return json({ message: 'Method Not Allowed' }, 405);
   }
 
-  const { did } = req.body;
+  const { did } = await req.json();
   if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
-    return res.status(400).json({ message: 'Invalid or missing DID' });
+    return json({ message: 'Invalid or missing DID' }, 400);
   }
 
-  const authHeader = req.headers.authorization;
+  const authHeader = req.headers.get('authorization');
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
   const verification = await verifyAtprotoToken(token, did);
   if (!verification.verified) {
     console.warn(`[API visit POST] Blocked unauthorized attempt for DID: ${did}. Reason: ${verification.reason}`);
-    return res.status(401).json({ message: 'Unauthorized session', reason: verification.reason });
+    return json({ message: 'Unauthorized session', reason: verification.reason }, 401);
   }
 
   const DB_URL = process.env.DB_URL ?? 'https://db.suibari.com';
@@ -27,7 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (!CF_ID || !CF_SECRET) {
     console.error('Cloudflare Access Client ID/Secret not configured');
-    return res.status(500).json({ message: 'Server Configuration Error' });
+    return json({ message: 'Server Configuration Error' }, 500);
   }
 
   const headers: HeadersInit = {
@@ -40,8 +43,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   };
 
   try {
-    // 前回バッジ付与から24h以上経過しているか確認（お誘い・自発来訪問わずバッジ付与条件）
-    // 同時に前回来訪日時も取得（グリーティングモード判定用）
     let badgeEligible = false;
     let previousVisitAt: string | null = null;
     try {
@@ -60,7 +61,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const nowMs = Date.now();
-    // タイムゾーン情報がない文字列は UTC として扱う（TIMESTAMP WITHOUT TZ 対策）
     const prevMs = previousVisitAt
       ? (() => {
           const normalized = /[Zz]$|[+-]\d{2}:?\d{2}$/.test(previousVisitAt)
@@ -96,9 +96,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log(`[API visit] Visit eligible for badge for ${did}, room_badge_pending set to 1.`);
     }
 
-    return res.status(200).json({ success: true, previousVisitAt, elapsedMs });
+    return json({ success: true, previousVisitAt, elapsedMs });
   } catch (e: any) {
     console.error('[API visit POST error]:', e);
-    return res.status(500).json({ message: 'Internal Server Error', error: e.message || String(e) });
+    return json({ message: 'Internal Server Error', error: e.message || String(e) }, 500);
   }
 }
