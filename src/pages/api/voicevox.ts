@@ -5,8 +5,9 @@ export const runtime = 'edge';
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 
-const VOICEVOX_API_KEY   = process.env.VOICEVOX_API_KEY ?? "";
-const VOICEVOX_DOMAIN    = process.env.VOICEVOX_DOMAIN ?? "";
+const VOICEVOX_API_KEY      = process.env.VOICEVOX_API_KEY ?? "";
+const VOICEVOX_DOMAIN       = process.env.VOICEVOX_DOMAIN ?? "";
+const PRIMARY_TIMEOUT_MS    = 3000;
 const CF_ID_VOICEVOX     = process.env.CF_ACCESS_CLIENT_ID_VOICEVOX;
 const CF_SECRET_VOICEVOX = process.env.CF_ACCESS_CLIENT_SECRET_VOICEVOX;
 
@@ -21,6 +22,7 @@ async function tryPrimaryVoicevox(text: string, speaker: string): Promise<ArrayB
     "cf-access-client-id": CF_ID_VOICEVOX,
     "cf-access-client-secret": CF_SECRET_VOICEVOX,
   };
+  const signal = AbortSignal.timeout(PRIMARY_TIMEOUT_MS);
 
   let audioQuery: unknown;
   try {
@@ -28,6 +30,7 @@ async function tryPrimaryVoicevox(text: string, speaker: string): Promise<ArrayB
     const queryRes = await fetch(`${baseUrl}/audio_query?${queryParams.toString()}`, {
       method: "POST",
       headers: { ...cfHeaders, "Content-Type": "application/json" },
+      signal,
     });
     if (!queryRes.ok) {
       console.error(`[/api/voicevox] Primary audio_query failed: ${queryRes.status}`);
@@ -35,7 +38,11 @@ async function tryPrimaryVoicevox(text: string, speaker: string): Promise<ArrayB
     }
     audioQuery = await queryRes.json();
   } catch (e) {
-    console.error("[/api/voicevox] Primary audio_query error:", e);
+    if (e instanceof Error && e.name === 'TimeoutError') {
+      console.warn(`[/api/voicevox] Primary timed out after ${PRIMARY_TIMEOUT_MS}ms, falling back`);
+    } else {
+      console.error("[/api/voicevox] Primary audio_query error:", e);
+    }
     return null;
   }
 
@@ -45,6 +52,7 @@ async function tryPrimaryVoicevox(text: string, speaker: string): Promise<ArrayB
       method: "POST",
       headers: { ...cfHeaders, "Content-Type": "application/json", "Accept": "audio/wav" },
       body: JSON.stringify(audioQuery),
+      signal,
     });
     if (!synthRes.ok) {
       console.error(`[/api/voicevox] Primary synthesis failed: ${synthRes.status}`);
@@ -52,7 +60,11 @@ async function tryPrimaryVoicevox(text: string, speaker: string): Promise<ArrayB
     }
     return synthRes.arrayBuffer();
   } catch (e) {
-    console.error("[/api/voicevox] Primary synthesis error:", e);
+    if (e instanceof Error && e.name === 'TimeoutError') {
+      console.warn(`[/api/voicevox] Primary timed out after ${PRIMARY_TIMEOUT_MS}ms, falling back`);
+    } else {
+      console.error("[/api/voicevox] Primary synthesis error:", e);
+    }
     return null;
   }
 }
