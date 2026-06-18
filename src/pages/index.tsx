@@ -1927,7 +1927,7 @@ export default function MainHome() {
               style={{ padding: "12px 28px" }}
               onClick={handleDoorOpen}
             >
-              ドアをノックしてみる
+              {lang === "ja" ? "ドアをノックしてみる" : "Try knocking on the door"}
             </button>
           )}
         </div>
