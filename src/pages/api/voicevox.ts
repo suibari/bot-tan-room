@@ -22,48 +22,54 @@ async function tryPrimaryVoicevox(text: string, speaker: string): Promise<ArrayB
     "cf-access-client-id": CF_ID_VOICEVOX,
     "cf-access-client-secret": CF_SECRET_VOICEVOX,
   };
-  const signal = AbortSignal.timeout(PRIMARY_TIMEOUT_MS);
 
   let audioQuery: unknown;
   try {
     const queryParams = new URLSearchParams({ speaker, text });
+    const queryStart = Date.now();
+    const querySignal = AbortSignal.timeout(PRIMARY_TIMEOUT_MS);
     const queryRes = await fetch(`${baseUrl}/audio_query?${queryParams.toString()}`, {
       method: "POST",
       headers: { ...cfHeaders, "Content-Type": "application/json" },
-      signal,
+      signal: querySignal,
     });
     if (!queryRes.ok) {
-      console.error(`[/api/voicevox] Primary audio_query failed: ${queryRes.status}`);
+      console.error(`[/api/voicevox] [audio_query] HTTPエラー: ${queryRes.status}`);
       return null;
     }
     audioQuery = await queryRes.json();
+    console.log(`[/api/voicevox] [audio_query] 成功 (${Date.now() - queryStart}ms)`);
   } catch (e) {
     if (e instanceof Error && e.name === 'TimeoutError') {
-      console.warn(`[/api/voicevox] Primary timed out after ${PRIMARY_TIMEOUT_MS}ms, falling back`);
+      console.warn(`[/api/voicevox] [audio_query] タイムアウト(${PRIMARY_TIMEOUT_MS}ms) — VOICEVOXは動いているが重い可能性（コールドスタート?）`);
     } else {
-      console.error("[/api/voicevox] Primary audio_query error:", e);
+      console.error(`[/api/voicevox] [audio_query] 到達不可 — DockerまたはTunnelが落ちている可能性:`, e);
     }
     return null;
   }
 
   try {
     const synthParams = new URLSearchParams({ speaker });
+    const synthStart = Date.now();
+    const synthSignal = AbortSignal.timeout(PRIMARY_TIMEOUT_MS);
     const synthRes = await fetch(`${baseUrl}/synthesis?${synthParams.toString()}`, {
       method: "POST",
       headers: { ...cfHeaders, "Content-Type": "application/json", "Accept": "audio/wav" },
       body: JSON.stringify(audioQuery),
-      signal,
+      signal: synthSignal,
     });
     if (!synthRes.ok) {
-      console.error(`[/api/voicevox] Primary synthesis failed: ${synthRes.status}`);
+      console.error(`[/api/voicevox] [synthesis] HTTPエラー: ${synthRes.status}`);
       return null;
     }
-    return synthRes.arrayBuffer();
+    const buf = await synthRes.arrayBuffer();
+    console.log(`[/api/voicevox] [synthesis] 成功 (${Date.now() - synthStart}ms)`);
+    return buf;
   } catch (e) {
     if (e instanceof Error && e.name === 'TimeoutError') {
-      console.warn(`[/api/voicevox] Primary timed out after ${PRIMARY_TIMEOUT_MS}ms, falling back`);
+      console.warn(`[/api/voicevox] [synthesis] タイムアウト(${PRIMARY_TIMEOUT_MS}ms) — VOICEVOXは動いているが重い可能性（コールドスタート?）`);
     } else {
-      console.error("[/api/voicevox] Primary synthesis error:", e);
+      console.error(`[/api/voicevox] [synthesis] 到達不可 — DockerまたはTunnelが落ちている可能性:`, e);
     }
     return null;
   }

@@ -32,6 +32,7 @@ import { HelpModal } from "@/components/HelpModal";
 import { MOTION_URLS, getRandomClickMotion } from "@/features/vrmViewer/motionConfig";
 import UtilityBubble, { CrayonFilterDef } from "@/components/UtilityBubble";
 import { GUEST_TEMPLATES, SIGNED_IN_TEMPLATES, pickTemplatePair } from "@/data/templateMessages";
+import { useVoicevoxKeepAlive } from "@/features/voicevox/useVoicevoxKeepAlive";
 
 function getInteractEmoji(utilities: Record<string, number>, energy: number): string {
   const entries = Object.entries(utilities);
@@ -202,6 +203,8 @@ export default function MainHome() {
   const [isMuted, setIsMuted] = useState(false);
   const [isFpsCapped, setIsFpsCapped] = useState(true);
   const [doorAnimating, setDoorAnimating] = useState(false);
+
+  useVoicevoxKeepAlive();
 
   useEffect(() => {
     setIsMuted(localStorage.getItem('chatVRM_muted') === 'true');
