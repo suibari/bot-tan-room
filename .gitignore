@@ -35,6 +35,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# VRMモデル本体 (実体はR2に置き、/api/vrm 経由で配信する)
+/models/
+
 # PWA build artifacts (regenerated on each build)
 /public/sw.js
 /public/sw.js.map
