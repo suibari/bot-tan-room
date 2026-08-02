@@ -5,7 +5,7 @@ const SCOPE = 'atproto';
 let _client: BrowserOAuthClient | null = null;
 
 function createClient(): BrowserOAuthClient {
-  const base = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://room-bot-tan.suibari.com';
+  const base = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://room.bot-tan.com';
   const hostname = window.location.hostname;
   const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
 

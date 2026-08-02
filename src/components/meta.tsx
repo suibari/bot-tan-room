@@ -4,7 +4,8 @@ import { useTranslation } from "next-i18next";
 
 export const Meta = () => {
   const { t } = useTranslation();
-  const imageUrl = "https://room-bot-tan.suibari.com/ogp.png";
+  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "https://room.bot-tan.com";
+  const imageUrl = `${base}/ogp.png`;
   return (
     <Head>
       <title>{t("meta.title")}</title>

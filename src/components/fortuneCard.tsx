@@ -27,7 +27,7 @@ const LABELS = {
 
 export function FortuneCard({ name, fortune, lang, isSpeaking = false, flat = false }: Props) {
   const l = LABELS[lang];
-  const BASE = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://room-bot-tan.suibari.com';
+  const BASE = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://room.bot-tan.com';
 
   // KV保存は「シェアボタンを押したとき」だけ行う
   const [isSharingX, setIsSharingX] = useState(false);

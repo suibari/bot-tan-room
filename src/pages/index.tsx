@@ -241,7 +241,7 @@ export default function MainHome() {
 
   // OGP base URL
   const BASE_URL =
-    process.env.NEXT_PUBLIC_BASE_URL ?? "https://room-bot-tan.suibari.com";
+    process.env.NEXT_PUBLIC_BASE_URL ?? "https://room.bot-tan.com";
 
   const routerRef = useRef(router);
   useEffect(() => {
