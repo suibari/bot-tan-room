@@ -1,6 +1,10 @@
 import { BrowserOAuthClient } from '@atproto/oauth-client-browser';
 
-const SCOPE = 'atproto';
+// getServiceAuth を呼ぶための rpc スコープを含める。
+// これが無いとサーバ側で DID を検証できず、API ルートは 401 になる。
+// aud と lxm を絞ってあるので、同意画面に出る権限はセッション発行用途に限定される。
+const SCOPE =
+  'atproto rpc:com.bot-tan.room.createSession?aud=did:web:room.bot-tan.com';
 
 let _client: BrowserOAuthClient | null = null;
 

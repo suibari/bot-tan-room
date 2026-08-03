@@ -1,24 +1,17 @@
 import type { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
-import { verifyAtprotoToken } from '@/lib/jwtVerifier';
+import { requireDid } from '@/lib/session';
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 
 async function handleGet(req: NextRequest): Promise<Response> {
-  const { searchParams } = new URL(req.url);
-  const did = searchParams.get('did');
-  if (!did || !did.startsWith('did:')) {
-    return json({ message: 'Invalid or missing DID' }, 400);
-  }
-
-  const authHeader = req.headers.get('authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : '';
-  const verification = await verifyAtprotoToken(token, did);
-  if (!verification.verified) {
-    return json({ message: 'Unauthorized session' }, 401);
-  }
+  // 身元は署名済みセッション cookie からのみ取る。
+  // リクエスト本文・クエリの did は読まない（読むとなりすまし経路が復活する）。
+  const auth = await requireDid(req);
+  if ('response' in auth) return auth.response;
+  const { did } = auth;
 
   const DB_URL = process.env.DB_URL ?? 'https://db.suibari.com';
   const CF_ID = process.env.CF_ACCESS_CLIENT_ID_DB;
@@ -64,18 +57,14 @@ async function handleGet(req: NextRequest): Promise<Response> {
 }
 
 async function handlePatch(req: NextRequest): Promise<Response> {
-  const { did, reply_freq, is_u18, is_ai_only, is_diary, user_anniv_name, user_anniv_date } = await req.json();
+  // 身元は署名済みセッション cookie からのみ取る。
+  // リクエスト本文・クエリの did は読まない（読むとなりすまし経路が復活する）。
+  const auth = await requireDid(req);
+  if ('response' in auth) return auth.response;
+  const { did } = auth;
 
-  if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
-    return json({ message: 'Invalid or missing DID' }, 400);
-  }
-
-  const authHeader = req.headers.get('authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : '';
-  const verification = await verifyAtprotoToken(token, did);
-  if (!verification.verified) {
-    return json({ message: 'Unauthorized session' }, 401);
-  }
+  const { reply_freq, is_u18, is_ai_only, is_diary, user_anniv_name, user_anniv_date } =
+    await req.json();
 
   if (typeof reply_freq !== 'number' || !Number.isInteger(reply_freq) || reply_freq < 0 || reply_freq > 100) {
     return json({ message: 'reply_freq must be an integer between 0 and 100' }, 400);

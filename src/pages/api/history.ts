@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { verifyAtprotoToken } from '@/lib/jwtVerifier';
+import { requireDid } from '@/lib/session';
 
 export const runtime = 'edge';
 
@@ -26,19 +26,11 @@ export default async function handler(req: NextRequest): Promise<Response> {
   };
 
   if (req.method === 'GET') {
-    const { searchParams } = new URL(req.url);
-    const did = searchParams.get('did');
-    if (!did || !did.startsWith('did:')) {
-      return json({ message: 'Invalid or missing DID' }, 400);
-    }
-
-    const authHeader = req.headers.get('authorization');
-    const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
-    const verification = await verifyAtprotoToken(token, did);
-    if (!verification.verified) {
-      console.warn(`[API history GET] Blocked unauthorized attempt for DID: ${did}. Reason: ${verification.reason}`);
-      return json({ message: 'Unauthorized session', reason: verification.reason }, 401);
-    }
+    // 身元は署名済みセッション cookie からのみ取る。
+    // リクエスト本文・クエリの did は読まない（読むとなりすまし経路が復活する）。
+    const auth = await requireDid(req);
+    if ('response' in auth) return auth.response;
+    const { did } = auth;
 
     try {
       const response = await fetch(
@@ -67,20 +59,15 @@ export default async function handler(req: NextRequest): Promise<Response> {
   }
 
   if (req.method === 'POST') {
-    const { did, conv_history } = await req.json();
-    if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
-      return json({ message: 'Invalid or missing DID' }, 400);
-    }
+    // 身元は署名済みセッション cookie からのみ取る。
+    // リクエスト本文・クエリの did は読まない（読むとなりすまし経路が復活する）。
+    const auth = await requireDid(req);
+    if ('response' in auth) return auth.response;
+    const { did } = auth;
+
+    const { conv_history } = await req.json();
     if (!Array.isArray(conv_history)) {
       return json({ message: 'Invalid conv_history format' }, 400);
-    }
-
-    const authHeader = req.headers.get('authorization');
-    const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.substring(7) : '';
-    const verification = await verifyAtprotoToken(token, did);
-    if (!verification.verified) {
-      console.warn(`[API history POST] Blocked unauthorized attempt to overwrite history for DID: ${did}. Reason: ${verification.reason}`);
-      return json({ message: 'Unauthorized session', reason: verification.reason }, 401);
     }
 
     for (const msg of conv_history) {

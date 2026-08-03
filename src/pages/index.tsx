@@ -33,6 +33,14 @@ import { MOTION_URLS, getRandomClickMotion } from "@/features/vrmViewer/motionCo
 import UtilityBubble, { CrayonFilterDef } from "@/components/UtilityBubble";
 import { GUEST_TEMPLATES, SIGNED_IN_TEMPLATES, pickTemplatePair } from "@/data/templateMessages";
 import { useVoicevoxKeepAlive } from "@/features/voicevox/useVoicevoxKeepAlive";
+import { consumeDidHint, markAutoSignInAttempted, shouldAutoSignIn } from "@/features/auth/ssoHint";
+import {
+  establishRoomSession,
+  fetchRoomSession,
+  clearRoomSession,
+  shouldRetryReauth,
+  markReauthAttempted,
+} from "@/features/auth/roomSession";
 
 function getInteractEmoji(utilities: Record<string, number>, energy: number): string {
   const entries = Object.entries(utilities);
@@ -389,6 +397,10 @@ export default function MainHome() {
       if (p.koeiroParam) setKoeiroParam(p.koeiroParam);
     }
 
+    // Nagi など姉妹アプリからの ?did= ヒントは、サインイン済みかどうかに関わらず
+    // ここで URL から取り除いておく（残しておくと共有・リロードで再試行してしまう）。
+    const didHint = consumeDidHint();
+
     // OAuth クライアントを事前ロード + init() を呼ぶ
     import('@/features/auth/bskyOAuth')
       .then(({ getBskyOAuthClient }) => {
@@ -396,13 +408,43 @@ export default function MainHome() {
         bskyClientRef.current = client;
         return client.init();
       })
-      .then((result) => {
-        if (result?.session) {
-          bskySessionRef.current = result.session;
+      .then(async (result) => {
+        // 身元の出所は2つある:
+        //   a) このブラウザの OAuth セッション（お部屋に直接来た人）
+        //   b) Nagi から SSO チケットで張られたサーバ cookie（OAuth セッションを持たない）
+        // (a) の場合はサーバ cookie も確立しておく。API ルートは cookie しか見ないため。
+        const oauthSession = result?.session ?? null;
+        if (oauthSession) {
+          const established = await establishRoomSession(oauthSession);
+          if (!established) {
+            // rpc スコープを追加する前に認可した利用者はここで失敗する。
+            // このまま進めるとサインイン済みに見えて API が全て 401 になるので、
+            // 一度だけ認可し直してもらう。
+            if (shouldRetryReauth() && bskyClientRef.current) {
+              markReauthAttempted();
+              await bskyClientRef.current
+                .signInRedirect(oauthSession.did, { state: oauthSession.did })
+                .catch((err: unknown) => console.error('[roomSession] reauth failed:', err));
+              return;
+            }
+            // 再認可しても駄目なら、サインイン済みを装わずサインアウト状態に落とす。
+            console.error('[roomSession] could not establish a server session; signing out');
+            await clearRoomSession();
+            setPhase('door');
+            setIsAuthChecking(false);
+            return;
+          }
+        }
+        const did = oauthSession?.did ?? (await fetchRoomSession());
+
+        if (did) {
+          // SSO 経路には OAuth セッションが無いので、DID だけを持つ最小の代替を置く。
+          // 以降の参照は did しか使わない。
+          bskySessionRef.current = oauthSession ?? ({ did } as typeof bskySessionRef.current);
           const fallback =
-            'state' in result && typeof result.state === 'string' && result.state
+            result && 'state' in result && typeof result.state === 'string' && result.state
               ? result.state.replace(/^@/, '')
-              : result.session.did;
+              : did;
           setUserName(fallback);
           window.localStorage.setItem('chatVRM_userName', fallback);
           window.localStorage.setItem('bsky_handle', fallback);
@@ -410,13 +452,9 @@ export default function MainHome() {
           setPhase('chat');
           setIsAuthChecking(false);
 
-
           // データベース同期処理
-          const did = result.session.did;
           (async () => {
             try {
-              const tokenSet = await (result.session as any).getTokenSet();
-              const token = tokenSet?.access_token;
 
               // 1. 来訪記録の更新（await してグリーティング判定用 previousVisitAt を取得）
               // 2. お迎えメッセージの取得（独立して並列実行）
@@ -427,14 +465,11 @@ export default function MainHome() {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
                   },
-                  body: JSON.stringify({ did }),
+                  body: JSON.stringify({}),
                 }).then(r => r.json()).catch(err => { console.error('[visit API error]:', err); return null; }),
 
-                fetch(`/api/get-invite/?did=${encodeURIComponent(did)}`, {
-                  headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-                })
+                fetch('/api/get-invite/')
                   .then(async (inviteRes) => {
                     if (!inviteRes.ok) {
                       const errBody = await inviteRes.json().catch(() => ({}));
@@ -455,9 +490,7 @@ export default function MainHome() {
               // elapsedMs はサーバー側で UTC 基準に計算済み（クライアントのタイムゾーン影響なし）
               const elapsedMs: number | null = visitData?.elapsedMs ?? null;
 
-              const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`, {
-                headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-              });
+              const historyRes = await fetch('/api/history');
               if (!historyRes.ok) {
                 const errBody = await historyRes.json().catch(() => ({}));
                 console.error('[history API error status]:', historyRes.status, 'Reason:', errBody.reason || errBody.message || 'Unknown');
@@ -518,9 +551,8 @@ export default function MainHome() {
                     method: 'POST',
                     headers: {
                       'Content-Type': 'application/json',
-                      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
                     },
-                    body: JSON.stringify({ did, conv_history: updatedHistory }),
+                    body: JSON.stringify({ conv_history: updatedHistory }),
                   });
 
                   if (saveRes.ok) {
@@ -565,7 +597,7 @@ export default function MainHome() {
 
           // プロフィール名（displayName 優先）を非同期取得して上書き
           fetch(
-            `https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(result.session.did)}`
+            `https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(did)}`
           )
             .then((r: Response) => r.json())
             .then((p: { displayName?: string; handle?: string }) => {
@@ -579,6 +611,23 @@ export default function MainHome() {
           // セッションなし = OAuth トークン失効 → stale な localStorage を削除してサインアウト状態に戻す
           window.localStorage.removeItem("bsky_handle");
           window.localStorage.removeItem("chatVRM_userName");
+
+          // Nagi から ?did= 付きで来た場合はハンドル入力を飛ばして OAuth を開始する。
+          // did はヒントに過ぎず、認証は OAuth 自身が担保する。
+          const client = bskyClientRef.current;
+          if (didHint && client && shouldAutoSignIn(didHint)) {
+            markAutoSignInAttempted(didHint);
+            client
+              .signInRedirect(didHint, { state: didHint })
+              .catch((err: unknown) => {
+                console.error('[ssoHint] auto sign-in failed:', err);
+                setPhase("door");
+                setIsAuthChecking(false);
+              });
+            // リダイレクトが走るので door を出さずに抜ける
+            return;
+          }
+
           const doorOpened = window.localStorage.getItem("doorOpened");
           const justSignedOut = window.sessionStorage.getItem("justSignedOut");
           if (!doorOpened && !justSignedOut) {
@@ -636,16 +685,13 @@ export default function MainHome() {
       try {
         const did = bskySessionRef.current?.did;
         if (!did) return;
-        const tokenSet = await (bskySessionRef.current as any)?.getTokenSet?.();
-        const token = tokenSet?.access_token;
 
         const visitRes = await fetch('/api/visit/', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ did }),
+          body: JSON.stringify({}),
         });
 
         if (!visitRes.ok) return; // 429やエラーは静かに無視（バックグラウンドの機会的チェックのため）
@@ -717,12 +763,10 @@ export default function MainHome() {
     // お誘いボタン押下インタラクション: +10 (fire-and-forget)
     const inviteDid = bskySessionRef.current?.did;
     if (inviteDid) {
-      (bskySessionRef.current as any)?.getTokenSet?.().then((ts: any) => {
-        fetch('/api/interact', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ts?.access_token}` },
-          body: JSON.stringify({ did: inviteDid, amount: 10 }),
-        }).catch(() => {});
+      fetch('/api/interact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: 10 }),
       }).catch(() => {});
     }
     const { textJa } = pendingInvite;
@@ -899,11 +943,7 @@ export default function MainHome() {
           ];
 
           // データベース同期
-          const tokenSet = await (bskySessionRef.current as any)?.getTokenSet();
-          const token = tokenSet?.access_token;
-          const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`, {
-            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-          });
+          const historyRes = await fetch('/api/history');
           if (historyRes.ok) {
             const historyData = await historyRes.json();
             if (historyData.isFollower) {
@@ -914,9 +954,8 @@ export default function MainHome() {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  ...(token ? { 'Authorization': `Bearer ${token}` } : {})
                 },
-                body: JSON.stringify({ did, conv_history: updatedHistory }),
+                body: JSON.stringify({ conv_history: updatedHistory }),
               });
 
               if (saveRes.ok) {
@@ -945,10 +984,14 @@ export default function MainHome() {
 
   const handleSignOut = useCallback(async () => {
     try {
-      await bskySessionRef.current?.signOut();
+      // SSO 経路で入った場合はここが最小の代替オブジェクトなので signOut を持たない。
+      await bskySessionRef.current?.signOut?.();
     } catch (e) {
       console.error('[Bluesky signOut]', e);
     }
+    // サーバ側の cookie も必ず落とす。これを忘れると、OAuth セッションを消しても
+    // リロードで cookie からサインインし直してしまう。
+    await clearRoomSession();
     bskySessionRef.current = null;
     window.sessionStorage.setItem("justSignedOut", "1");
     window.localStorage.removeItem('bsky_handle');
@@ -1006,12 +1049,10 @@ export default function MainHome() {
     sendGAEvent('event', 'character_click');
     const clickDid = bskySessionRef.current?.did;
     if (clickDid) {
-      (bskySessionRef.current as any)?.getTokenSet().then((ts: any) => {
-        fetch('/api/interact', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ts?.access_token}` },
-          body: JSON.stringify({ did: clickDid, amount: 20 }),
-        }).catch(() => {});
+      fetch('/api/interact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: 20 }),
       }).catch(() => {});
     }
 
@@ -1108,12 +1149,10 @@ export default function MainHome() {
     // 入室あいさつインタラクション: +10 (fire-and-forget)
     const greetDid = bskySessionRef.current?.did;
     if (greetDid) {
-      (bskySessionRef.current as any)?.getTokenSet?.().then((ts: any) => {
-        fetch('/api/interact', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ts?.access_token}` },
-          body: JSON.stringify({ did: greetDid, amount: 10 }),
-        }).catch(() => {});
+      fetch('/api/interact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: 10 }),
       }).catch(() => {});
     }
     const mode = greetingMode;
@@ -1145,12 +1184,8 @@ export default function MainHome() {
     if (mode === 'tadaima' && Math.random() < 0.4) {
       try {
         const did = bskySessionRef.current?.did;
-        const tokenSet = await (bskySessionRef.current as any)?.getTokenSet?.();
-        const token = tokenSet?.access_token ?? '';
         if (did) {
-          const giftsRes = await fetch(`/api/gift?did=${encodeURIComponent(did)}`, {
-            headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-          });
+          const giftsRes = await fetch('/api/gift');
           const giftsData = giftsRes.ok ? await giftsRes.json() : null;
           const recentGifts: { content: string }[] = giftsData?.gifts ?? [];
 
@@ -1214,11 +1249,7 @@ export default function MainHome() {
     if (did) {
       (async () => {
         try {
-          const tokenSet = await (bskySessionRef.current as any)?.getTokenSet?.();
-          const token = tokenSet?.access_token;
-          const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`, {
-            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-          });
+          const historyRes = await fetch('/api/history');
           if (historyRes.ok) {
             const historyData = await historyRes.json();
             if (historyData.isFollower) {
@@ -1233,9 +1264,8 @@ export default function MainHome() {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  ...(token ? { 'Authorization': `Bearer ${token}` } : {})
                 },
-                body: JSON.stringify({ did, conv_history: updatedHistory }),
+                body: JSON.stringify({ conv_history: updatedHistory }),
               });
             }
           }
@@ -1324,17 +1354,13 @@ export default function MainHome() {
       if (did) {
         (async () => {
           try {
-            const tokenSet = await (bskySessionRef.current as any)?.getTokenSet();
-            const token = tokenSet?.access_token;
             // 会話インタラクション: +10 (fire-and-forget)
             fetch('/api/interact', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-              body: JSON.stringify({ did, amount: 10 }),
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ amount: 10 }),
             }).catch(() => {});
-            const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`, {
-              headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-            });
+            const historyRes = await fetch('/api/history');
             if (historyRes.ok) {
               const historyData = await historyRes.json();
               if (historyData.isFollower) {
@@ -1356,9 +1382,8 @@ export default function MainHome() {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
                   },
-                  body: JSON.stringify({ did, conv_history: updatedHistory }),
+                  body: JSON.stringify({ conv_history: updatedHistory }),
                 });
               }
             }
@@ -1412,16 +1437,13 @@ export default function MainHome() {
 
       try {
         const did = bskySessionRef.current?.did;
-        const tokenSet = await (bskySessionRef.current as any)?.getTokenSet?.();
-        const token = tokenSet?.access_token ?? '';
 
         const response = await fetch('/api/gift', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ did, content: text, lang, userName }),
+          body: JSON.stringify({ content: text, lang, userName }),
         });
 
         const data = await response.json();
@@ -1447,9 +1469,7 @@ export default function MainHome() {
           if (did) {
             (async () => {
               try {
-                const historyRes = await fetch(`/api/history?did=${encodeURIComponent(did)}`, {
-                  headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-                });
+                const historyRes = await fetch('/api/history');
                 if (historyRes.ok) {
                   const historyData = await historyRes.json();
                   if (historyData.isFollower) {
@@ -1464,9 +1484,8 @@ export default function MainHome() {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
-                        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
                       },
-                      body: JSON.stringify({ did, conv_history: updatedHistory }),
+                      body: JSON.stringify({ conv_history: updatedHistory }),
                     });
                   }
                 }
@@ -1513,11 +1532,7 @@ export default function MainHome() {
     setMyPageLoading(true);
     setIsMyPageOpen(true);
     try {
-      const tokenSet = await (bskySessionRef.current as any)?.getTokenSet?.();
-      const token = tokenSet?.access_token ?? '';
-      const res = await fetch(`/api/user-settings?did=${encodeURIComponent(did)}`, {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-      });
+      const res = await fetch('/api/user-settings');
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
       setMyPageData(data);
@@ -1541,15 +1556,12 @@ export default function MainHome() {
     if (!did) return;
     setMyPageSaving(true);
     try {
-      const tokenSet = await (bskySessionRef.current as any)?.getTokenSet?.();
-      const token = tokenSet?.access_token ?? '';
       const res = await fetch('/api/user-settings', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ did, reply_freq: myPageFreq, is_u18: myPageIsU18, is_ai_only: myPageIsAiOnly, is_diary: 1 - myPageIsDiary, user_anniv_name: myPageAnnivName.slice(0, 30) || null, user_anniv_date: (myPageAnnivMM && myPageAnnivDD) ? `--${myPageAnnivMM.padStart(2, '0')}-${myPageAnnivDD.padStart(2, '0')}` : null }),
+        body: JSON.stringify({ reply_freq: myPageFreq, is_u18: myPageIsU18, is_ai_only: myPageIsAiOnly, is_diary: 1 - myPageIsDiary, user_anniv_name: myPageAnnivName.slice(0, 30) || null, user_anniv_date: (myPageAnnivMM && myPageAnnivDD) ? `--${myPageAnnivMM.padStart(2, '0')}-${myPageAnnivDD.padStart(2, '0')}` : null }),
       });
       if (!res.ok) throw new Error('save failed');
       setIsMyPageOpen(false);

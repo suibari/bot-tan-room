@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { verifyAtprotoToken } from '@/lib/jwtVerifier';
+import { requireDid } from '@/lib/session';
 import { GoogleGenAI } from "@google/genai";
 
 export const runtime = 'edge';
@@ -13,18 +13,11 @@ const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 
 async function handleGet(req: NextRequest): Promise<Response> {
-  const { searchParams } = new URL(req.url);
-  const did = searchParams.get('did');
-  if (!did || !did.startsWith('did:')) {
-    return json({ message: 'Invalid or missing DID' }, 400);
-  }
-
-  const authHeader = req.headers.get('authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : '';
-  const verification = await verifyAtprotoToken(token, did);
-  if (!verification.verified) {
-    return json({ message: 'Unauthorized session' }, 401);
-  }
+  // 身元は署名済みセッション cookie からのみ取る。
+  // リクエスト本文・クエリの did は読まない（読むとなりすまし経路が復活する）。
+  const auth = await requireDid(req);
+  if ('response' in auth) return auth.response;
+  const { did } = auth;
 
   const DB_URL = process.env.DB_URL ?? 'https://db.suibari.com';
   const CF_ID = process.env.CF_ACCESS_CLIENT_ID_DB;
@@ -78,11 +71,14 @@ export default async function handler(req: NextRequest): Promise<Response> {
     return json({ message: 'API Key not configured' }, 500);
   }
 
-  const { did, content, lang, userName } = await req.json();
+  // 身元は署名済みセッション cookie からのみ取る。
+  // リクエスト本文・クエリの did は読まない（読むとなりすまし経路が復活する）。
+  const auth = await requireDid(req);
+  if ('response' in auth) return auth.response;
+  const { did } = auth;
 
-  if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
-    return json({ message: 'Invalid or missing DID' }, 400);
-  }
+  const { content, lang, userName } = await req.json();
+
   if (!content || typeof content !== 'string' || content.trim().length === 0) {
     return json({ message: 'Invalid content' }, 400);
   }
@@ -90,13 +86,6 @@ export default async function handler(req: NextRequest): Promise<Response> {
     return json({ message: `Content exceeds ${GIFT_MAX_CHARS} characters` }, 400);
   }
 
-  const authHeader = req.headers.get('authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : '';
-  const verification = await verifyAtprotoToken(token, did);
-  if (!verification.verified) {
-    console.warn(`[API gift] Unauthorized attempt for DID: ${did}. Reason: ${verification.reason}`);
-    return json({ message: 'Unauthorized session' }, 401);
-  }
 
   const dbHeaders: HeadersInit = {
     'Accept-Profile': 'affirmative_bot',

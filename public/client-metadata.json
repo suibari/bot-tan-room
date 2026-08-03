@@ -3,10 +3,17 @@
   "client_name": "bot-tanのお部屋",
   "client_uri": "https://room.bot-tan.com",
   "application_type": "web",
-  "grant_types": ["authorization_code", "refresh_token"],
-  "response_types": ["code"],
+  "grant_types": [
+    "authorization_code",
+    "refresh_token"
+  ],
+  "response_types": [
+    "code"
+  ],
   "token_endpoint_auth_method": "none",
   "dpop_bound_access_tokens": true,
-  "scope": "atproto transition:generic",
-  "redirect_uris": ["https://room.bot-tan.com/callback/"]
+  "scope": "atproto rpc:com.bot-tan.room.createSession?aud=did:web:room.bot-tan.com",
+  "redirect_uris": [
+    "https://room.bot-tan.com/callback/"
+  ]
 }

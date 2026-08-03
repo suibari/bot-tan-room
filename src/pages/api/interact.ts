@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
-import { verifyAtprotoToken } from '@/lib/jwtVerifier';
+import { requireDid } from '@/lib/session';
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
@@ -13,21 +13,18 @@ export default async function handler(req: NextRequest): Promise<Response> {
     return json({ message: 'Method Not Allowed' }, 405);
   }
 
-  const { did, amount } = await req.json();
+  // 身元は署名済みセッション cookie からのみ取る。
+  // リクエスト本文・クエリの did は読まない（読むとなりすまし経路が復活する）。
+  const auth = await requireDid(req);
+  if ('response' in auth) return auth.response;
+  const { did } = auth;
 
-  if (!did || typeof did !== 'string' || !did.startsWith('did:')) {
-    return json({ message: 'Invalid or missing DID' }, 400);
-  }
+  const { amount } = await req.json();
+
   if (typeof amount !== 'number' || !VALID_AMOUNTS.has(amount)) {
     return json({ message: 'Invalid amount' }, 400);
   }
 
-  const authHeader = req.headers.get('authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : '';
-  const verification = await verifyAtprotoToken(token, did);
-  if (!verification.verified) {
-    return json({ message: 'Unauthorized session', reason: verification.reason }, 401);
-  }
 
   const DB_URL = process.env.DB_URL ?? 'https://db.suibari.com';
   const CF_ID = process.env.CF_ACCESS_CLIENT_ID_DB;
