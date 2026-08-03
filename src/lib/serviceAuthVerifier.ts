@@ -100,8 +100,13 @@ async function sha256(data: Uint8Array): Promise<Uint8Array> {
 }
 
 export interface VerifyServiceAuthOptions {
-  /** 自分のサービス DID。JWT の aud がこれと一致しなければ拒否する。 */
-  audience: string;
+  /**
+   * 受け入れる aud の一覧。JWT の aud がいずれとも一致しなければ拒否する。
+   *
+   * PDS のバージョンによって aud にサービス種別フラグメントが載る場合と、
+   * 落とされて bare DID になる場合があるため複数受け付ける。
+   */
+  audiences: readonly string[];
   /** 期待する lxm。トークンの用途を固定するため、必ず指定する。 */
   lxm: string;
   /** 時計ずれの許容秒数。既定 30。 */
@@ -117,7 +122,7 @@ export interface VerifyServiceAuthOptions {
  */
 export async function verifyServiceAuth(
   token: string,
-  { audience, lxm, clockToleranceSec = 30 }: VerifyServiceAuthOptions,
+  { audiences, lxm, clockToleranceSec = 30 }: VerifyServiceAuthOptions,
 ): Promise<string> {
   const parts = token.split('.');
   if (parts.length !== 3) throw new ServiceAuthError('Token must have three segments');
@@ -155,7 +160,7 @@ export async function verifyServiceAuth(
   if (!ok) throw new ServiceAuthError('Signature verification failed');
 
   // --- ここから先は署名済み。それでもクレームは必ず確認する。 ---
-  if (payload.aud !== audience) {
+  if (typeof payload.aud !== 'string' || !audiences.includes(payload.aud)) {
     throw new ServiceAuthError(`Unexpected audience: ${String(payload.aud)}`);
   }
   // lxm でトークンの用途を固定する。これが無いと、他用途に取ったトークンを

@@ -3,9 +3,18 @@
 /**
  * お部屋のサービス DID。
  * https://room.bot-tan.com/.well-known/did.json （public/.well-known/did.json）で解決される。
- * service auth JWT の aud として使う。
  */
-export const ROOM_SERVICE_DID = 'did:web:room.bot-tan.com';
+export const ROOM_DID = 'did:web:room.bot-tan.com';
+
+/** did.json の service エントリ ID。 */
+export const ROOM_SERVICE_ID = 'bot_tan_room';
+
+/**
+ * service auth の aud として使う「DID service reference」。
+ * 仕様上 aud は DID 単体では不正で、サービス種別フラグメントまで必要。
+ * OAuth スコープ文字列に書くときは # を %23 にエンコードする（bskyOAuth.ts 参照）。
+ */
+export const ROOM_SERVICE_DID = `${ROOM_DID}#${ROOM_SERVICE_ID}`;
 
 /**
  * セッション発行専用の lxm。

@@ -416,11 +416,19 @@ export default function MainHome() {
         const oauthSession = result?.session ?? null;
         if (oauthSession) {
           const established = await establishRoomSession(oauthSession);
-          if (!established) {
+          if (!established.ok) {
             // rpc スコープを追加する前に認可した利用者はここで失敗する。
             // このまま進めるとサインイン済みに見えて API が全て 401 になるので、
             // 一度だけ認可し直してもらう。
-            if (shouldRetryReauth() && bskyClientRef.current) {
+            //
+            // 再認可を試すのは「スコープが足りない」と分かっているときだけ。
+            // スコープはあるのに失敗した場合は認可し直しても直らないので、
+            // ここでリダイレクトを繰り返さない。
+            if (
+              established.reason === 'missing_scope' &&
+              shouldRetryReauth() &&
+              bskyClientRef.current
+            ) {
               markReauthAttempted();
               await bskyClientRef.current
                 .signInRedirect(oauthSession.did, { state: oauthSession.did })

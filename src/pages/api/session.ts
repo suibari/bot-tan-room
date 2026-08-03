@@ -10,7 +10,7 @@
 import type { NextRequest } from 'next/server';
 import { verifyServiceAuth } from '@/lib/serviceAuthVerifier';
 import { createSessionCookie, clearSessionCookie, readSession } from '@/lib/session';
-import { ROOM_SERVICE_DID, ROOM_SESSION_LXM } from '@/lib/roomIdentity';
+import { ROOM_DID, ROOM_SERVICE_DID, ROOM_SESSION_LXM } from '@/lib/roomIdentity';
 
 export const runtime = 'edge';
 
@@ -46,7 +46,10 @@ export default async function handler(req: NextRequest): Promise<Response> {
   let did: string;
   try {
     did = await verifyServiceAuth(token, {
-      audience: ROOM_SERVICE_DID,
+      // PDS のバージョンによって aud にフラグメントが載る場合と、落とされて
+      // bare DID になる場合がある（Nagi AppView の serviceAuth.ts と同じ事情）。
+      // 移行期はどちらも受け入れる。
+      audiences: [ROOM_SERVICE_DID, ROOM_DID],
       lxm: ROOM_SESSION_LXM,
     });
   } catch (err) {

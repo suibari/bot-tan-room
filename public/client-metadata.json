@@ -12,7 +12,7 @@
   ],
   "token_endpoint_auth_method": "none",
   "dpop_bound_access_tokens": true,
-  "scope": "atproto rpc:com.bot-tan.room.createSession?aud=did:web:room.bot-tan.com",
+  "scope": "atproto rpc:com.bot-tan.room.createSession?aud=did:web:room.bot-tan.com%23bot_tan_room",
   "redirect_uris": [
     "https://room.bot-tan.com/callback/"
   ]

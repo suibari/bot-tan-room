@@ -3,8 +3,10 @@ import { BrowserOAuthClient } from '@atproto/oauth-client-browser';
 // getServiceAuth を呼ぶための rpc スコープを含める。
 // これが無いとサーバ側で DID を検証できず、API ルートは 401 になる。
 // aud と lxm を絞ってあるので、同意画面に出る権限はセッション発行用途に限定される。
+// aud は DID 単体では不正で、サービス種別フラグメントまで必要（仕様: DID service reference）。
+// スコープ文字列中では # をパーセントエンコードして %23 と書く。
 const SCOPE =
-  'atproto rpc:com.bot-tan.room.createSession?aud=did:web:room.bot-tan.com';
+  'atproto rpc:com.bot-tan.room.createSession?aud=did:web:room.bot-tan.com%23bot_tan_room';
 
 let _client: BrowserOAuthClient | null = null;
 

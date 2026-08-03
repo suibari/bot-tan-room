@@ -14,18 +14,43 @@ import { ROOM_SERVICE_DID, ROOM_SESSION_LXM } from '@/lib/roomIdentity';
 type OAuthSessionLike = {
   did: string;
   fetchHandler: (url: string, init?: RequestInit) => Promise<Response>;
+  getTokenInfo?: () => Promise<{ scope?: string } | undefined> | { scope?: string } | undefined;
 };
 
+export type EstablishResult =
+  | { ok: true; did: string }
+  /** rpc スコープが未付与。再認可すれば解決する見込みがある。 */
+  | { ok: false; reason: 'missing_scope' }
+  /** スコープはあるのに失敗した。再認可しても直らないのでループさせない。 */
+  | { ok: false; reason: 'failed' };
+
+/** 付与済みスコープにセッション発行用の rpc が含まれているか。 */
+async function hasSessionScope(session: OAuthSessionLike): Promise<boolean> {
+  try {
+    const info = await session.getTokenInfo?.();
+    const scope = info?.scope;
+    if (typeof scope !== 'string') return false;
+    // aud の書式（フラグメントの有無・エンコード）は環境差があるので lxm で判定する。
+    return scope.includes(`rpc:${ROOM_SESSION_LXM}`) || scope.includes('rpc:*');
+  } catch {
+    return false;
+  }
+}
+
 /**
- * cookie を確立する。成功したら DID、失敗したら null。
+ * cookie を確立する。
  *
- * 失敗しても呼び出し側は致命扱いにしないこと。認可を更新していない既存利用者は
- * getServiceAuth のスコープを持たないので、ここは正常に失敗しうる。
- * その場合は再認可を促す（cookie が無いと API 側で 401 になる）。
+ * 認可を更新していない既存利用者は getServiceAuth のスコープを持たないため、
+ * ここは正常に失敗しうる。その場合だけ再認可を促す（cookie が無いと API は 401）。
  */
 export async function establishRoomSession(
   session: OAuthSessionLike,
-): Promise<string | null> {
+): Promise<EstablishResult> {
+  // スコープが無いと分かっているなら、無駄な 403 を出さず再認可へ回す。
+  if (!(await hasSessionScope(session))) {
+    console.warn('[roomSession] granted scope lacks the session rpc permission');
+    return { ok: false, reason: 'missing_scope' };
+  }
   try {
     const query = new URLSearchParams({
       aud: ROOM_SERVICE_DID,
@@ -36,12 +61,13 @@ export async function establishRoomSession(
       { method: 'GET' },
     );
     if (!authRes.ok) {
-      // 403 はほぼ「rpc スコープが未付与」。再認可すれば解消する。
+      // スコープはあるはずなので 403 でも再認可では直らない扱いにする
+      // （ここでループさせない方が、原因の切り分けもしやすい）。
       console.warn('[roomSession] getServiceAuth failed:', authRes.status);
-      return null;
+      return { ok: false, reason: authRes.status === 403 ? 'missing_scope' : 'failed' };
     }
     const { token } = (await authRes.json()) as { token?: string };
-    if (!token) return null;
+    if (!token) return { ok: false, reason: 'failed' };
 
     const res = await fetch('/api/session', {
       method: 'POST',
@@ -49,13 +75,13 @@ export async function establishRoomSession(
     });
     if (!res.ok) {
       console.warn('[roomSession] /api/session rejected:', res.status);
-      return null;
+      return { ok: false, reason: 'failed' };
     }
     const body = (await res.json()) as { did?: string };
-    return body.did ?? null;
+    return body.did ? { ok: true, did: body.did } : { ok: false, reason: 'failed' };
   } catch (err) {
     console.error('[roomSession] failed to establish server session:', err);
-    return null;
+    return { ok: false, reason: 'failed' };
   }
 }
 
