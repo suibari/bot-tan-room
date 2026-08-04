@@ -7,9 +7,6 @@ import { recordRoomEvent } from '@/lib/roomEvents';
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 
-/** これ未満の間隔での再訪は「同じ来訪の続き」とみなし、room_events に積まない。 */
-const GREETING_MIN_INTERVAL_MS = 30 * 60 * 1000;
-
 export default async function handler(req: NextRequest): Promise<Response> {
   if (req.method !== 'POST') {
     return json({ message: 'Method Not Allowed' }, 405);
@@ -93,14 +90,14 @@ export default async function handler(req: NextRequest): Promise<Response> {
       console.log(`[API visit] Visit eligible for badge for ${did}, room_badge_pending set to 1.`);
     }
 
-    // 「遊びに来てくれた」を biorhythm に伝える。タブ復帰でも呼ばれるので、
-    // 前回来訪から30分未満なら同じ来訪の続きとみなして記録しない。
+    // 「遊びに来てくれた」を biorhythm に伝える。タブ復帰でも呼ばれるが、
+    // 間引きは recordRoomEvent が room_events を見て行う。
+    // ここで elapsedMs を基準にしてはいけない: last_room_visit_at は来訪のたびに
+    // 更新されるので、頻繁に来る人ほど永久に記録されなくなる。
     // await するのは必須（edge ランタイムに打ち切られないため。roomEvents.ts 参照）。
-    if (elapsedMs === null || elapsedMs >= GREETING_MIN_INTERVAL_MS) {
-      await recordRoomEvent(did, 'greeting');
-    }
+    const roomEvent = await recordRoomEvent(did, 'greeting');
 
-    return json({ success: true, previousVisitAt, elapsedMs });
+    return json({ success: true, previousVisitAt, elapsedMs, roomEvent });
   } catch (e: any) {
     console.error('[API visit POST error]:', e);
     return json({ message: 'Internal Server Error', error: e.message || String(e) }, 500);

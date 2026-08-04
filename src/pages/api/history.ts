@@ -8,12 +8,6 @@ const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 
 /**
- * 何要素ごとに chat イベントを1件残すか。
- * 1往復で user + model の2要素増えるので、6 = 3往復に1件。
- */
-const CHAT_RECORD_EVERY = 6;
-
-/**
  * conv_history の末尾にある user 発言のテキスト。
  * 何を話したかを biorhythm 側に渡すために使う（形式は Gemini の { role, parts } のまま）。
  */
@@ -121,14 +115,12 @@ export default async function handler(req: NextRequest): Promise<Response> {
       }
 
       // biorhythm 側で「さっき〇〇さんと話したこと」を行動に反映させる。
-      // ここは1往復ごとに呼ばれるので、素通しすると1セッションで数十件たまり
-      // biorhythm のプロンプトが会話ログで埋まる。3往復に1件だけ残す。
+      // ここは1往復ごとに呼ばれるが、間引きは recordRoomEvent が room_events を見て行う
+      // （conv_history の長さは累積するので、剰余での間引きは当てにならない）。
       // await するのは必須（edge ランタイムに打ち切られないため。roomEvents.ts 参照）。
-      if (conv_history.length > 0 && conv_history.length % CHAT_RECORD_EVERY === 0) {
-        await recordRoomEvent(did, 'chat', lastUserMessage(conv_history));
-      }
+      const roomEvent = await recordRoomEvent(did, 'chat', lastUserMessage(conv_history));
 
-      return json({ success: true });
+      return json({ success: true, roomEvent });
     } catch (e) {
       console.error('[API history POST/PATCH error]:', e);
       return json({ message: 'Internal Server Error' }, 500);
