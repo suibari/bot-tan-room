@@ -7,6 +7,9 @@ import { recordRoomEvent } from '@/lib/roomEvents';
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
 
+/** これ未満の間隔での再訪は「同じ来訪の続き」とみなし、room_events に積まない。 */
+const GREETING_MIN_INTERVAL_MS = 30 * 60 * 1000;
+
 export default async function handler(req: NextRequest): Promise<Response> {
   if (req.method !== 'POST') {
     return json({ message: 'Method Not Allowed' }, 405);
@@ -91,8 +94,11 @@ export default async function handler(req: NextRequest): Promise<Response> {
     }
 
     // 「遊びに来てくれた」を biorhythm に伝える。タブ復帰でも呼ばれるので、
-    // recordRoomEvent 側の間引き（30分）に任せる。
-    recordRoomEvent(did, 'greeting').catch(() => {});
+    // 前回来訪から30分未満なら同じ来訪の続きとみなして記録しない。
+    // await するのは必須（edge ランタイムに打ち切られないため。roomEvents.ts 参照）。
+    if (elapsedMs === null || elapsedMs >= GREETING_MIN_INTERVAL_MS) {
+      await recordRoomEvent(did, 'greeting');
+    }
 
     return json({ success: true, previousVisitAt, elapsedMs });
   } catch (e: any) {

@@ -166,7 +166,8 @@ export default async function handler(req: NextRequest): Promise<Response> {
   }
 
   // biorhythm の行動生成に「誰から何をもらったか」を渡す（内容はモデレーション通過済み）。
-  recordRoomEvent(did, 'gift', content).catch(() => {});
+  // プレゼントは1日1回制限があるので間引き不要。await は必須（roomEvents.ts 参照）。
+  await recordRoomEvent(did, 'gift', content);
 
   // fire-and-forget
   (async () => {
