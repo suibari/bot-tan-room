@@ -1,10 +1,28 @@
 import type { NextRequest } from 'next/server';
 import { requireDid } from '@/lib/session';
+import { recordRoomEvent } from '@/lib/roomEvents';
 
 export const runtime = 'edge';
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
+
+/**
+ * conv_history の末尾にある user 発言のテキスト。
+ * 何を話したかを biorhythm 側に渡すために使う（形式は Gemini の { role, parts } のまま）。
+ */
+function lastUserMessage(conv_history: any[]): string | null {
+  for (let i = conv_history.length - 1; i >= 0; i--) {
+    const msg = conv_history[i];
+    if (msg?.role !== 'user') continue;
+    const text = msg.parts
+      ?.map((part: any) => (typeof part?.text === 'string' ? part.text : ''))
+      .join('')
+      .trim();
+    return text || null;
+  }
+  return null;
+}
 
 export default async function handler(req: NextRequest): Promise<Response> {
   const DB_URL = process.env.DB_URL ?? 'https://db.suibari.com';
@@ -95,6 +113,11 @@ export default async function handler(req: NextRequest): Promise<Response> {
       if (!response.ok) {
         throw new Error(`DB update failed with status ${response.status}`);
       }
+
+      // biorhythm 側で「さっき〇〇さんと話したこと」を行動に反映させる。
+      // 1往復ごとにここへ来るが、recordRoomEvent が30分に1件へ間引く。
+      const lastUserText = lastUserMessage(conv_history);
+      recordRoomEvent(did, 'chat', lastUserText).catch(() => {});
 
       return json({ success: true });
     } catch (e) {

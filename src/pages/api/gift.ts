@@ -6,6 +6,7 @@ export const runtime = 'edge';
 import { GEMINI_MODEL } from "@/features/constants/aiModels";
 import { BOTTAN_CHARACTER_SETTINGS } from "@/features/constants/bottanCharacterSettings";
 import { withGeminiRetry } from '@/lib/geminiRetry';
+import { recordRoomEvent } from '@/lib/roomEvents';
 
 const GIFT_MAX_CHARS = 30;
 
@@ -163,6 +164,9 @@ export default async function handler(req: NextRequest): Promise<Response> {
     console.error('[API gift] DB insert error:', e);
     return json({ message: 'Internal Server Error' }, 500);
   }
+
+  // biorhythm の行動生成に「誰から何をもらったか」を渡す（内容はモデレーション通過済み）。
+  recordRoomEvent(did, 'gift', content).catch(() => {});
 
   // fire-and-forget
   (async () => {

@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 import { requireDid } from '@/lib/session';
+import { recordRoomEvent } from '@/lib/roomEvents';
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
@@ -88,6 +89,10 @@ export default async function handler(req: NextRequest): Promise<Response> {
     if (badgeEligible) {
       console.log(`[API visit] Visit eligible for badge for ${did}, room_badge_pending set to 1.`);
     }
+
+    // 「遊びに来てくれた」を biorhythm に伝える。タブ復帰でも呼ばれるので、
+    // recordRoomEvent 側の間引き（30分）に任せる。
+    recordRoomEvent(did, 'greeting').catch(() => {});
 
     return json({ success: true, previousVisitAt, elapsedMs });
   } catch (e: any) {
