@@ -1,0 +1,16 @@
+tunnel: e01001a7-d2d1-4d82-9282-6700a2f889fe
+credentials-file: /home/suibari/.cloudflared/e01001a7-d2d1-4d82-9282-6700a2f889fe.json
+
+ingress:
+  - hostname: tts.suibari.com
+    path: ^/(health|synthesize)$
+    service: http://127.0.0.1:10110
+  - hostname: tts.suibari.com
+    service: http_status:404
+  - hostname: feed.suibari.com
+    service: http://localhost:3000
+  - hostname: latestfromfollows.suibari.com
+    service: http://localhost:3300
+  - hostname: skyputter-api.suibari.com
+    service: http://localhost:5050
+  - service: http_status:404

@@ -91,7 +91,7 @@ export class LipSync {
 
   /**
    * URLからMP3を全取得してArrayBufferとして再生する。
-   * VoiceVox の mp3StreamingUrl は真のストリームではないため、
+   * TTS プロキシは合成済みの WAV を返すため、
    * 先に全取得してからデコードすることで再生途切れを防ぐ。
    */
   public async playFromStream(url: string, onEnded?: () => void, onPlayStart?: () => void) {

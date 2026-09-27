@@ -32,7 +32,7 @@ import { HelpModal } from "@/components/HelpModal";
 import { MOTION_URLS, getRandomClickMotion } from "@/features/vrmViewer/motionConfig";
 import UtilityBubble, { CrayonFilterDef } from "@/components/UtilityBubble";
 import { GUEST_TEMPLATES, SIGNED_IN_TEMPLATES, pickTemplatePair } from "@/data/templateMessages";
-import { useVoicevoxKeepAlive } from "@/features/voicevox/useVoicevoxKeepAlive";
+import { useTtsKeepAlive } from "@/features/tts/useTtsKeepAlive";
 import { consumeDidHint, markAutoSignInAttempted, shouldAutoSignIn } from "@/features/auth/ssoHint";
 import {
   establishRoomSession,
@@ -212,7 +212,7 @@ export default function MainHome() {
   const [isFpsCapped, setIsFpsCapped] = useState(true);
   const [doorAnimating, setDoorAnimating] = useState(false);
 
-  useVoicevoxKeepAlive();
+  useTtsKeepAlive();
 
   useEffect(() => {
     setIsMuted(localStorage.getItem('chatVRM_muted') === 'true');
@@ -742,7 +742,7 @@ export default function MainHome() {
       viewer.model?.stopSpeak();
       await viewer.model?.speak(buffer, talks[0]);
     } catch (e) {
-      if (!controller.signal.aborted) console.error('Question VoiceVox error:', e);
+      if (!controller.signal.aborted) console.error('Question Irodori error:', e);
     }
   }, [koeiroParam, koeiromapKey, viewer]);
 
@@ -757,11 +757,11 @@ export default function MainHome() {
       const talks = textsToScreenplay([text], koeiroParam);
       const p = speakCharacter(talks[0], viewer, koeiromapKey, onStart, onComplete, onReject);
       Promise.resolve(p).catch((e) => {
-        console.error('VoiceVox error:', e);
+        console.error('Irodori error:', e);
         onReject?.();
       });
     } catch (e) {
-      console.error('VoiceVox error:', e);
+      console.error('Irodori error:', e);
       onReject?.();
     }
   }, [koeiroParam, viewer, koeiromapKey]);
@@ -884,7 +884,7 @@ export default function MainHome() {
           viewer.model?.emoteController?.playEmotion("gentle");
         },
         () => {
-          console.warn("[handleDiagnose] VoiceVox request rejected or failed. Opening card immediately.");
+          console.warn("[handleDiagnose] Irodori request rejected or failed. Opening card immediately.");
           clearTimeout(timeoutId);
           setIsSpeaking(false);
           openResult();
@@ -1039,7 +1039,7 @@ export default function MainHome() {
   /**
    * キャラクター（botたん）がクリックされた時の処理
    * 事前に裏で取得（プリフェッチ）しておいた今の気分（mood）と音声バッファを使用し、
-   * 待ち時間ゼロ（遅延なし）で吹き出しの表示とVoiceVoxでの発話を開始します。
+   * 待ち時間ゼロ（遅延なし）で吹き出しの表示とIrodoriでの発話を開始します。
    */
   const handleCharacterClick = useCallback(async () => {
     // landing または chat フェーズ以外、および他の発話・通信処理中は動作させない（連打防止）
@@ -1092,7 +1092,7 @@ export default function MainHome() {
       emotionTag = "[neutral]";
     }
 
-    // 表示テキストは言語に合わせて切り替え。音声は VoiceVox（日本語TTS）のため常に moodText を使用
+    // 表示テキストは言語に合わせて切り替え。音声は Irodori（日本語TTS）のため常に moodText を使用
     const displayMoodText = lang === 'en' && moodEnText ? moodEnText : moodText;
     const fullMessage = `${emotionTag}${displayMoodText}`;
 
@@ -1140,7 +1140,7 @@ export default function MainHome() {
   // ユーザーを待たせない方針:
   //   1. 応答テキストを受信しながら逐次バブルに表示（生成中は送信ボタンがスピナー）
   //   2. 全文受信後、発話準備の中央スピナーを表示
-  //   3. VoiceVox の再生開始でスピナーを消して発話
+  //   3. Irodori の再生開始でスピナーを消して発話
   // ランディングから送信した初回メッセージを chat フェーズ移行後に自動送信
   useEffect(() => {
     if (phase === "chat" && pendingFirstMessageRef.current) {
@@ -1401,7 +1401,7 @@ export default function MainHome() {
         })();
       }
 
-      // 表示言語に関係なく、常に日本語ブロック（[ja]）を抽出してVoiceVoxで発話する
+      // 表示言語に関係なく、常に日本語ブロック（[ja]）を抽出してIrodoriで発話する
       const jaRawText = parseLanguageContent(fullText, "ja");
       const speakText = stripEmotionTags(jaRawText);
       const chatEmoji = prefetchedMood ? getInteractEmoji(prefetchedMood.utilities, prefetchedMood.energy) : '🌸';
@@ -1419,7 +1419,7 @@ export default function MainHome() {
           },
           () => { setIsSpeaking(false); setBubblePartyEnabled(!!bskySessionRef.current?.did); setBubbleState('celebrating'); },
           () => {
-            console.warn("[handleSendChat] VoiceVox request rejected or failed.");
+            console.warn("[handleSendChat] Irodori request rejected or failed.");
             setIsWaitingForVoice(false);
             setIsSpeaking(false);
             // 失敗した際もテキストを一括で表示する！
@@ -2090,7 +2090,7 @@ export default function MainHome() {
         </div>
       )}
 
-      {/* ===== スピナー（診断ローディング・チャット処理・VoiceVox待機） ===== */}
+      {/* ===== スピナー（診断ローディング・チャット処理・Irodori待機） ===== */}
       {((diagnosisModalState === "loading") || (phase === "chat" && (chatProcessing || isWaitingForVoice))) && (
         <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
           <div
@@ -2731,7 +2731,7 @@ return (
                 <p className="text-slate-600 text-xs pl-0">
                   {lang === "ja" ? (
                     <>
-                      本アプリの音声合成には{" "}
+                      本アプリの音声合成には Irodori-TTS を使用しています。参照音声は{" "}
                       <a
                         href="https://voicevox.hiroshiba.jp/"
                         target="_blank"
@@ -2751,11 +2751,11 @@ return (
                       >
                         春日部つむぎ
                       </a>
-                      {" "}を使用しています。
+                      {" "}です。
                     </>
                   ) : (
                     <>
-                      This app uses{" "}
+                      This app uses Irodori-TTS with reference audio from{" "}
                       <a
                         href="https://voicevox.hiroshiba.jp/"
                         target="_blank"
@@ -2775,7 +2775,7 @@ return (
                       >
                         Kasukabe Tsumugi
                       </a>
-                      {" "}for voice synthesis.
+                      .
                     </>
                   )}
                 </p>
