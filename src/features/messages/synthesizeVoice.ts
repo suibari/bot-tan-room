@@ -1,8 +1,8 @@
-import { irodoriTts } from "../tts/irodori";
+import { voicevoxTts } from "../voicevox/voicevox";
 import { TalkStyle } from "./messages";
 
-export const synthesizeVoice = irodoriTts;
+export const synthesizeVoice = voicevoxTts;
 
 export function synthesizeVoiceApi(message: string, speakerX: number, speakerY: number, style: TalkStyle, _apiKey: string) {
-  return irodoriTts(message, speakerX, speakerY, style);
+  return voicevoxTts(message, speakerX, speakerY, style);
 }

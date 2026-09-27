@@ -11,7 +11,7 @@ const handler = require('../src/pages/api/tts.ts').default;
 const health = require('../src/pages/api/tts-health.ts').default;
 const originalFetch = global.fetch;
 const keys = ['CF_ACCESS_CLIENT_ID_TTS', 'CF_ACCESS_CLIENT_SECRET_TTS',
-  'CF_ACCESS_CLIENT_ID_VOICEVOX', 'CF_ACCESS_CLIENT_SECRET_VOICEVOX', 'TTS_DOMAIN'];
+  'CF_ACCESS_CLIENT_ID_VOICEVOX', 'CF_ACCESS_CLIENT_SECRET_VOICEVOX', 'TTS_DOMAIN', 'VOICEVOX_DOMAIN', 'VOICEVOX_API_KEY'];
 const originalEnv = Object.fromEntries(keys.map(k => [k, process.env[k]]));
 afterEach(() => {
   global.fetch = originalFetch;
@@ -104,14 +104,81 @@ test('health checks Irodori even when model is unloaded', async () => {
   };
   assert.equal((await (await health()).json()).primary, true);
 });
-test('cached clients on the old endpoint synthesize with Irodori', async () => {
-  credentials();
-  const legacy = require('../src/pages/api/voicevox.ts').default;
+function voicevoxHandlers() {
+  process.env.VOICEVOX_DOMAIN = 'voicevox.example';
+  process.env.CF_ACCESS_CLIENT_ID_VOICEVOX = 'voicevox-id';
+  process.env.CF_ACCESS_CLIENT_SECRET_VOICEVOX = 'voicevox-secret';
+  delete process.env.VOICEVOX_API_KEY;
+  const paths = ['../src/pages/api/voicevox.ts', '../src/pages/api/voicevox-health.ts'];
+  return paths.map(path => {
+    delete require.cache[require.resolve(path)];
+    return require(path).default;
+  });
+}
+const voicevoxRequest = () => new Request('https://room.example/api/voicevox?text=hello&speaker=8');
+test('VOICEVOX endpoint uses audio_query and synthesis with its own credentials', async () => {
+  const [voicevox] = voicevoxHandlers();
+  const calls = [];
+  const audio = wav([1, 2]);
   global.fetch = async (url, options) => {
-    assert.equal(url, 'https://tts.suibari.com/synthesize');
-    assert.equal(JSON.parse(options.body).text, '互換性テスト');
-    return new Response(wav([1]), { headers: { 'Content-Type': 'audio/wav' } });
+    calls.push(url);
+    const parsed = new URL(url);
+    assert.equal(parsed.origin, 'https://voicevox.example');
+    assert.equal(parsed.searchParams.get('speaker'), '8');
+    assert.equal(options.headers['cf-access-client-id'], 'voicevox-id');
+    assert.equal(options.method, 'POST');
+    if (parsed.pathname === '/audio_query') {
+      assert.equal(parsed.searchParams.get('text'), 'hello');
+      return Response.json({ speedScale: 1 });
+    }
+    assert.equal(parsed.pathname, '/synthesis');
+    assert.deepEqual(JSON.parse(options.body), { speedScale: 1 });
+    return new Response(audio);
   };
-  const req = new Request('https://room.example/api/voicevox?text=' + encodeURIComponent('互換性テスト') + '&speaker=8');
-  assert.equal((await legacy(req)).status, 200);
+  const response = await voicevox(voicevoxRequest());
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'audio/wav');
+  assert.deepEqual(await response.arrayBuffer(), audio);
+  assert.equal(calls.length, 2);
+});
+test('VOICEVOX health uses version, not Irodori health', async () => {
+  const [, voicevoxHealth] = voicevoxHandlers();
+  global.fetch = async (url, options) => {
+    assert.equal(url, 'https://voicevox.example/version');
+    assert.equal(options.headers['cf-access-client-secret'], 'voicevox-secret');
+    return Response.json('0.25.0');
+  };
+  assert.equal((await (await voicevoxHealth()).json()).primary, true);
+});
+test('VOICEVOX failure falls back to VOICEVOX on tts.quest', async () => {
+  const [voicevox] = voicevoxHandlers();
+  const calls = [];
+  global.fetch = async url => {
+    calls.push(url);
+    if (url.startsWith('https://voicevox.example/')) return new Response('', { status: 503 });
+    if (url.startsWith('https://api.tts.quest/v3/voicevox/synthesis?')) {
+      return Response.json({ mp3StreamingUrl: 'https://audio.example/test.mp3' });
+    }
+    assert.equal(url, 'https://audio.example/test.mp3');
+    return new Response(new Uint8Array([1, 2]));
+  };
+  const response = await voicevox(voicevoxRequest());
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'audio/mpeg');
+  assert.equal(calls.length, 3);
+});
+test('app synthesis functions request VOICEVOX speaker 8', async () => {
+  const { synthesizeVoice, synthesizeVoiceApi } = require('../src/features/messages/synthesizeVoice.ts');
+  global.fetch = async url => {
+    const parsed = new URL(url, 'https://room.example');
+    assert.equal(parsed.pathname, '/api/voicevox');
+    assert.equal(parsed.searchParams.get('speaker'), '8');
+    assert.equal(parsed.searchParams.get('text'), 'hello');
+    return new Response(wav([1]));
+  };
+  for (const synthesize of [synthesizeVoice, synthesizeVoiceApi]) {
+    const result = await synthesize('hello', 0, 0, 'neutral', '');
+    assert.ok(result.audio.startsWith('blob:'));
+    URL.revokeObjectURL(result.audio);
+  }
 });

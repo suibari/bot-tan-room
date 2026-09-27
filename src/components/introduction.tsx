@@ -105,9 +105,9 @@ export const Introduction = ({
             {t("introduction.techIntroText_3")}
             <Link
               url={
-                "https://github.com/Aratako/Irodori-TTS"
+                "https://voicevox.hiroshiba.jp/"
               }
-              label={"Irodori-TTS API"}
+              label={"VoiceVox API"}
             />
             {t("introduction.techIntroText_4")}
           </div>

@@ -90,8 +90,8 @@ export class LipSync {
   }
 
   /**
-   * URLからMP3を全取得してArrayBufferとして再生する。
-   * TTS プロキシは合成済みの WAV を返すため、
+   * URLから音声を全取得してArrayBufferとして再生する。
+   * 音声プロキシは合成済みの WAV または MP3 を返すため、
    * 先に全取得してからデコードすることで再生途切れを防ぐ。
    */
   public async playFromStream(url: string, onEnded?: () => void, onPlayStart?: () => void) {

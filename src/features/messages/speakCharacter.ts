@@ -1,5 +1,5 @@
 import { wait } from "@/utils/wait";
-import { irodoriTts } from "../tts/irodori";
+import { voicevoxTts } from "../voicevox/voicevox";
 import { Viewer } from "../vrmViewer/viewer";
 import { Screenplay } from "./messages";
 import { Talk } from "./messages";
@@ -29,7 +29,7 @@ const createSpeakCharacter = () => {
       lastTime = Date.now();
       if (!url) return null;
 
-      // WAVのダウンロードもここで先行実施して ArrayBuffer として返す。
+      // 音声のダウンロードもここで先行実施して ArrayBuffer として返す。
       // これにより prevSpeakPromise 内で残るのは「デコード→再生」だけになり、
       // onStart (= 画面表示切り替え) と発話開始のタイムラグが最小化される。
       try {
@@ -37,7 +37,7 @@ const createSpeakCharacter = () => {
         const buffer = await res.arrayBuffer();
         return buffer;
       } catch (e) {
-        console.error("[speakCharacter] WAV download error:", e);
+        console.error("[speakCharacter] Audio download error:", e);
         return null;
       }
     });
@@ -80,7 +80,7 @@ export const fetchAudioUrl = async (
   talk: Talk,
   apiKey: string
 ): Promise<string> => {
-  const ttsVoice = await irodoriTts(
+  const ttsVoice = await voicevoxTts(
     talk.message,
     talk.speakerX,
     talk.speakerY,
