@@ -1,3 +1,26 @@
+# VOICEVOX の再利用
+
+現在、このアプリは `/api/voicevox`（speaker=8、春日部つむぎ）と
+`/api/voicevox-health` を使用する。前者は VOICEVOX の `/audio_query` →
+`/synthesis`、後者は `/version` を呼ぶ。主系が失敗した場合は従来どおり
+VOICEVOX の tts.quest API にフォールバックする。
+`/api/tts` と `/api/tts-health` は引き続き Irodori 専用として残す。
+このアプリから Irodori の合成・常駐確認は呼ばない。
+
+再公開時は以下を反映する（このリポジトリの変更だけでは本番設定は変わらない）。
+
+- VOICEVOX をポート 10101 で起動し、`/version` が応答することを確認する。
+- `ops/cloudflared-tts.yml` の VOICEVOX ingress を Tunnel に反映する。
+- 削除された `voicevox.suibari.com` の Tunnel 向け DNS レコードを復元する。
+- VOICEVOX ホストの Cloudflare Access とサービス・トークンの許可を確認する。
+- Pages の production/preview に `.env.example` の `VOICEVOX_DOMAIN` と
+  `CF_ACCESS_CLIENT_ID_VOICEVOX` / `CF_ACCESS_CLIENT_SECRET_VOICEVOX` を設定する。
+- デプロイ後に `/api/voicevox-health` の `primary=true` と音声再生を確認する。
+
+以下は Irodori 移行時点の履歴であり、現在のルーティングではない。
+
+---
+
 # お部屋の Irodori 移行（2026-09-27）
 
 ## 反映状況

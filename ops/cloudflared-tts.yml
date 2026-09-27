@@ -2,6 +2,11 @@ tunnel: e01001a7-d2d1-4d82-9282-6700a2f889fe
 credentials-file: /home/suibari/.cloudflared/e01001a7-d2d1-4d82-9282-6700a2f889fe.json
 
 ingress:
+  - hostname: voicevox.suibari.com
+    path: ^/(version|audio_query|synthesis)$
+    service: http://127.0.0.1:10101
+  - hostname: voicevox.suibari.com
+    service: http_status:404
   - hostname: tts.suibari.com
     path: ^/(health|synthesize)$
     service: http://127.0.0.1:10110
