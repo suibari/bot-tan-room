@@ -7,6 +7,7 @@ import { GEMINI_MODEL } from "@/features/constants/aiModels";
 import { BOTTAN_CHARACTER_SETTINGS } from "@/features/constants/bottanCharacterSettings";
 import { withGeminiRetry } from '@/lib/geminiRetry';
 import { recordRoomEvent } from '@/lib/roomEvents';
+import { giftModerationRequest, parseGiftModeration } from '@/lib/giftModeration';
 
 const GIFT_MAX_CHARS = 30;
 
@@ -123,28 +124,22 @@ export default async function handler(req: NextRequest): Promise<Response> {
   const gemini = new GoogleGenAI({ apiKey });
 
   try {
-    const moderationRes = await withGeminiRetry(() => gemini.models.generateContent({
-      model: GEMINI_MODEL,
-      contents: [{
-        role: 'user',
-        parts: [{ text: `以下のメッセージが政治的・宗教的な内容、または公序良俗に反する内容（暴力・差別・性的表現など）を含む場合のみ{"isAcceptable":false,"reason":"理由"}と返答してください。問題なければ{"isAcceptable":true}のみ返答してください。\n\nメッセージ：「${content}」` }]
-      }],
-    }));
-    const moderationText = moderationRes.text ?? '';
-    const jsonMatch = moderationText.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const modResult = JSON.parse(jsonMatch[0]);
-      if (modResult.isAcceptable === false) {
-        const reason = modResult.reason ?? '';
-        const msg = lang === 'en'
-          ? `Sorry, I can't accept that gift. ${reason}`
-          : `そのプレゼントは受け取れないよ。${reason}`;
-        return json({ message: msg }, 400);
-      }
+    const moderationRes = await withGeminiRetry(() =>
+      gemini.models.generateContent(giftModerationRequest(content))
+    );
+    if (!parseGiftModeration(moderationRes.text ?? '')) {
+      const msg = lang === 'en'
+        ? "Sorry, I can't accept that gift. Please choose another one."
+        : 'そのプレゼントは受け取れないよ。別のものを選んでね。';
+      return json({ message: msg }, 400);
     }
   } catch (e) {
-    console.error('[API gift] Moderation error:', e);
-    return json({ message: 'Content moderation failed' }, 500);
+    // モデル出力やSDKエラーに入力が含まれる可能性があるため、詳細は記録しない。
+    console.error('[API gift] Moderation failed');
+    const msg = lang === 'en'
+      ? "I couldn't check that gift right now. Please try again later."
+      : '今はプレゼントを確認できなかったよ。少し待って、もう一度試してね。';
+    return json({ message: msg }, 503);
   }
 
   try {
