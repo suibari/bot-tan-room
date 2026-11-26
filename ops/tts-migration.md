@@ -4,8 +4,7 @@
 `/api/voicevox-health` を使用する。前者は VOICEVOX の `/audio_query` →
 `/synthesis`、後者は `/version` を呼ぶ。主系が失敗した場合は従来どおり
 VOICEVOX の tts.quest API にフォールバックする。
-`/api/tts` と `/api/tts-health` は引き続き Irodori 専用として残す。
-このアプリから Irodori の合成・常駐確認は呼ばない。
+このアプリで利用していない Irodori 用の `/api/tts` と `/api/tts-health` は廃止した。
 
 再公開時は以下を反映する（このリポジトリの変更だけでは本番設定は変わらない）。
 
