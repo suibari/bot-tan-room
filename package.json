@@ -31,7 +31,7 @@
     "eslint": "8.36.0",
     "eslint-config-next": "13.2.4",
     "i18next": "^25.7.2",
-    "next": "^13.5.9",
+    "next": "15.5.29",
     "next-i18next": "^15.4.3",
     "node-fetch": "^3.3.1",
     "react": "18.2.0",
@@ -52,7 +52,7 @@
     "@types/three": "0.149.0",
     "autoprefixer": "^10.4.14",
     "postcss": "^8.4.21",
-    "sharp": "^0.34.5",
+    "sharp": "0.35.5",
     "tailwindcss": "^3.3.1",
     "wrangler": "^4.99.0"
   },

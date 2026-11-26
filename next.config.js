@@ -3,7 +3,7 @@ const withPWA = require('@ducanh2912/next-pwa').default;
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  i18n: { ...i18n, localeDetection: true },
+  i18n,
   reactStrictMode: true,
   assetPrefix: process.env.BASE_PATH || "",
   basePath: process.env.BASE_PATH || "",
@@ -11,7 +11,6 @@ const nextConfig = {
   publicRuntimeConfig: {
     root: process.env.BASE_PATH || "",
   },
-  optimizeFonts: false,
   transpilePackages: ['@charcoal-ui/icons'],
 };
 
